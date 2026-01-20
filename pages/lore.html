@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cybervamp CCG - Lore Codex</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    
+    <!-- Google Fonts: Playfair Display -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            background: #0a0005;
+            color: #f0e6ff;
+            font-family: 'Playfair Display', serif;
+        }
+        .navbar {
+            background: #000 !important;
+            border-bottom: 1px solid #8b0000;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 30px rgba(139, 0, 0, 0.3);
+        }
+        .navbar-brand {
+            color: #ff4500 !important;
+            font-weight: 700;
+            text-shadow: 0 0 8px #ff4500;
+        }
+        .nav-link {
+            color: #ff8c66 !important;
+            transition: all 0.3s;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #ffffff !important;
+            text-shadow: 0 0 10px #ff4500;
+        }
+        .lore-hero {
+            text-align: center;
+            padding: 140px 20px 100px;
+            background: linear-gradient(rgba(10, 0, 5, 0.85), rgba(10, 0, 5, 0.7)),
+                        url('../assets/img/Relic 003.png');
+            background-size: cover;
+            background-position: center;
+            min-height: 70vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+        .lore-hero::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at 30% 70%, rgba(75,0,130,0.2), transparent 60%);
+            pointer-events: none;
+        }
+        h1 {
+            font-size: 4.5rem;
+            color: #ff4500;
+            text-shadow: 0 0 20px #8b0000, 0 0 40px #4b0082;
+            margin-bottom: 0.5rem;
+        }
+        .lead {
+            font-size: 1.6rem;
+            color: #d4c3ff;
+            max-width: 900px;
+            margin: 0 auto 2rem;
+        }
+        .section-card {
+            background: rgba(10, 0, 5, 0.65);
+            border: 1px solid #4b0082;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2.5rem;
+            box-shadow: 0 0 25px rgba(139, 0, 0, 0.4);
+        }
+        h2 {
+            color: #ff4500;
+            text-shadow: 0 0 15px #8b0000;
+            margin-bottom: 1.5rem;
+        }
+        .faction-grid h4 {
+            color: #ff4500;
+            margin-bottom: 1rem;
+        }
+        footer {
+            background: #000;
+            border-top: 1px solid #8b0000;
+            padding: 30px 0;
+            margin-top: 80px;
+            text-align: center;
+            color: #8b8b8b;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="../index.html">Cybervamp</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="../index.html">Home</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="lore.html">Lore</a></li>
+                    <li class="nav-item"><a class="nav-link" href="factions.html">Factions</a></li>
+                    <li class="nav-item"><a class="nav-link" href="ccg-hub.html">Rules</a></li>
+                    <li class="nav-item"><a class="nav-link" href="gallery.html">Gallery</a></li>
+                    <li class="nav-item"><a class="nav-link" href="community.html">Community</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <div class="lore-hero">
+        <h1>The Crimson Nexus</h1>
+        <p class="lead">A world reborn from the Eclipse War, where ancient blood meets quantum technae.</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container my-5">
+
+        <!-- Core Setting -->
+        <div class="section-card">
+            <h2>The Crimson Nexus – Post-2147 Reality</h2>
+            <p>After the Eclipse War — a cataclysmic clash between ancient vampire lineages and human AI empires — the world lies in ruins yet strangely balanced. Vampirism has evolved beyond primal bites:</p>
+            <ul>
+                <li>Traditional turning now carries ~90% mortality.</li>
+                <li>Modern turning uses <strong>synth-bite nanotech</strong> and <strong>technae protocols</strong>, making it reliable and widespread.</li>
+            </ul>
+            <p>Vampires are immortal, superhuman beings sustained by <strong>vita-plasma</strong> (synthetic blood infused with data) and <strong>technae</strong> (vitae fused with quantum nanotechnology). These enhancements grant strength, speed, and abilities that appear magical but are rooted in technology, relics, and ritual.</p>
+        </div>
+
+        <!-- Symbiotic Relationship & Governance -->
+        <div class="section-card">
+            <h2>The Eternal Compact – Veiled Accord</h2>
+            <p>A technae-blockchain treaty binds vampires and humanity in mutual survival:</p>
+            <ul>
+                <li>Vampires protect humanity because they require human blood to thrive.</li>
+                <li>Humans live in fortified villages (land nodes) that produce <strong>Blood</strong> (colored mana) and <strong>Gold</strong> (colorless tribute/tech wealth).</li>
+                <li><strong>Blood Harvest</strong>: Automated, painless, via Vitae Courier Drones — portable kits collect, scan for impurities, and return to vampires.</li>
+                <li><strong>Resonance Harvest</strong>: Harmonious land tapping — no routine destruction.</li>
+                <li>In exchange, humans receive longevity, neural/cyber upgrades, infrastructure, security, and faction-specific perks.</li>
+            </ul>
+            <p>Governance flows through the <strong>Crimson Council</strong>:</p>
+            <ul>
+                <li>Local Village Councils (vampire + human elders)</li>
+                <li>Faction High Councils (Sire Lords + human Echo Envoys)</li>
+                <li>Grand Nexus Council for rare major crises</li>
+            </ul>
+            <p>Humans petition for aid via apps, neural kiosks, or rituals — approvals trigger drone drops.</p>
+        </div>
+
+        <!-- Factions -->
+        <div class="section-card">
+            <h2>The Four Eternal Factions</h2>
+            <div class="row g-4 faction-grid">
+
+                <div class="col-md-6">
+                    <h4 style="color:#f0f8ff;">White – Eternal Aristocracy</h4>
+                    <p>Ancient nobles in baroque crystal palaces (marble laced with glowing circuitry). Villages are high-society European enclaves; donations occur at galas. Drones are ornate and heraldic.</p>
+                    <p><strong>Leader</strong>: Count Vladislav Dracul (classic Dracula archetype).</p>
+                    <p><strong>Founding</strong>: Vladislav rallied noble houses post-war, orchestrating the Crystal Ascension (2152) to unite aristocrats and formalize human stewardship.</p>
+                </div>
+
+                <div class="col-md-6">
+                    <h4 style="color:#ff4500;">Red – Neon Revenants</h4>
+                    <p>Young, zoomer vampires in cyber-cities — gadget-obsessed, high-risk. Villages are neon megacities; high-tier compete with vampires, low-tier resentful. Drones are LED speeders with gamified kits.</p>
+                    <p><strong>Leader</strong>: Zane "Z" Voss (Elon Musk archetype).</p>
+                    <p><strong>Founding</strong>: Zane self-turned and viral-marketed synth-bite tech; the Neon Ignition (2155) hacker-revolution rallied zoomers.</p>
+                </div>
+
+                <div class="col-md-6">
+                    <h4 style="color:#d4c3ff;">Purple – Arcane Scholars</h4>
+                    <p>Mystic knowledge-seekers on floating isles and grounded universities. Villages are scholarly campuses; donations during meditation/study. Drones are rune-etched orbs with quantum sensors. Feeding via "WiFi of blood" — psychic/resonance siphons.</p>
+                    <p><strong>Leader</strong>: Archsage Alaric Voss (Dumbledore archetype).</p>
+                    <p><strong>Founding</strong>: Alaric predicted war outcomes, founded floating isles; the Aether Awakening (2153) synod unveiled mystic algorithms.</p>
+                </div>
+
+                <div class="col-md-6">
+                    <h4 style="color:#006400;">Black – Shadow Behemoths</h4>
+                    <p>Primal ritualists in catacombs, swampy bayous, backwoods. Villages are tribal feral communities; donations in ritual circles. Drones are bio-mechanical bat/wolf hybrids. Fangs are feral/jagged.</p>
+                    <p><strong>Leader</strong>: Dr. Elias Crowe, the Fleshweaver (Frankenstein archetype).</p>
+                    <p><strong>Founding</strong>: Elias fused with his necro-experiments in bunkers; formed the Necro-Pact (2150) binding feral vampires and tribes.</p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Metaphysical Element -->
+        <div class="section-card">
+            <h2>The Unseen Wills</h2>
+            <p>Players are the <strong>unseen Wills</strong> — completely unknowable, invisible guiding forces behind every vampire action, spell, and duel.</p>
+            <ul>
+                <li>Vampires feel sudden technae surges, compulsions, or synchronicity and attribute them to "the Will of the Nexus" or "the unseen hand."</li>
+                <li>No one — not even the faction leaders — knows the true nature of the Wills; it is simply accepted as part of existence.</li>
+                <li>Deckbuilding, attacks, wins, and losses all manifest as the Will expressing itself through the vampires.</li>
+            </ul>
+            <p class="lead fw-light mt-4">You are the hidden architect. Your Will shapes the eternal night.</p>
+        </div>
+
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2026 Cybervamp CCG — The Will of the Nexus endures.</p>
+        <p>Built by @Aeternis</p>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>
