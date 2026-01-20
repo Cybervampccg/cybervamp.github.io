@@ -130,6 +130,19 @@
         }
     </style>
 </head>
+    <script>
+    // If URL has #gallery-section, briefly highlight it
+    if (window.location.hash === '#gallery-section') {
+        const gallery = document.getElementById('gallery-section');
+        if (gallery) {
+            gallery.style.transition = 'background 1.5s';
+            gallery.style.background = 'rgba(139, 0, 0, 0.2)';
+            setTimeout(() => {
+                gallery.style.background = 'transparent';
+            }, 2000);
+        }
+    }
+</script>
 <body>
 
     <!-- Navbar -->
@@ -321,4 +334,5 @@
         });
     </script>
 </body>
+
 </html>
