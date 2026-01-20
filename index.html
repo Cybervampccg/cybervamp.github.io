@@ -128,6 +128,20 @@ html { scroll-behavior: smooth; }
     object-fit: contain;
     background: #000;
 }
+
+body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: 
+        linear-gradient(rgba(139,0,0,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(139,0,0,0.03) 1px, transparent 1px);
+    background-size: 4px 4px;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0.4;
+}
+
     </style>
 </head>
 <body>
@@ -158,6 +172,9 @@ html { scroll-behavior: smooth; }
         <p class="lead">Where baroque shadows entwine with neon veins.</p>
         <p class="lead fw-light">The Crimson Nexus rises after the Eclipse War — vampires and humanity bound by the Veiled Accord.</p>
         <p class="lead fw-light">As an unseen Will, command the factions. Manifest your deck.</p>
+<a href="pages/ccg-hub.html" class="btn btn-lg" style="background:#8b0000; color:#fff; border:none; box-shadow:0 0 20px #ff4500; padding:15px 40px; font-size:1.3rem;">
+    Enter the Nexus – View Rules
+</a>
     </div>
 
     <!-- Card Gallery -->
@@ -165,16 +182,19 @@ html { scroll-behavior: smooth; }
         <h2>Manifestations of the Nexus</h2>
         <div class="row justify-content-center">
 
-            <div class="col-md-4 col-lg-3 mb-5">
-                <img src="assets/img/White Creature 002.png" class="card-img img-fluid" alt="White Creature">
-            </div>
+<div class="col-md-4 col-lg-3 mb-5">
+    <div class="card-item">
+        <img src="assets/img/White Creature 002.png" class="card-img" alt="White Faction Creature - Eternal Aristocracy">
+        <div class="p-3 text-center small">White Creature 002</div>
+    </div>
+</div>
 
             <div class="col-md-4 col-lg-3 mb-5">
                 <img src="assets/img/Purple Spell 001.png" class="card-img img-fluid" alt="Purple Spell">
             </div>
 
             <div class="col-md-4 col-lg-3 mb-5">
-                <img src="assets/img/White Spell 002.png" class="card-img img-fluid" alt="White Spell">
+                <img src="assets/img/White Spell 002.png" class="card-img img-fluid" alt="white spell 002">
             </div>
 
             <div class="col-md-4 col-lg-3 mb-5">
@@ -189,11 +209,40 @@ html { scroll-behavior: smooth; }
                 <img src="assets/img/Land white 02.png" class="card-img img-fluid" alt="White Land 02">
             </div>
 
+            <div class="col-md-4 col-lg-3 mb-5">
+                <img src="assets/img/Land white 02.png" class="card-img img-fluid" alt="Red Spell 002">
+            </div>
+
+            <div class="col-md-4 col-lg-3 mb-5">
+                <img src="assets/img/Land white 02.png" class="card-img img-fluid" alt="Black Creature 017">
+            </div>
+
+            <div class="col-md-4 col-lg-3 mb-5">
+                <img src="assets/img/Land white 02.png" class="card-img img-fluid" alt="black creature 005">
+            </div>
+
+            <div class="col-md-4 col-lg-3 mb-5">
+                <img src="assets/img/Land white 02.png" class="card-img img-fluid" alt="Relic 006 Hemotech Patch">
+            </div>
+
+            <div class="col-md-4 col-lg-3 mb-5">
+                <img src="assets/img/Land white 02.png" class="card-img img-fluid" alt="Red Creature 010">
+            </div>
+
+
             <!-- Add more by copying the div above and updating src/alt -->
 
         </div>
     </div>
-
+<div class="container my-5">
+    <h2 class="text-center mb-5" style="color:#ff4500;">The Four Eternal Factions</h2>
+    <div class="row text-center">
+        <div class="col-md-3"><h5 style="color:#ff4500;">Red Neon Revenants</h5><p>Reckless aggro zoomers</p></div>
+        <div class="col-md-3"><h5 style="color:#f0f8ff;">White Eternal Aristocracy</h5><p>Legacy control & relics</p></div>
+        <div class="col-md-3"><h5 style="color:#d4c3ff;">Purple Arcane Scholars</h5><p>Mystic subterfuge</p></div>
+        <div class="col-md-3"><h5 style="color:#006400;">Black Shadow Behemoths</h5><p>Necromantic grinder</p></div>
+    </div>
+</div>
     <!-- Footer -->
     <footer>
         <p>© 2026 Cybervamp CCG — The Will of the Nexus endures.</p>
