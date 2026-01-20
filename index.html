@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Lightbox2 CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/css/lightbox.min.css" integrity="sha512-ZKX2vQbLlU0O9qE8d6q+0k9+2+5W5q2p1L2v4+U5a6Z5k0uU7k2v0m8v2g3g9I2v1o5x5d2b3y8g3l3+2p9fA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+<!-- Lightbox2 JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/js/lightbox.min.js" integrity="sha512-IxzLNa4RDO8jF6Q3b3Qb1w6vC6h+5qS0X6Kx9v3r4r2rXv7t1d5k3k1pX9b4W5U8tJ+8d8p0l5q2z0v8b4Q6g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cybervamp CCG - The Crimson Nexus</title>
@@ -177,107 +183,123 @@ body::before {
 </a>
     </div>
 
-    <!-- Card Gallery -->
-    <div class="container card-gallery">
-        <h2>Manifestations of the Nexus</h2>
-        <div class="row justify-content-center">
+<!-- Card Gallery -->
+<div class="container card-gallery">
+    <h2>Manifestations of the Nexus</h2>
+    <div class="row justify-content-center g-4">
 
-<div class="row justify-content-center g-4">
-
-    <!-- White Creature 002 (already good) -->
-    <div class="col-md-4 col-lg-3 mb-5">
-        <div class="card-item">
-            <img src="assets/img/White Creature 002.png" class="card-img" alt="White Faction Creature - Eternal Aristocracy" loading="lazy">
-            <div class="p-3 text-center small">White Creature 002 – Eternal Aristocracy Wall</div>
+        <!-- White Creature 002 -->
+        <div class="col-md-4 col-lg-3 mb-5">
+            <div class="card-item">
+                <a href="assets/img/White Creature 002.png" data-lightbox="gallery" data-title="White Creature 002 – Eternal Aristocracy Wall">
+                    <img src="assets/img/White Creature 002.png" class="card-img" alt="White Faction Creature - Eternal Aristocracy" loading="lazy">
+                </a>
+                <div class="p-3 text-center small">White Creature 002 – Eternal Aristocracy Wall</div>
+            </div>
         </div>
-    </div>
 
-    <!-- Purple Spell 001 -->
-    <div class="col-md-4 col-lg-3 mb-5">
-        <div class="card-item">
-            <img src="assets/img/Purple Spell 001.png" class="card-img" alt="Purple Spell - Arcane Subterfuge" loading="lazy">
-            <div class="p-3 text-center small">Purple Spell 001 – Arcane Subterfuge</div>
+        <!-- Purple Spell 001 -->
+        <div class="col-md-4 col-lg-3 mb-5">
+            <div class="card-item">
+                <a href="assets/img/Purple Spell 001.png" data-lightbox="gallery" data-title="Purple Spell 001 – Arcane Subterfuge">
+                    <img src="assets/img/Purple Spell 001.png" class="card-img" alt="Purple Spell - Arcane Subterfuge" loading="lazy">
+                </a>
+                <div class="p-3 text-center small">Purple Spell 001 – Arcane Subterfuge</div>
+            </div>
         </div>
-    </div>
 
-    <!-- White Spell 002 -->
-    <div class="col-md-4 col-lg-3 mb-5">
-        <div class="card-item">
-            <img src="assets/img/white spell 002.png" class="card-img" alt="White Spell - Relic Activation" loading="lazy">
-            <div class="p-3 text-center small">White Spell 002 – Relic Activation</div>
+        <!-- White Spell 002 -->
+        <div class="col-md-4 col-lg-3 mb-5">
+            <div class="card-item">
+                <a href="assets/img/white spell 002.png" data-lightbox="gallery" data-title="White Spell 002 – Relic Activation">
+                    <img src="assets/img/white spell 002.png" class="card-img" alt="White Spell - Relic Activation" loading="lazy">
+                </a>
+                <div class="p-3 text-center small">White Spell 002 – Relic Activation</div>
+            </div>
         </div>
-    </div>
 
-    <!-- Land Red 01 -->
-    <div class="col-md-4 col-lg-3 mb-5">
-        <div class="card-item">
-            <img src="assets/img/Land Red 01.png" class="card-img" alt="Red Blood Land - Neon Sprawl" loading="lazy">
-            <div class="p-3 text-center small">Land Red 01 – Neon Sprawl Blood Source</div>
+        <!-- Land Red 01 -->
+        <div class="col-md-4 col-lg-3 mb-5">
+            <div class="card-item">
+                <a href="assets/img/Land Red 01.png" data-lightbox="gallery" data-title="Land Red 01 – Neon Sprawl Blood Source">
+                    <img src="assets/img/Land Red 01.png" class="card-img" alt="Red Blood Land - Neon Sprawl" loading="lazy">
+                </a>
+                <div class="p-3 text-center small">Land Red 01 – Neon Sprawl Blood Source</div>
+            </div>
         </div>
-    </div>
 
-    <!-- Land White 01 -->
-    <div class="col-md-4 col-lg-3 mb-5">
-        <div class="card-item">
-            <img src="assets/img/Land white 01.png" class="card-img" alt="White Blood Land - Crystal Enclave" loading="lazy">
-            <div class="p-3 text-center small">Land White 01 – Crystal Enclave Blood Source</div>
+        <!-- Land White 01 -->
+        <div class="col-md-4 col-lg-3 mb-5">
+            <div class="card-item">
+                <a href="assets/img/Land white 01.png" data-lightbox="gallery" data-title="Land White 01 – Crystal Enclave Blood Source">
+                    <img src="assets/img/Land white 01.png" class="card-img" alt="White Blood Land - Crystal Enclave" loading="lazy">
+                </a>
+                <div class="p-3 text-center small">Land White 01 – Crystal Enclave Blood Source</div>
+            </div>
         </div>
-    </div>
 
-    <!-- Land White 02 -->
-    <div class="col-md-4 col-lg-3 mb-5">
-        <div class="card-item">
-            <img src="assets/img/Land white 02.png" class="card-img" alt="White Blood Land - Marble Spire" loading="lazy">
-            <div class="p-3 text-center small">Land White 02 – Marble Spire Blood Source</div>
+        <!-- Land White 02 -->
+        <div class="col-md-4 col-lg-3 mb-5">
+            <div class="card-item">
+                <a href="assets/img/Land white 02.png" data-lightbox="gallery" data-title="Land White 02 – Marble Spire Blood Source">
+                    <img src="assets/img/Land white 02.png" class="card-img" alt="White Blood Land - Marble Spire" loading="lazy">
+                </a>
+                <div class="p-3 text-center small">Land White 02 – Marble Spire Blood Source</div>
+            </div>
         </div>
-    </div>
 
-    <!-- Red Spell 002 -->
-    <div class="col-md-4 col-lg-3 mb-5">
-        <div class="card-item">
-            <img src="assets/img/Red spell 002.png" class="card-img" alt="Red Spell - Overclock Surge" loading="lazy">
-            <div class="p-3 text-center small">Red Spell 002 – Overclock Surge</div>
+        <!-- Red Spell 002 -->
+        <div class="col-md-4 col-lg-3 mb-5">
+            <div class="card-item">
+                <a href="assets/img/Red spell 002.png" data-lightbox="gallery" data-title="Red Spell 002 – Overclock Surge">
+                    <img src="assets/img/Red spell 002.png" class="card-img" alt="Red Spell - Overclock Surge" loading="lazy">
+                </a>
+                <div class="p-3 text-center small">Red Spell 002 – Overclock Surge</div>
+            </div>
         </div>
-    </div>
 
-    <!-- Black Creature 017 -->
-    <div class="col-md-4 col-lg-3 mb-5">
-        <div class="card-item">
-            <img src="assets/img/Black Creature 017.png" class="card-img" alt="Black Creature - Fleshwoven Behemoth" loading="lazy">
-            <div class="p-3 text-center small">Black Creature 017 – Fleshwoven Behemoth</div>
+        <!-- Black Creature 017 -->
+        <div class="col-md-4 col-lg-3 mb-5">
+            <div class="card-item">
+                <a href="assets/img/Black Creature 017.png" data-lightbox="gallery" data-title="Black Creature 017 – Fleshwoven Behemoth">
+                    <img src="assets/img/Black Creature 017.png" class="card-img" alt="Black Creature - Fleshwoven Behemoth" loading="lazy">
+                </a>
+                <div class="p-3 text-center small">Black Creature 017 – Fleshwoven Behemoth</div>
+            </div>
         </div>
-    </div>
 
-    <!-- Black Creature 005 -->
-    <div class="col-md-4 col-lg-3 mb-5">
-        <div class="card-item">
-            <img src="assets/img/black creature 005.png" class="card-img" alt="Black Creature - Necro-Siphon Minion" loading="lazy">
-            <div class="p-3 text-center small">Black Creature 005 – Necro-Siphon Minion</div>
+        <!-- Black Creature 005 -->
+        <div class="col-md-4 col-lg-3 mb-5">
+            <div class="card-item">
+                <a href="assets/img/black creature 005.png" data-lightbox="gallery" data-title="Black Creature 005 – Necro-Siphon Minion">
+                    <img src="assets/img/black creature 005.png" class="card-img" alt="Black Creature - Necro-Siphon Minion" loading="lazy">
+                </a>
+                <div class="p-3 text-center small">Black Creature 005 – Necro-Siphon Minion</div>
+            </div>
         </div>
-    </div>
 
-    <!-- Relic 006 Hemotech Patch -->
-    <div class="col-md-4 col-lg-3 mb-5">
-        <div class="card-item">
-            <img src="assets/img/Relic 006 Hemotech Patch.png" class="card-img" alt="Relic - Hemotech Patch" loading="lazy">
-            <div class="p-3 text-center small">Relic 006 – Hemotech Patch (Vita-Plasma Stabilizer)</div>
+        <!-- Relic 006 Hemotech Patch -->
+        <div class="col-md-4 col-lg-3 mb-5">
+            <div class="card-item">
+                <a href="assets/img/Relic 006 Hemotech Patch.png" data-lightbox="gallery" data-title="Relic 006 – Hemotech Patch (Vita-Plasma Stabilizer)">
+                    <img src="assets/img/Relic 006 Hemotech Patch.png" class="card-img" alt="Relic - Hemotech Patch" loading="lazy">
+                </a>
+                <div class="p-3 text-center small">Relic 006 – Hemotech Patch (Vita-Plasma Stabilizer)</div>
+            </div>
         </div>
-    </div>
 
-    <!-- Red Creature 010 -->
-    <div class="col-md-4 col-lg-3 mb-5">
-        <div class="card-item">
-            <img src="assets/img/Red Creature 010.png" class="card-img" alt="Red Creature - Neon Revenant Speedster" loading="lazy">
-            <div class="p-3 text-center small">Red Creature 010 – Neon Revenant Speedster</div>
+        <!-- Red Creature 010 -->
+        <div class="col-md-4 col-lg-3 mb-5">
+            <div class="card-item">
+                <a href="assets/img/Red Creature 010.png" data-lightbox="gallery" data-title="Red Creature 010 – Neon Revenant Speedster">
+                    <img src="assets/img/Red Creature 010.png" class="card-img" alt="Red Creature - Neon Revenant Speedster" loading="lazy">
+                </a>
+                <div class="p-3 text-center small">Red Creature 010 – Neon Revenant Speedster</div>
+            </div>
         </div>
-    </div>
 
+    </div>
 </div>
-
-            <!-- Add more by copying the div above and updating src/alt -->
-
-        </div>
-    </div>
 <div class="container my-5">
     <h2 class="text-center mb-5" style="color:#ff4500;">The Four Eternal Factions</h2>
     <div class="row text-center">
