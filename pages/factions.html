@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cybervamp CCG - The Four Factions</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    
+    <!-- Google Fonts: Playfair Display -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            background: #0a0005;
+            color: #f0e6ff;
+            font-family: 'Playfair Display', serif;
+        }
+        .navbar {
+            background: #000 !important;
+            border-bottom: 1px solid #8b0000;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 30px rgba(139, 0, 0, 0.3);
+        }
+        .navbar-brand {
+            color: #ff4500 !important;
+            font-weight: 700;
+            text-shadow: 0 0 8px #ff4500;
+        }
+        .nav-link {
+            color: #ff8c66 !important;
+            transition: all 0.3s;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #ffffff !important;
+            text-shadow: 0 0 10px #ff4500;
+        }
+        .factions-hero {
+            text-align: center;
+            padding: 140px 20px 100px;
+            background: linear-gradient(rgba(10, 0, 5, 0.85), rgba(10, 0, 5, 0.7)),
+                        url('../assets/img/Relic 003.png');
+            background-size: cover;
+            background-position: center;
+            min-height: 70vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+        .factions-hero::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at 30% 70%, rgba(75,0,130,0.2), transparent 60%);
+            pointer-events: none;
+        }
+        h1 {
+            font-size: 4.5rem;
+            color: #ff4500;
+            text-shadow: 0 0 20px #8b0000, 0 0 40px #4b0082;
+            margin-bottom: 0.5rem;
+        }
+        .lead {
+            font-size: 1.6rem;
+            color: #d4c3ff;
+            max-width: 900px;
+            margin: 0 auto 2rem;
+        }
+        .faction-card {
+            background: rgba(10, 0, 5, 0.7);
+            border: 2px solid;
+            border-radius: 12px;
+            padding: 1.8rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 0 25px rgba(139, 0, 0, 0.5);
+            transition: all 0.3s;
+        }
+        .faction-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 40px rgba(139, 0, 0, 0.7);
+        }
+        .red { border-color: #ff4500; }
+        .white { border-color: #f0f8ff; }
+        .purple { border-color: #d4c3ff; }
+        .black { border-color: #006400; }
+        .faction-header {
+            font-size: 2.2rem;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 15px currentColor;
+        }
+        footer {
+            background: #000;
+            border-top: 1px solid #8b0000;
+            padding: 30px 0;
+            margin-top: 80px;
+            text-align: center;
+            color: #8b8b8b;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="../index.html">Cybervamp</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="../index.html">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="lore.html">Lore</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="factions.html">Factions</a></li>
+                    <li class="nav-item"><a class="nav-link" href="ccg-hub.html">Rules</a></li>
+                    <li class="nav-item"><a class="nav-link" href="gallery.html">Gallery</a></li>
+                    <li class="nav-item"><a class="nav-link" href="community.html">Community</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <div class="factions-hero">
+        <h1>The Four Eternal Factions</h1>
+        <p class="lead">Four bloodlines, four paths to power in the Crimson Nexus.</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container my-5">
+
+        <div class="faction-card red">
+            <h2 class="faction-header red">Red – Neon Revenants</h2>
+            <p>Young, willingly transformed vampires obsessed with speed, technology, and pushing limits. High-risk, high-reward playstyle in glowing megacities.</p>
+            <p><strong>Leader</strong>: Zane "Z" Voss – visionary self-turned hacker, Elon Musk archetype.</p>
+            <p><strong>Founding</strong>: Zane viral-marketed synth-bite tech; the Neon Ignition (2155) rallied zoomers in a hacker-revolution.</p>
+            <hr style="border-color:#ff4500;">
+            <h4>Signature Traits</h4>
+            <ul>
+                <li>Haste (highest density)</li>
+                <li>Bleed (high)</li>
+                <li>Self-Bleed (exclusive to Red)</li>
+                <li>Overclock (+power starting T4+)</li>
+            </ul>
+            <h4>Playstyle</h4>
+            <p>Reckless aggro: Fast, explosive boards; self-damage tax creates tension but synergies (purge own Bleed, redirect) turn it into advantage.</p>
+            <h4>Power Curve</h4>
+            <p>Slightly ahead of curve starting T3–4.</p>
+            <h4>Weakness</h4>
+            <p>Fragile to wipes; self-damage can backfire without clears.</p>
+        </div>
+
+        <div class="faction-card white">
+            <h2 class="faction-header white">White – Eternal Aristocracy</h2>
+            <p>Ancient vampires turned by old methods, hoarding vast wealth and relics in baroque crystal palaces.</p>
+            <p><strong>Leader</strong>: Count Vladislav Dracul – classic Dracula archetype, regal and calculating.</p>
+            <p><strong>Founding</strong>: Vladislav rallied noble houses post-war, orchestrated the Crystal Ascension (2152) to unite aristocrats and formalize human stewardship.</p>
+            <hr style="border-color:#f0f8ff;">
+            <h4>Signature Traits</h4>
+            <ul>
+                <li>Wall (high power, no combat damage)</li>
+                <li>Life Gain / Bleed removal (on block/relics)</li>
+                <li>Relic synergy & recursion</li>
+                <li>Overclock (late-game)</li>
+            </ul>
+            <h4>Playstyle</h4>
+            <p>Legacy control/ramp: Stall with walls + life gain, ramp via draw/scry + reusable relics, overwhelm late with massive bombs.</p>
+            <h4>Power Curve</h4>
+            <p>Underpowered attackers early, massive bombs T5+.</p>
+            <h4>Weakness</h4>
+            <p>Slow start; vulnerable to fast aggro if walls are removed.</p>
+        </div>
+
+        <div class="faction-card purple">
+            <h2 class="faction-header purple">Purple – Arcane Scholars</h2>
+            <p>Mystic knowledge-seekers on floating isles and ancient universities. Avoid direct conflict, manipulate through clairvoyance and psychic power.</p>
+            <p><strong>Leader</strong>: Archsage Alaric Voss – wise mentor, Dumbledore archetype.</p>
+            <p><strong>Founding</strong>: Alaric predicted war outcomes, founded floating isles; the Aether Awakening (2153) synod unveiled mystic algorithms.</p>
+            <hr style="border-color:#d4c3ff;">
+            <h4>Signature Traits</h4>
+            <ul>
+                <li>Subterfuge (tap opponent creatures)</li>
+                <li>Direct damage spells</li>
+                <li>Exhaust/overexhaust hate (destroy overexhausted targets)</li>
+            </ul>
+            <h4>Playstyle</h4>
+            <p>Heavy control/disruption: Tap, direct pings, exhaust punishment; heavy draw/scry; win via incremental damage or lockouts.</p>
+            <h4>Weakness</h4>
+            <p>Lower board presence; struggles vs wide aggro if disruption is out-tempoed.</p>
+        </div>
+
+        <div class="faction-card black">
+            <h2 class="faction-header black">Black – Shadow Behemoths</h2>
+            <p>Primal ritualists in catacombs and swampy bayous. Command beasts, siphon life, reanimate the fallen.</p>
+            <p><strong>Leader</strong>: Dr. Elias Crowe, the Fleshweaver – mad scientist, Frankenstein archetype.</p>
+            <p><strong>Founding</strong>: Elias fused with his necro-experiments in bunkers; formed the Necro-Pact (2150) binding feral vampires and tribes.</p>
+            <hr style="border-color:#006400;">
+            <h4>Signature Traits</h4>
+            <ul>
+                <li>Siphon (gain life = damage/Bleed dealt)</li>
+                <li>Reanimate (play from discard, enters renewed)</li>
+                <li>Minion Summon (weak beast/bat/wolf tokens)</li>
+            </ul>
+            <h4>Playstyle</h4>
+            <p>Necromantic grinder: Mid-game swarm with minions, siphon to outlast, reanimate threats, deaden opponent resources (turn colored Blood colorless).</p>
+            <h4>Weakness</h4>
+            <p>Vulnerable to exile effects on discard pile; minions are fragile.</p>
+        </div>
+
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>© 2026 Cybervamp CCG — The Will of the Nexus endures.</p>
+        <p>Built by @Aeternis</p>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>
