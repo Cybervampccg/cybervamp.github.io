@@ -1,46 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cybervamp CCG - The Crimson Nexus</title>
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    
     <!-- Lightbox2 CSS -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/css/lightbox.min.css" integrity="sha512-ZKX2vQbLlU0O9qE8d6q+0k9+2+5W5q2p1L2v4+U5a6Z5k0uU7k2v0m8v2g3g9I2v1o5x5d2b3y8g3l3+2p9fA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-
-<!-- Lightbox2 JS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/js/lightbox.min.js" integrity="sha512-IxzLNa4RDO8jF6Q3b3Qb1w6vC6h+5qS0X6Kx9v3r4r2rXv7t1d5k3k1pX9b4W5U8tJ+8d8p0l5q2z0v8b4Q6g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
-<script>
-    lightbox.option({
-        'fadeDuration': 300,
-        'imageFadeDuration': 300,
-        'resizeDuration': 400,
-        'wrapAround': true,
-        'disableScrolling': true,
-        'fitImagesInViewport': true,
-        'alwaysShowNavOnTouchDevices': true,  // arrows on mobile too
-        'maxWidth': 1400,
-        'maxHeight': 1000
-    });
-</script>
-
-    <!-- Google Fonts: Playfair Display for gothic/victorian feel -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/css/lightbox.min.css" integrity="sha512-ZKX2vQbLlU0O9qE8d6q+0k9+2+5W5q2p1L2v4+U5a6Z5k0uU7k2v0m8v2g3g9I2v1o5x5d2b3y8g3l3+2p9fA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <!-- Google Fonts: Playfair Display -->
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700&display=swap" rel="stylesheet">
     
     <style>
-/* Make sure the entire overlay is clickable to close */
-.lb-backdrop, .lb-outerContainer, .lb-dataContainer {
-    cursor: pointer !important;
-}
-.lb-image {
-    cursor: default !important; /* don't change cursor on image itself */
-}
-
         body {
             background: #0a0005;
             color: #f0e6ff;
@@ -49,6 +23,8 @@
         .navbar {
             background: #000 !important;
             border-bottom: 1px solid #8b0000;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 30px rgba(139, 0, 0, 0.3);
         }
         .navbar-brand {
             color: #ff4500 !important;
@@ -59,23 +35,40 @@
             color: #ff8c66 !important;
             transition: all 0.3s;
         }
-        .nav-link:hover {
+        .nav-link:hover, .nav-link.active {
             color: #ffffff !important;
             text-shadow: 0 0 10px #ff4500;
         }
         .hero {
             text-align: center;
-            padding: 140px 20px 100px; /* Extra top padding for fixed navbar */
+            padding: 140px 20px 100px;
             background: linear-gradient(rgba(10, 0, 5, 0.85), rgba(10, 0, 5, 0.7)),
                         url('assets/img/Relic 003.png');
             background-size: cover;
             background-position: center;
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+        .hero::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at 30% 70%, rgba(75,0,130,0.15), transparent 60%);
+            pointer-events: none;
         }
         h1 {
             font-size: 4.5rem;
             color: #ff4500;
             text-shadow: 0 0 20px #8b0000, 0 0 40px #4b0082;
             margin-bottom: 0.5rem;
+            animation: glow 3s ease-in-out infinite alternate;
+        }
+        @keyframes glow {
+            from { text-shadow: 0 0 10px #8b0000, 0 0 20px #ff4500; }
+            to   { text-shadow: 0 0 20px #8b0000, 0 0 40px #ff4500, 0 0 60px #4b0082; }
         }
         .lead {
             font-size: 1.5rem;
@@ -89,15 +82,23 @@
             margin: 60px 0 40px;
             text-shadow: 0 0 15px #8b0000;
         }
-        .card-img {
-            border: 2px solid #4b0082;
-            border-radius: 8px;
-            box-shadow: 0 0 25px rgba(139, 0, 0, 0.6), inset 0 0 10px rgba(75, 0, 130, 0.4);
-            transition: transform 0.3s, box-shadow 0.3s;
+        .card-item {
+            background: rgba(10, 0, 5, 0.6);
+            border: 1px solid #4b0082;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.4s;
+            cursor: pointer;
         }
-        .card-img:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 40px rgba(255, 69, 0, 0.8);
+        .card-item:hover {
+            transform: translateY(-10px) scale(1.03);
+            box-shadow: 0 15px 40px rgba(139, 0, 0, 0.7);
+        }
+        .card-img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            background: #000;
         }
         footer {
             background: #000;
@@ -107,79 +108,35 @@
             text-align: center;
             color: #8b8b8b;
         }
-/* Smoother page feel */
-html { scroll-behavior: smooth; }
-
-/* Navbar improvements */
-.navbar {
-    backdrop-filter: blur(10px); /* Frosted glass cyber effect */
-    box-shadow: 0 4px 30px rgba(139, 0, 0, 0.3);
-}
-
-/* Hero enhancements */
-.hero {
-    min-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    position: relative;
-}
-.hero::before {
-    content: "";
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(circle at 30% 70%, rgba(75,0,130,0.15), transparent 60%);
-    pointer-events: none;
-}
-.hero h1 {
-    animation: glow 3s ease-in-out infinite alternate;
-}
-@keyframes glow {
-    from { text-shadow: 0 0 10px #8b0000, 0 0 20px #ff4500; }
-    to   { text-shadow: 0 0 20px #8b0000, 0 0 40px #ff4500, 0 0 60px #4b0082; }
-}
-
-/* Gallery cards as proper card components */
-.card-item {
-    background: rgba(10, 0, 5, 0.6);
-    border: 1px solid #4b0082;
-    border-radius: 12px;
-    overflow: hidden;
-    transition: all 0.4s;
-}
-.card-item:hover {
-    transform: translateY(-10px) scale(1.03);
-    box-shadow: 0 15px 40px rgba(139, 0, 0, 0.7);
-}
-.card-img {
-    width: 100%;
-    height: auto;
-    object-fit: contain;
-    background: #000;
-}
-
-body::before {
-    content: "";
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: 
-        linear-gradient(rgba(139,0,0,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(139,0,0,0.03) 1px, transparent 1px);
-    background-size: 4px 4px;
-    pointer-events: none;
-    z-index: -1;
-    opacity: 0.4;
-}
-
+        html { scroll-behavior: smooth; }
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: 
+                linear-gradient(rgba(139,0,0,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(139,0,0,0.03) 1px, transparent 1px);
+            background-size: 4px 4px;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.4;
+        }
+        /* Lightbox backdrop click safety */
+        .lb-backdrop, .lb-outerContainer, .lb-dataContainer {
+            cursor: pointer !important;
+        }
+        .lb-image {
+            cursor: default !important;
+        }
     </style>
 </head>
 <body>
 
-    <!-- Navbar (moved to top) -->
+    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg fixed-top">
         <div class="container">
             <a class="navbar-brand" href="#">Cybervamp</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
@@ -188,163 +145,164 @@ body::before {
                     <li class="nav-item"><a class="nav-link" href="pages/lore.html">Lore</a></li>
                     <li class="nav-item"><a class="nav-link" href="pages/factions.html">Factions</a></li>
                     <li class="nav-item"><a class="nav-link" href="pages/ccg-hub.html">Rules</a></li>
-                    <li class="nav-item"><a class="nav-link" href="pages/gallery.html">Gallery</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#gallery-section">Gallery</a></li>
                     <li class="nav-item"><a class="nav-link" href="pages/community.html">Community</a></li>
                 </ul>
             </div>
         </div>
     </nav>
 
-    <!-- Hero Section (now with background image) -->
+    <!-- Hero Section -->
     <div class="hero">
         <h1>Cybervamp CCG</h1>
         <p class="lead">Where baroque shadows entwine with neon veins.</p>
         <p class="lead fw-light">The Crimson Nexus rises after the Eclipse War — vampires and humanity bound by the Veiled Accord.</p>
         <p class="lead fw-light">As an unseen Will, command the factions. Manifest your deck.</p>
-<a href="pages/ccg-hub.html" class="btn btn-lg" style="background:#8b0000; color:#fff; border:none; box-shadow:0 0 20px #ff4500; padding:15px 40px; font-size:1.3rem;">
-    Enter the Nexus – View Rules
-</a>
+        <a href="pages/ccg-hub.html" class="btn btn-lg mt-3" style="background:#8b0000; color:#fff; border:none; box-shadow:0 0 20px #ff4500; padding:15px 40px; font-size:1.3rem;">
+            Enter the Nexus – View Rules
+        </a>
     </div>
 
-<!-- Card Gallery -->
-<div class="container card-gallery">
-    <h2>Manifestations of the Nexus</h2>
-    <div class="row justify-content-center g-4">
+    <!-- Card Gallery with ID for anchor link -->
+    <div id="gallery-section" class="container card-gallery my-5">
+        <h2 class="text-center mb-5">Manifestations of the Nexus</h2>
+        <div class="row justify-content-center g-4">
 
-        <!-- White Creature 002 -->
-        <div class="col-md-4 col-lg-3 mb-5">
-            <div class="card-item">
-                <a href="assets/img/White Creature 002.png" data-lightbox="gallery" data-title="White Creature 002 – Eternal Aristocracy Wall">
-                    <img src="assets/img/White Creature 002.png" class="card-img" alt="White Faction Creature - Eternal Aristocracy" loading="lazy">
-                </a>
-                <div class="p-3 text-center small">White Creature 002 – Eternal Aristocracy Wall</div>
+            <!-- White Creature 002 -->
+            <div class="col-md-4 col-lg-3 mb-5">
+                <div class="card-item">
+                    <a href="assets/img/White Creature 002.png" data-lightbox="gallery" data-title="White Creature 002 – Eternal Aristocracy Wall">
+                        <img src="assets/img/White Creature 002.png" class="card-img" alt="White Faction Creature - Eternal Aristocracy" loading="lazy">
+                    </a>
+                    <div class="p-3 text-center small">White Creature 002 – Eternal Aristocracy Wall</div>
+                </div>
             </div>
-        </div>
 
-        <!-- Purple Spell 001 -->
-        <div class="col-md-4 col-lg-3 mb-5">
-            <div class="card-item">
-                <a href="assets/img/Purple Spell 001.png" data-lightbox="gallery" data-title="Purple Spell 001 – Arcane Subterfuge">
-                    <img src="assets/img/Purple Spell 001.png" class="card-img" alt="Purple Spell - Arcane Subterfuge" loading="lazy">
-                </a>
-                <div class="p-3 text-center small">Purple Spell 001 – Arcane Subterfuge</div>
+            <!-- Purple Spell 001 -->
+            <div class="col-md-4 col-lg-3 mb-5">
+                <div class="card-item">
+                    <a href="assets/img/Purple Spell 001.png" data-lightbox="gallery" data-title="Purple Spell 001 – Arcane Subterfuge">
+                        <img src="assets/img/Purple Spell 001.png" class="card-img" alt="Purple Spell - Arcane Subterfuge" loading="lazy">
+                    </a>
+                    <div class="p-3 text-center small">Purple Spell 001 – Arcane Subterfuge</div>
+                </div>
             </div>
-        </div>
 
-        <!-- White Spell 002 -->
-        <div class="col-md-4 col-lg-3 mb-5">
-            <div class="card-item">
-                <a href="assets/img/white spell 002.png" data-lightbox="gallery" data-title="White Spell 002 – Relic Activation">
-                    <img src="assets/img/white spell 002.png" class="card-img" alt="White Spell - Relic Activation" loading="lazy">
-                </a>
-                <div class="p-3 text-center small">White Spell 002 – Relic Activation</div>
+            <!-- Add the rest of your cards in the same format -->
+            <!-- White Spell 002 -->
+            <div class="col-md-4 col-lg-3 mb-5">
+                <div class="card-item">
+                    <a href="assets/img/white spell 002.png" data-lightbox="gallery" data-title="White Spell 002 – Relic Activation">
+                        <img src="assets/img/white spell 002.png" class="card-img" alt="White Spell - Relic Activation" loading="lazy">
+                    </a>
+                    <div class="p-3 text-center small">White Spell 002 – Relic Activation</div>
+                </div>
             </div>
-        </div>
 
-        <!-- Land Red 01 -->
-        <div class="col-md-4 col-lg-3 mb-5">
-            <div class="card-item">
-                <a href="assets/img/Land Red 01.png" data-lightbox="gallery" data-title="Land Red 01 – Neon Sprawl Blood Source">
-                    <img src="assets/img/Land Red 01.png" class="card-img" alt="Red Blood Land - Neon Sprawl" loading="lazy">
-                </a>
-                <div class="p-3 text-center small">Land Red 01 – Neon Sprawl Blood Source</div>
+            <!-- Land Red 01 -->
+            <div class="col-md-4 col-lg-3 mb-5">
+                <div class="card-item">
+                    <a href="assets/img/Land Red 01.png" data-lightbox="gallery" data-title="Land Red 01 – Neon Sprawl Blood Source">
+                        <img src="assets/img/Land Red 01.png" class="card-img" alt="Red Blood Land - Neon Sprawl" loading="lazy">
+                    </a>
+                    <div class="p-3 text-center small">Land Red 01 – Neon Sprawl Blood Source</div>
+                </div>
             </div>
-        </div>
 
-        <!-- Land White 01 -->
-        <div class="col-md-4 col-lg-3 mb-5">
-            <div class="card-item">
-                <a href="assets/img/Land white 01.png" data-lightbox="gallery" data-title="Land White 01 – Crystal Enclave Blood Source">
-                    <img src="assets/img/Land white 01.png" class="card-img" alt="White Blood Land - Crystal Enclave" loading="lazy">
-                </a>
-                <div class="p-3 text-center small">Land White 01 – Crystal Enclave Blood Source</div>
+            <!-- Land White 01 -->
+            <div class="col-md-4 col-lg-3 mb-5">
+                <div class="card-item">
+                    <a href="assets/img/Land white 01.png" data-lightbox="gallery" data-title="Land White 01 – Crystal Enclave Blood Source">
+                        <img src="assets/img/Land white 01.png" class="card-img" alt="White Blood Land - Crystal Enclave" loading="lazy">
+                    </a>
+                    <div class="p-3 text-center small">Land White 01 – Crystal Enclave Blood Source</div>
+                </div>
             </div>
-        </div>
 
-        <!-- Land White 02 -->
-        <div class="col-md-4 col-lg-3 mb-5">
-            <div class="card-item">
-                <a href="assets/img/Land white 02.png" data-lightbox="gallery" data-title="Land White 02 – Marble Spire Blood Source">
-                    <img src="assets/img/Land white 02.png" class="card-img" alt="White Blood Land - Marble Spire" loading="lazy">
-                </a>
-                <div class="p-3 text-center small">Land White 02 – Marble Spire Blood Source</div>
+            <!-- Land White 02 -->
+            <div class="col-md-4 col-lg-3 mb-5">
+                <div class="card-item">
+                    <a href="assets/img/Land white 02.png" data-lightbox="gallery" data-title="Land White 02 – Marble Spire Blood Source">
+                        <img src="assets/img/Land white 02.png" class="card-img" alt="White Blood Land - Marble Spire" loading="lazy">
+                    </a>
+                    <div class="p-3 text-center small">Land White 02 – Marble Spire Blood Source</div>
+                </div>
             </div>
-        </div>
 
-        <!-- Red Spell 002 -->
-        <div class="col-md-4 col-lg-3 mb-5">
-            <div class="card-item">
-                <a href="assets/img/Red spell 002.png" data-lightbox="gallery" data-title="Red Spell 002 – Overclock Surge">
-                    <img src="assets/img/Red spell 002.png" class="card-img" alt="Red Spell - Overclock Surge" loading="lazy">
-                </a>
-                <div class="p-3 text-center small">Red Spell 002 – Overclock Surge</div>
+            <!-- Red Spell 002 -->
+            <div class="col-md-4 col-lg-3 mb-5">
+                <div class="card-item">
+                    <a href="assets/img/Red spell 002.png" data-lightbox="gallery" data-title="Red Spell 002 – Overclock Surge">
+                        <img src="assets/img/Red spell 002.png" class="card-img" alt="Red Spell - Overclock Surge" loading="lazy">
+                    </a>
+                    <div class="p-3 text-center small">Red Spell 002 – Overclock Surge</div>
+                </div>
             </div>
-        </div>
 
-        <!-- Black Creature 017 -->
-        <div class="col-md-4 col-lg-3 mb-5">
-            <div class="card-item">
-                <a href="assets/img/Black Creature 017.png" data-lightbox="gallery" data-title="Black Creature 017 – Fleshwoven Behemoth">
-                    <img src="assets/img/Black Creature 017.png" class="card-img" alt="Black Creature - Fleshwoven Behemoth" loading="lazy">
-                </a>
-                <div class="p-3 text-center small">Black Creature 017 – Fleshwoven Behemoth</div>
+            <!-- Black Creature 017 -->
+            <div class="col-md-4 col-lg-3 mb-5">
+                <div class="card-item">
+                    <a href="assets/img/Black Creature 017.png" data-lightbox="gallery" data-title="Black Creature 017 – Fleshwoven Behemoth">
+                        <img src="assets/img/Black Creature 017.png" class="card-img" alt="Black Creature - Fleshwoven Behemoth" loading="lazy">
+                    </a>
+                    <div class="p-3 text-center small">Black Creature 017 – Fleshwoven Behemoth</div>
+                </div>
             </div>
-        </div>
 
-        <!-- Black Creature 005 -->
-        <div class="col-md-4 col-lg-3 mb-5">
-            <div class="card-item">
-                <a href="assets/img/black creature 005.png" data-lightbox="gallery" data-title="Black Creature 005 – Necro-Siphon Minion">
-                    <img src="assets/img/black creature 005.png" class="card-img" alt="Black Creature - Necro-Siphon Minion" loading="lazy">
-                </a>
-                <div class="p-3 text-center small">Black Creature 005 – Necro-Siphon Minion</div>
+            <!-- Black Creature 005 -->
+            <div class="col-md-4 col-lg-3 mb-5">
+                <div class="card-item">
+                    <a href="assets/img/black creature 005.png" data-lightbox="gallery" data-title="Black Creature 005 – Necro-Siphon Minion">
+                        <img src="assets/img/black creature 005.png" class="card-img" alt="Black Creature - Necro-Siphon Minion" loading="lazy">
+                    </a>
+                    <div class="p-3 text-center small">Black Creature 005 – Necro-Siphon Minion</div>
+                </div>
             </div>
-        </div>
 
-        <!-- Relic 006 Hemotech Patch -->
-        <div class="col-md-4 col-lg-3 mb-5">
-            <div class="card-item">
-                <a href="assets/img/Relic 006 Hemotech Patch.png" data-lightbox="gallery" data-title="Relic 006 – Hemotech Patch (Vita-Plasma Stabilizer)">
-                    <img src="assets/img/Relic 006 Hemotech Patch.png" class="card-img" alt="Relic - Hemotech Patch" loading="lazy">
-                </a>
-                <div class="p-3 text-center small">Relic 006 – Hemotech Patch (Vita-Plasma Stabilizer)</div>
+            <!-- Relic 006 Hemotech Patch -->
+            <div class="col-md-4 col-lg-3 mb-5">
+                <div class="card-item">
+                    <a href="assets/img/Relic 006 Hemotech Patch.png" data-lightbox="gallery" data-title="Relic 006 – Hemotech Patch (Vita-Plasma Stabilizer)">
+                        <img src="assets/img/Relic 006 Hemotech Patch.png" class="card-img" alt="Relic - Hemotech Patch" loading="lazy">
+                    </a>
+                    <div class="p-3 text-center small">Relic 006 – Hemotech Patch (Vita-Plasma Stabilizer)</div>
+                </div>
             </div>
-        </div>
 
-        <!-- Red Creature 010 -->
-        <div class="col-md-4 col-lg-3 mb-5">
-            <div class="card-item">
-                <a href="assets/img/Red Creature 010.png" data-lightbox="gallery" data-title="Red Creature 010 – Neon Revenant Speedster">
-                    <img src="assets/img/Red Creature 010.png" class="card-img" alt="Red Creature - Neon Revenant Speedster" loading="lazy">
-                </a>
-                <div class="p-3 text-center small">Red Creature 010 – Neon Revenant Speedster</div>
+            <!-- Red Creature 010 -->
+            <div class="col-md-4 col-lg-3 mb-5">
+                <div class="card-item">
+                    <a href="assets/img/Red Creature 010.png" data-lightbox="gallery" data-title="Red Creature 010 – Neon Revenant Speedster">
+                        <img src="assets/img/Red Creature 010.png" class="card-img" alt="Red Creature - Neon Revenant Speedster" loading="lazy">
+                    </a>
+                    <div class="p-3 text-center small">Red Creature 010 – Neon Revenant Speedster</div>
+                </div>
             </div>
-        </div>
 
+        </div>
     </div>
-</div>
-<div class="container my-5">
-    <h2 class="text-center mb-5" style="color:#ff4500;">The Four Eternal Factions</h2>
-    <div class="row text-center">
-        <div class="col-md-3"><h5 style="color:#ff4500;">Red Neon Revenants</h5><p>Reckless aggro zoomers</p></div>
-        <div class="col-md-3"><h5 style="color:#f0f8ff;">White Eternal Aristocracy</h5><p>Legacy control & relics</p></div>
-        <div class="col-md-3"><h5 style="color:#d4c3ff;">Purple Arcane Scholars</h5><p>Mystic subterfuge</p></div>
-        <div class="col-md-3"><h5 style="color:#006400;">Black Shadow Behemoths</h5><p>Necromantic grinder</p></div>
+
+    <!-- Factions Teaser -->
+    <div class="container my-5">
+        <h2 class="text-center mb-5" style="color:#ff4500;">The Four Eternal Factions</h2>
+        <div class="row text-center">
+            <div class="col-md-3"><h5 style="color:#ff4500;">Red Neon Revenants</h5><p>Reckless aggro zoomers</p></div>
+            <div class="col-md-3"><h5 style="color:#f0f8ff;">White Eternal Aristocracy</h5><p>Legacy control & relics</p></div>
+            <div class="col-md-3"><h5 style="color:#d4c3ff;">Purple Arcane Scholars</h5><p>Mystic subterfuge</p></div>
+            <div class="col-md-3"><h5 style="color:#006400;">Black Shadow Behemoths</h5><p>Necromantic grinder</p></div>
+        </div>
     </div>
-</div>
+
     <!-- Footer -->
     <footer>
         <p>© 2026 Cybervamp CCG — The Will of the Nexus endures.</p>
         <p>Built by @Aeternis</p>
     </footer>
 
-        <!-- Bootstrap JS -->
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-
-    <!-- Lightbox2 JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/js/lightbox.min.js" integrity="sha512-IxzLNa4RDO8jF6Q3b3Qb1w6vC6h+5qS0X6Kx9v3r4r2rXv7t1d5k3k1pX9b4W5U8tJ+8d8p0l5q2z0v8b4Q6g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
-    <!-- Lightbox configuration -->
+    
     <script>
         lightbox.option({
             'fadeDuration': 300,
@@ -358,16 +316,5 @@ body::before {
             'maxHeight': 1000
         });
     </script>
-
-    <!-- Optional: extra backdrop click safety -->
-    <style>
-        .lb-backdrop, .lb-outerContainer, .lb-dataContainer {
-            cursor: pointer !important;
-        }
-        .lb-image {
-            cursor: default !important;
-        }
-    </style>
-
 </body>
 </html>
