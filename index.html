@@ -1,298 +1,673 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cybervamp CCG - The Crimson Nexus</title>
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    
-    <!-- Lightbox2 CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/css/lightbox.min.css" integrity="sha512-ZKX2vQbLlU0O9qE8d6q+0k9+2+5W5q2p1L2v4+U5a6Z5k0uU7k2v0m8v2g3g9I2v1o5x5d2b3y8g3l3+2p9fA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    
-    <!-- Google Fonts: Playfair Display -->
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700&display=swap" rel="stylesheet">
-    
-    <style>
-        body {
-            background: #0a0005;
-            color: #f0e6ff;
-            font-family: 'Playfair Display', serif;
-        }
-        .navbar {
-            background: #000 !important;
-            border-bottom: 1px solid #8b0000;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 4px 30px rgba(139, 0, 0, 0.3);
-        }
-        .navbar-brand {
-            color: #ff4500 !important;
-            font-weight: 700;
-            text-shadow: 0 0 8px #ff4500;
-        }
-        .nav-link {
-            color: #ff8c66 !important;
-            transition: all 0.3s;
-        }
-        .nav-link:hover, .nav-link.active {
-            color: #ffffff !important;
-            text-shadow: 0 0 10px #ff4500;
-        }
-        .hero {
-            text-align: center;
-            padding: 140px 20px 100px;
-            background: linear-gradient(rgba(10, 0, 5, 0.85), rgba(10, 0, 5, 0.7)),
-                        url('assets/img/Relic 003.png');
-            background-size: cover;
-            background-position: center;
-            min-height: 80vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            position: relative;
-        }
-        .hero::before {
-            content: "";
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: radial-gradient(circle at 30% 70%, rgba(75,0,130,0.15), transparent 60%);
-            pointer-events: none;
-        }
-        h1 {
-            font-size: 4.5rem;
-            color: #ff4500;
-            text-shadow: 0 0 20px #8b0000, 0 0 40px #4b0082;
-            margin-bottom: 0.5rem;
-            animation: glow 3s ease-in-out infinite alternate;
-        }
-        @keyframes glow {
-            from { text-shadow: 0 0 10px #8b0000, 0 0 20px #ff4500; }
-            to   { text-shadow: 0 0 20px #8b0000, 0 0 40px #ff4500, 0 0 60px #4b0082; }
-        }
-        .lead {
-            font-size: 1.5rem;
-            color: #d4c3ff;
-            max-width: 800px;
-            margin: 0 auto 2rem;
-        }
-        .card-gallery h2 {
-            color: #ff4500;
-            text-align: center;
-            margin: 60px 0 40px;
-            text-shadow: 0 0 15px #8b0000;
-        }
-        .card-item {
-            background: rgba(10, 0, 5, 0.6);
-            border: 1px solid #4b0082;
-            border-radius: 12px;
-            overflow: hidden;
-            transition: all 0.4s;
-            cursor: pointer;
-        }
-        .card-item:hover {
-            transform: translateY(-10px) scale(1.03);
-            box-shadow: 0 15px 40px rgba(139, 0, 0, 0.7);
-        }
-        .card-img {
-            width: 100%;
-            height: auto;
-            object-fit: contain;
-            background: #000;
-        }
-        footer {
-            background: #000;
-            border-top: 1px solid #8b0000;
-            padding: 30px 0;
-            margin-top: 80px;
-            text-align: center;
-            color: #8b8b8b;
-        }
-        html { scroll-behavior: smooth; }
-        body::before {
-            content: "";
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: 
-                linear-gradient(rgba(139,0,0,0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(139,0,0,0.03) 1px, transparent 1px);
-            background-size: 4px 4px;
-            pointer-events: none;
-            z-index: -1;
-            opacity: 0.4;
-        }
-        /* Lightbox backdrop click safety */
-        .lb-backdrop, .lb-outerContainer, .lb-dataContainer {
-            cursor: pointer !important;
-        }
-        .lb-image {
-            cursor: default !important;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CYBERVAMP — The Crimson Nexus</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --blood:#8B0000; --crimson:#C41E3A; --gold:#C9A84C; --gold-lt:#E8C96B;
+  --void:#050308; --deep:#0D0A12; --surface:#13101A; --mist:#1E1928;
+  --text:#D4C9B8; --dim:#7A6F82;
+  --r:#E8341A; --w:#E8DCC8; --p:#9B59D0; --b:#6A0DAD;
+}
+html { scroll-behavior:smooth; }
+body { background:var(--void); color:var(--text); font-family:'EB Garamond',serif; overflow-x:hidden; cursor:crosshair; }
+body::after { content:''; position:fixed; inset:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); opacity:.03; pointer-events:none; z-index:9999; }
+nav { position:fixed; top:0; left:0; right:0; z-index:500; display:flex; justify-content:space-between; align-items:center; padding:18px 60px; background:linear-gradient(to bottom,rgba(5,3,8,.97),transparent); backdrop-filter:blur(4px); border-bottom:1px solid rgba(201,168,76,.08); }
+.nav-logo { font-family:'Cinzel Decorative',serif; font-size:20px; letter-spacing:5px; color:var(--gold); text-shadow:0 0 30px rgba(201,168,76,.5); text-decoration:none; }
+.nav-links { display:flex; gap:28px; list-style:none; }
+.nav-links a { font-family:'Cinzel',serif; font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--dim); text-decoration:none; transition:color .3s; }
+.nav-links a:hover { color:var(--gold); }
+.nav-right { display:flex; gap:14px; align-items:center; }
+.nav-x { font-family:'Cinzel',serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); text-decoration:none; transition:color .3s; }
+.nav-x:hover { color:#fff; }
+.nav-cta { font-family:'Cinzel',serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--crimson); border:1px solid var(--crimson); padding:8px 18px; text-decoration:none; transition:all .3s; }
+.nav-cta:hover { background:var(--crimson); color:#fff; box-shadow:0 0 20px rgba(196,30,58,.4); }
+.hero { position:relative; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; overflow:hidden; padding:140px 40px 100px; }
+.hero-bg { position:absolute; inset:0; background-image:url('images/website_background_001.png'); background-size:cover; background-position:center top; filter:brightness(.32) saturate(1.3); }
+.hero-bg::after { content:''; position:absolute; inset:0; background:linear-gradient(to bottom,rgba(5,3,8,.2) 0%,transparent 25%,transparent 60%,rgba(5,3,8,1) 100%),radial-gradient(ellipse 80% 60% at 50% 40%,rgba(139,0,0,.18),transparent 70%); }
+.hero-content { position:relative; z-index:2; }
+.hero-eyemark { font-size:54px; margin-bottom:26px; display:block; animation:float 6s ease-in-out infinite; filter:drop-shadow(0 0 26px rgba(196,30,58,.95)); }
+@keyframes float { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-14px);} }
+.hero-pre { font-family:'Cinzel',serif; font-size:11px; letter-spacing:8px; text-transform:uppercase; color:var(--crimson); margin-bottom:16px; animation:fadeUp 1s ease both; }
+.hero-title { font-family:'Cinzel Decorative',serif; font-size:clamp(60px,11vw,130px); font-weight:900; line-height:.9; background:linear-gradient(135deg,var(--gold-lt) 0%,var(--gold) 40%,#7A5510 75%,var(--gold) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; filter:drop-shadow(0 0 40px rgba(201,168,76,.25)); animation:fadeUp 1s ease .15s both; }
+.hero-year { font-family:'Cinzel',serif; font-size:11px; letter-spacing:6px; text-transform:uppercase; color:var(--dim); margin-top:10px; margin-bottom:8px; animation:fadeUp 1s ease .25s both; }
+.hero-sub { font-family:'Cinzel',serif; font-size:12px; letter-spacing:5px; text-transform:uppercase; color:var(--dim); margin-bottom:36px; animation:fadeUp 1s ease .3s both; }
+.blood-pips { display:flex; justify-content:center; gap:18px; margin-bottom:36px; animation:fadeUp 1s ease .45s both; }
+.blood-pip img { width:34px; height:34px; object-fit:contain; filter:drop-shadow(0 0 8px rgba(201,168,76,.4)); transition:transform .3s,filter .3s; }
+.blood-pip img:hover { transform:scale(1.35) translateY(-4px); filter:drop-shadow(0 0 16px rgba(201,168,76,.7)); }
+.hero-desc { max-width:580px; font-size:18px; line-height:1.9; color:var(--text); font-style:italic; margin:0 auto 48px; animation:fadeUp 1s ease .5s both; }
+.hero-desc em { color:var(--gold); font-style:normal; }
+.hero-ctas { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; animation:fadeUp 1s ease .6s both; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(28px);} to{opacity:1;transform:translateY(0);} }
+.scroll-hint { position:absolute; bottom:36px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--dim); font-family:'Cinzel',serif; font-size:9px; letter-spacing:3px; text-transform:uppercase; animation:fadeUp 1s ease 1.2s both; }
+.scroll-line { width:1px; height:48px; background:linear-gradient(to bottom,var(--crimson),transparent); animation:grow 2s ease-in-out infinite; }
+@keyframes grow { 0%,100%{transform:scaleY(.3);opacity:.4;} 50%{transform:scaleY(1);opacity:1;} }
+.btn-primary { font-family:'Cinzel',serif; font-size:11px; letter-spacing:3px; text-transform:uppercase; padding:15px 36px; background:var(--crimson); color:#fff; border:none; text-decoration:none; cursor:crosshair; transition:all .3s; box-shadow:0 0 30px rgba(196,30,58,.25); display:inline-block; }
+.btn-primary:hover { box-shadow:0 0 50px rgba(196,30,58,.55); transform:translateY(-2px); }
+.btn-secondary { font-family:'Cinzel',serif; font-size:11px; letter-spacing:3px; text-transform:uppercase; padding:15px 36px; background:transparent; color:var(--gold); border:1px solid rgba(201,168,76,.4); text-decoration:none; cursor:crosshair; transition:all .3s; display:inline-block; }
+.btn-secondary:hover { border-color:var(--gold); background:rgba(201,168,76,.08); box-shadow:0 0 28px rgba(201,168,76,.15); }
+.divider { display:flex; align-items:center; gap:20px; padding:0 60px; margin:70px 0 50px; }
+.div-line { flex:1; height:1px; background:linear-gradient(to right,transparent,rgba(201,168,76,.3),transparent); }
+.div-sym { color:var(--gold); font-size:16px; opacity:.6; }
+.s-label { font-family:'Cinzel',serif; font-size:10px; letter-spacing:5px; text-transform:uppercase; color:var(--crimson); margin-bottom:14px; }
+.s-title { font-family:'Cinzel Decorative',serif; font-size:clamp(26px,4vw,46px); font-weight:700; color:var(--gold); line-height:1.2; margin-bottom:22px; }
+.world-lore { padding:100px 60px; max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:80px; align-items:center; }
+.lore-body { font-size:17px; line-height:1.9; color:var(--text); margin-bottom:14px; }
+.lore-quote { margin:24px 0; padding:20px 28px; border-left:2px solid var(--crimson); background:rgba(139,0,0,.06); font-size:16px; font-style:italic; color:var(--text); line-height:1.8; }
+.lore-quote cite { display:block; margin-top:10px; font-size:12px; font-style:normal; font-family:'Cinzel',serif; letter-spacing:2px; color:var(--dim); }
+.lore-img-wrap { position:relative; overflow:hidden; border:1px solid rgba(201,168,76,.15); }
+.lore-img-wrap img { width:100%; display:block; filter:brightness(.7) saturate(1.1); transition:filter .5s,transform .5s; }
+.lore-img-wrap:hover img { filter:brightness(.9); transform:scale(1.03); }
+.lore-img-wrap::before { content:''; position:absolute; inset:0; z-index:1; background:linear-gradient(to bottom,transparent 60%,rgba(5,3,8,.8)); }
+.stats-bar { background:var(--deep); border-top:1px solid rgba(201,168,76,.1); border-bottom:1px solid rgba(201,168,76,.1); padding:40px 60px; display:grid; grid-template-columns:repeat(5,1fr); text-align:center; }
+.stat { padding:20px; border-right:1px solid rgba(201,168,76,.1); }
+.stat:last-child { border-right:none; }
+.stat-n { font-family:'Cinzel Decorative',serif; font-size:40px; color:var(--gold); line-height:1; }
+.stat-l { font-family:'Cinzel',serif; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); margin-top:8px; }
+.technae-section { position:relative; overflow:hidden; padding:100px 60px; }
+.technae-bg { position:absolute; inset:0; background-image:url('images/website_background_005.png'); background-size:cover; background-position:center; filter:brightness(.18) saturate(1.3); }
+.technae-bg::after { content:''; position:absolute; inset:0; background:rgba(13,10,18,.75); }
+.technae-inner { position:relative; z-index:2; max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:80px; align-items:start; }
+.technae-cards { display:flex; flex-direction:column; gap:3px; }
+.tcard { background:rgba(13,10,18,.9); border:1px solid rgba(201,168,76,.08); padding:22px 24px; transition:border-color .3s; }
+.tcard:hover { border-color:rgba(201,168,76,.2); }
+.tcard-title { font-family:'Cinzel',serif; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-bottom:9px; }
+.tcard-body { font-size:14px; line-height:1.7; color:var(--text); }
+.covenant-section { padding:100px 60px; max-width:1200px; margin:0 auto; }
+.covenant-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:3px; margin-top:56px; }
+.cov-card { background:var(--surface); padding:32px 28px; border-left:2px solid var(--crimson); position:relative; }
+.cov-card::after { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at top left,rgba(139,0,0,.06),transparent 60%); pointer-events:none; }
+.cov-icon { font-size:28px; margin-bottom:18px; display:block; }
+.cov-title { font-family:'Cinzel',serif; font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-bottom:12px; }
+.cov-body { font-size:15px; line-height:1.75; color:var(--text); }
+.factions-wrap { padding:100px 40px; max-width:1400px; margin:0 auto; }
+.factions-hd { text-align:center; margin-bottom:60px; }
+.factions-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:3px; }
+.fc { position:relative; overflow:hidden; min-height:640px; display:flex; flex-direction:column; justify-content:flex-end; transition:transform .4s ease; cursor:crosshair; }
+.fc:hover { transform:translateY(-6px); }
+.fc:hover .fc-bg { filter:brightness(.55) saturate(1.3); transform:scale(1.05); }
+.fc-bg { position:absolute; inset:0; background-size:cover; background-position:center top; transition:filter .5s,transform .5s; filter:brightness(.38) saturate(1.1); }
+.fc.red .fc-bg { background-image:url('images/Red_Creature_009.jpg'); }
+.fc.white .fc-bg { background-image:url('images/White_Creature_001.png'); }
+.fc.purple .fc-bg { background-image:url('images/Purple_Creature_003.jpg'); }
+.fc.black .fc-bg { background-image:url('images/Black_Creature_010.jpg'); }
+.fc-overlay { position:absolute; inset:0; opacity:.5; transition:opacity .4s; }
+.fc.red .fc-overlay { background:linear-gradient(to top,rgba(232,52,26,.55),transparent 55%); }
+.fc.white .fc-overlay { background:linear-gradient(to top,rgba(232,220,200,.35),transparent 55%); }
+.fc.purple .fc-overlay { background:linear-gradient(to top,rgba(155,89,208,.55),transparent 55%); }
+.fc.black .fc-overlay { background:linear-gradient(to top,rgba(106,13,173,.55),transparent 55%); }
+.fc:hover .fc-overlay { opacity:.75; }
+.fc-bottom { position:relative; z-index:2; padding:28px 22px; background:linear-gradient(to top,rgba(5,3,8,.97) 0%,rgba(5,3,8,.75) 65%,transparent 100%); }
+.fc-logo { width:48px; height:48px; object-fit:contain; margin-bottom:12px; }
+.fc-name { font-family:'Cinzel Decorative',serif; font-size:16px; margin-bottom:3px; }
+.fc.red .fc-name { color:var(--r); } .fc.white .fc-name { color:var(--w); } .fc.purple .fc-name { color:#C490F0; } .fc.black .fc-name { color:#C080FF; }
+.fc-sub { font-family:'Cinzel',serif; font-size:8px; letter-spacing:3px; text-transform:uppercase; color:var(--dim); margin-bottom:6px; }
+.fc-leader { font-family:'Cinzel',serif; font-size:8px; letter-spacing:2px; color:var(--gold); opacity:.7; margin-bottom:14px; }
+.fc-desc { font-size:13px; line-height:1.65; color:var(--text); margin-bottom:12px; }
+.fc-lore { font-size:12px; line-height:1.6; color:var(--dim); font-style:italic; margin-bottom:14px; border-top:1px solid rgba(255,255,255,.05); padding-top:12px; }
+.fc-traits { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:12px; }
+.trait { font-family:'Cinzel',serif; font-size:8px; letter-spacing:1.5px; text-transform:uppercase; padding:3px 7px; border-radius:1px; border:1px solid; }
+.fc.red .trait { border-color:rgba(232,52,26,.45); color:var(--r); } .fc.white .trait { border-color:rgba(232,220,200,.35); color:var(--w); } .fc.purple .trait { border-color:rgba(196,144,240,.35); color:#C490F0; } .fc.black .trait { border-color:rgba(192,128,255,.3); color:#C080FF; }
+.fc-fang { font-size:11px; color:var(--dim); padding-top:10px; border-top:1px solid rgba(255,255,255,.05); }
+.fc-fang strong { display:block; font-family:'Cinzel',serif; font-size:8px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); margin-bottom:3px; }
+.leaders-section { padding:100px 60px; background:var(--deep); border-top:1px solid rgba(201,168,76,.08); border-bottom:1px solid rgba(201,168,76,.08); }
+.leaders-hd { text-align:center; margin-bottom:60px; }
+.leaders-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:3px; max-width:1200px; margin:0 auto; }
+.leader-card { position:relative; overflow:hidden; padding:40px 34px; background:var(--surface); border:1px solid rgba(255,255,255,.05); transition:border-color .4s; }
+.leader-card:hover { border-color:rgba(201,168,76,.2); }
+.leader-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+.leader-card.red::before { background:linear-gradient(to right,transparent,var(--r),transparent); }
+.leader-card.white::before { background:linear-gradient(to right,transparent,var(--w),transparent); }
+.leader-card.purple::before { background:linear-gradient(to right,transparent,var(--p),transparent); }
+.leader-card.black::before { background:linear-gradient(to right,transparent,#C080FF,transparent); }
+.leader-faction { font-family:'Cinzel',serif; font-size:9px; letter-spacing:3px; text-transform:uppercase; margin-bottom:10px; }
+.leader-card.red .leader-faction { color:var(--r); } .leader-card.white .leader-faction { color:var(--w); } .leader-card.purple .leader-faction { color:#C490F0; } .leader-card.black .leader-faction { color:#C080FF; }
+.leader-name { font-family:'Cinzel Decorative',serif; font-size:21px; color:var(--gold); margin-bottom:4px; line-height:1.2; }
+.leader-title { font-family:'Cinzel',serif; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); margin-bottom:16px; }
+.leader-archetype { font-family:'Cinzel',serif; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); opacity:.45; margin-bottom:18px; }
+.leader-body { font-size:15px; line-height:1.8; color:var(--text); margin-bottom:18px; }
+.leader-card-stat { background:rgba(5,3,8,.6); border:1px solid rgba(201,168,76,.12); padding:16px 20px; margin-top:18px; font-size:13px; line-height:1.7; color:var(--dim); }
+.leader-card-stat strong { color:var(--gold); font-style:normal; font-family:'Cinzel',serif; font-size:9px; letter-spacing:2px; display:block; margin-bottom:6px; text-transform:uppercase; }
+.leader-quote { margin-top:16px; font-size:14px; font-style:italic; color:var(--dim); border-left:1px solid var(--crimson); padding-left:16px; line-height:1.7; }
+.mechanics-outer { position:relative; overflow:hidden; padding:100px 0; }
+.mech-bg { position:absolute; inset:0; background-image:url('images/website_background_003.png'); background-size:cover; background-position:center; filter:brightness(.18) saturate(1.2); }
+.mech-bg::after { content:''; position:absolute; inset:0; background:rgba(13,10,18,.78); }
+.mechanics-inner { position:relative; z-index:2; max-width:1200px; margin:0 auto; padding:0 60px; }
+.mech-hd { text-align:center; margin-bottom:56px; }
+.res-legend { display:flex; justify-content:center; gap:26px; flex-wrap:wrap; margin-bottom:56px; }
+.res-item { display:flex; flex-direction:column; align-items:center; gap:9px; }
+.res-item img { width:48px; height:48px; object-fit:contain; filter:drop-shadow(0 0 10px rgba(201,168,76,.3)); transition:transform .3s,filter .3s; }
+.res-item:hover img { transform:scale(1.2) translateY(-4px); filter:drop-shadow(0 0 18px rgba(201,168,76,.6)); }
+.res-label { font-family:'Cinzel',serif; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); text-align:center; }
+.mech-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:3px; }
+.mech-card { background:rgba(13,10,18,.88); border:1px solid rgba(201,168,76,.07); padding:28px 24px; transition:border-color .3s,background .3s; }
+.mech-card:hover { border-color:rgba(201,168,76,.2); background:rgba(19,16,26,.95); }
+.mech-icon { font-size:26px; margin-bottom:14px; display:block; }
+.mech-title { font-family:'Cinzel',serif; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-bottom:10px; }
+.mech-desc { font-size:14px; line-height:1.75; color:var(--text); }
+.mech-tag { display:inline-block; margin-top:14px; font-family:'Cinzel',serif; font-size:8px; letter-spacing:2px; text-transform:uppercase; padding:3px 9px; border:1px solid rgba(139,0,0,.45); color:var(--crimson); }
+.howto-outer { position:relative; overflow:hidden; padding:100px 60px; }
+.howto-bg { position:absolute; inset:0; background-image:url('images/website_background_004.png'); background-size:cover; background-position:center; filter:brightness(.18); }
+.howto-bg::after { content:''; position:absolute; inset:0; background:rgba(5,3,8,.78); }
+.howto-inner { position:relative; z-index:2; max-width:900px; margin:0 auto; text-align:center; }
+.turn-steps { margin-top:56px; position:relative; }
+.turn-steps::before { content:''; position:absolute; left:27px; top:0; bottom:0; width:1px; background:linear-gradient(to bottom,var(--crimson),rgba(139,0,0,.08)); }
+.t-step { display:grid; grid-template-columns:54px 1fr; gap:22px; align-items:start; padding:22px 0; text-align:left; border-bottom:1px solid rgba(255,255,255,.04); }
+.t-step:last-child { border-bottom:none; }
+.t-num { width:54px; height:54px; border:1px solid rgba(139,0,0,.5); display:flex; align-items:center; justify-content:center; font-family:'Cinzel Decorative',serif; font-size:15px; color:var(--crimson); background:var(--void); position:relative; z-index:1; flex-shrink:0; }
+.t-name { font-family:'Cinzel',serif; font-size:12px; letter-spacing:3px; text-transform:uppercase; color:var(--gold); margin-bottom:6px; }
+.t-desc { font-size:15px; line-height:1.7; color:var(--text); }
+.t-lore { font-size:13px; line-height:1.6; color:var(--dim); font-style:italic; margin-top:5px; }
+.abilities-section { padding:80px 60px; max-width:1100px; margin:0 auto; }
+.abilities-hd { text-align:center; margin-bottom:50px; }
+.abilities-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:3px; }
+.ability-card { background:var(--surface); padding:22px 26px; border-left:2px solid var(--crimson); transition:background .3s; }
+.ability-card:hover { background:var(--mist); }
+.ab-name { font-family:'Cinzel',serif; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-bottom:6px; }
+.ab-rule { font-size:14px; line-height:1.65; color:var(--text); margin-bottom:5px; }
+.ab-lore { font-size:12px; line-height:1.6; color:var(--dim); font-style:italic; }
+.threats-section { padding:100px 60px; background:var(--void); }
+.threats-inner { max-width:1200px; margin:0 auto; }
+.threats-hd { text-align:center; margin-bottom:56px; }
+.threats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:3px; }
+.threat-card { background:var(--surface); padding:32px 28px; border-top:2px solid var(--crimson); position:relative; overflow:hidden; }
+.threat-card::after { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at top,rgba(139,0,0,.07),transparent 60%); pointer-events:none; }
+.threat-icon { font-size:30px; margin-bottom:18px; display:block; }
+.threat-name { font-family:'Cinzel',serif; font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-bottom:12px; }
+.threat-body { font-size:15px; line-height:1.75; color:var(--text); }
+.gallery-outer { padding:100px 40px; background:var(--deep); border-top:1px solid rgba(201,168,76,.08); }
+.gallery-hd { text-align:center; margin-bottom:56px; }
+.filter-tabs { display:flex; justify-content:center; gap:0; margin-bottom:44px; border:1px solid rgba(201,168,76,.2); width:fit-content; margin-left:auto; margin-right:auto; flex-wrap:wrap; }
+.ftab { font-family:'Cinzel',serif; font-size:9px; letter-spacing:3px; text-transform:uppercase; padding:13px 20px; background:transparent; border:none; border-right:1px solid rgba(201,168,76,.15); color:var(--dim); cursor:crosshair; transition:all .3s; }
+.ftab:last-child { border-right:none; }
+.ftab.active { background:rgba(201,168,76,.08); color:var(--gold); }
+.ftab:hover:not(.active) { color:var(--text); }
+.gallery-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:6px; max-width:1400px; margin:0 auto; }
+.g-item { position:relative; overflow:hidden; aspect-ratio:2/3; cursor:crosshair; border:1px solid rgba(255,255,255,.04); transition:border-color .3s; }
+.g-item:hover { border-color:rgba(201,168,76,.3); }
+.g-item img { width:100%; height:100%; object-fit:cover; transition:transform .5s,filter .5s; filter:brightness(.85) saturate(.9); }
+.g-item:hover img { transform:scale(1.06); filter:brightness(1) saturate(1.1); }
+.g-overlay { position:absolute; inset:0; background:linear-gradient(to top,rgba(5,3,8,.85) 0%,transparent 50%); opacity:0; transition:opacity .3s; display:flex; align-items:flex-end; padding:14px; }
+.g-item:hover .g-overlay { opacity:1; }
+.g-name { font-family:'Cinzel',serif; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text); }
+.g-faction-dot { width:6px; height:6px; border-radius:50%; margin-bottom:4px; }
+.g-item[data-faction="red"] .g-faction-dot { background:var(--r); }
+.g-item[data-faction="white"] .g-faction-dot { background:var(--w); }
+.g-item[data-faction="purple"] .g-faction-dot { background:var(--p); }
+.g-item[data-faction="black"] .g-faction-dot { background:#C080FF; }
+.g-item[data-faction="colorless"] .g-faction-dot { background:#aaa; }
+.g-item[data-faction="land"] .g-faction-dot { background:var(--gold); }
+.lightbox { position:fixed; inset:0; z-index:1000; background:rgba(5,3,8,.97); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .3s; }
+.lightbox.open { opacity:1; pointer-events:all; }
+.lb-inner { position:relative; max-width:90vw; max-height:90vh; display:flex; align-items:center; justify-content:center; }
+.lb-inner img { max-width:90vw; max-height:85vh; object-fit:contain; border:1px solid rgba(201,168,76,.2); box-shadow:0 0 80px rgba(139,0,0,.4); }
+.lb-close { position:absolute; top:-38px; right:0; font-family:'Cinzel',serif; font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--dim); background:none; border:none; cursor:crosshair; transition:color .2s; }
+.lb-close:hover { color:var(--gold); }
+.lb-caption { position:absolute; bottom:-34px; left:0; font-family:'Cinzel',serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); }
+.lb-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(5,3,8,.8); border:1px solid rgba(201,168,76,.2); color:var(--gold); width:44px; height:44px; display:flex; align-items:center; justify-content:center; cursor:crosshair; font-size:18px; transition:all .3s; z-index:10; }
+.lb-nav:hover { background:rgba(201,168,76,.1); }
+.lb-prev { left:-58px; } .lb-next { right:-58px; }
+.worldart-outer { padding:100px 40px; background:var(--void); }
+.worldart-hd { text-align:center; margin-bottom:56px; }
+.world-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; max-width:1400px; margin:0 auto; }
+.world-item { position:relative; overflow:hidden; aspect-ratio:3/4; cursor:crosshair; }
+.world-item img { width:100%; height:100%; object-fit:cover; filter:brightness(.68) saturate(1.1); transition:filter .5s,transform .5s; }
+.world-item:hover img { filter:brightness(.95); transform:scale(1.04); }
+.world-item-label { position:absolute; bottom:0; left:0; right:0; padding:18px; background:linear-gradient(to top,rgba(5,3,8,.8),transparent); font-family:'Cinzel',serif; font-size:9px; letter-spacing:3px; text-transform:uppercase; color:var(--dim); opacity:0; transition:opacity .3s; }
+.world-item:hover .world-item-label { opacity:1; }
+.signup-outer { position:relative; overflow:hidden; padding:120px 60px; text-align:center; }
+.signup-bg { position:absolute; inset:0; background-image:url('images/website_background_007.png'); background-size:cover; background-position:center; filter:brightness(.18) saturate(1.1); }
+.signup-bg::after { content:''; position:absolute; inset:0; background:radial-gradient(ellipse 80% 60% at 50% 50%,rgba(139,0,0,.12),transparent 70%); }
+.signup-inner { position:relative; z-index:2; }
+.signup-form { display:flex; gap:0; max-width:480px; margin:44px auto 0; border:1px solid rgba(201,168,76,.25); }
+.signup-input { flex:1; background:transparent; border:none; padding:16px 22px; font-family:'EB Garamond',serif; font-size:16px; color:var(--text); outline:none; }
+.signup-input::placeholder { color:var(--dim); }
+.signup-btn { background:var(--crimson); border:none; padding:16px 24px; font-family:'Cinzel',serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#fff; cursor:crosshair; transition:all .3s; white-space:nowrap; }
+.signup-btn:hover { background:#E01030; box-shadow:0 0 28px rgba(196,30,58,.4); }
+.signup-note { margin-top:16px; font-size:13px; color:var(--dim); font-style:italic; }
+footer { background:var(--void); border-top:1px solid rgba(255,255,255,.05); padding:48px 60px; }
+.footer-top { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:24px; margin-bottom:28px; }
+.footer-logo { font-family:'Cinzel Decorative',serif; font-size:16px; letter-spacing:5px; color:var(--gold); opacity:.8; }
+.footer-links { display:flex; gap:22px; list-style:none; flex-wrap:wrap; }
+.footer-links a { font-family:'Cinzel',serif; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); text-decoration:none; transition:color .3s; }
+.footer-links a:hover { color:var(--gold); }
+.social-link { font-family:'Cinzel',serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); text-decoration:none; border:1px solid rgba(201,168,76,.2); padding:8px 16px; transition:all .3s; }
+.social-link:hover { color:var(--gold); border-color:var(--gold); background:rgba(201,168,76,.06); }
+.footer-bot { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; padding-top:26px; border-top:1px solid rgba(255,255,255,.04); }
+.footer-copy { font-size:12px; color:var(--dim); }
+.footer-pips { display:flex; gap:10px; align-items:center; }
+.footer-pips img { width:22px; height:22px; object-fit:contain; opacity:.55; transition:opacity .3s; }
+.footer-pips img:hover { opacity:1; }
+@media(max-width:1000px) {
+  nav{padding:16px 24px;} .nav-links{display:none;}
+  .factions-grid,.leaders-grid{grid-template-columns:repeat(2,1fr);}
+  .mech-grid,.covenant-grid{grid-template-columns:repeat(2,1fr);}
+  .world-lore,.technae-inner{grid-template-columns:1fr;gap:40px;}
+  .stats-bar{grid-template-columns:repeat(3,1fr);}
+  .world-grid{grid-template-columns:repeat(2,1fr);}
+  .threats-grid{grid-template-columns:repeat(2,1fr);}
+  .abilities-grid{grid-template-columns:1fr;}
+}
+@media(max-width:600px) {
+  .factions-grid,.leaders-grid,.mech-grid,.covenant-grid,.threats-grid{grid-template-columns:1fr;}
+  .stats-bar{grid-template-columns:repeat(2,1fr);}
+  .world-grid{grid-template-columns:1fr;}
+  .hero-title{font-size:52px;}
+  nav{padding:14px 20px;}
+}
+</style>
 </head>
-    <script>
-    // If URL has #gallery-section, briefly highlight it
-    if (window.location.hash === '#gallery-section') {
-        const gallery = document.getElementById('gallery-section');
-        if (gallery) {
-            gallery.style.transition = 'background 1.5s';
-            gallery.style.background = 'rgba(139, 0, 0, 0.2)';
-            setTimeout(() => {
-                gallery.style.background = 'transparent';
-            }, 2000);
-        }
-    }
-</script>
 <body>
+<nav>
+  <a href="#" class="nav-logo">CYBERVAMP</a>
+  <ul class="nav-links">
+    <li><a href="#lore">The Nexus</a></li>
+    <li><a href="#factions">Factions</a></li>
+    <li><a href="#leaders">Sire Lords</a></li>
+    <li><a href="#mechanics">Mechanics</a></li>
+    <li><a href="#gallery">Gallery</a></li>
+  </ul>
+  <div class="nav-right">
+    <a href="https://x.com/aeternis" target="_blank" class="nav-x">𝕏 @aeternis</a>
+    <a href="#signup" class="nav-cta">Awaken</a>
+  </div>
+</nav>
 
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg fixed-top">
-        <div class="container">
-            <a class="navbar-brand" href="#">Cybervamp</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link active" href="index.html">Home</a></li>
-                    <li class="nav-item"><a class="nav-link" href="pages/lore.html">Lore</a></li>
-                    <li class="nav-item"><a class="nav-link" href="pages/factions.html">Factions</a></li>
-                    <li class="nav-item"><a class="nav-link" href="pages/ccg-hub.html">Rules</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#gallery-section">Gallery</a></li>
-                    <li class="nav-item">
-    <a class="nav-link" href="https://x.com/Aeternis" target="_blank" rel="noopener noreferrer">
-        Community
-    </a>
-</li>
-                </ul>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Hero Section -->
-    <div class="hero">
-        <h1>Cybervamp CCG</h1>
-        <p class="lead">Where baroque shadows entwine with neon veins.</p>
-        <p class="lead fw-light">The Crimson Nexus rises after the Eclipse War — vampires and humanity bound by the Veiled Accord.</p>
-        <p class="lead fw-light">As an unseen Will, command the factions. Manifest your deck.</p>
-        <a href="pages/ccg-hub.html" class="btn btn-lg mt-3" style="background:#8b0000; color:#fff; border:none; box-shadow:0 0 20px #ff4500; padding:15px 40px; font-size:1.3rem;">
-            Enter the Nexus – View Rules
-        </a>
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <span class="hero-eyemark">🩸</span>
+    <div class="hero-pre">The Crimson Nexus Awaits</div>
+    <h1 class="hero-title">CYBERVAMP</h1>
+    <div class="hero-year">Year 2147 · Post-Eclipse War</div>
+    <div class="hero-sub">A Collectible Card Game · Four Factions · One Eternal War</div>
+    <div class="blood-pips">
+      <div class="blood-pip"><img src="images/Red_Blood_Logo_256x256.png" alt="{R}"></div>
+      <div class="blood-pip"><img src="images/White_Blood_Logo_256x256.png" alt="{W}"></div>
+      <div class="blood-pip"><img src="images/Purple_Blood_Logo_256x256.png" alt="{P}"></div>
+      <div class="blood-pip"><img src="images/Black_Blood_Logo_256x256.png" alt="{B}"></div>
+      <div class="blood-pip"><img src="images/Gold_Logo_256x256.png" alt="{G}"></div>
+      <div class="blood-pip"><img src="images/Colorless_Blood_Logo_256x256.png" alt="{C}"></div>
     </div>
-
-   <!-- Card Gallery -->
-<div class="container card-gallery my-5">
-    <h2 class="text-center mb-5" style="color:#ff4500; text-shadow: 0 0 15px #8b0000;">
-        Manifestations of the Nexus
-    </h2>
-    
-    <div class="row justify-content-center g-4">
-
-        <!-- Example for one card – repeat pattern for all -->
-        <div class="col-md-4 col-lg-3 mb-5">
-            <div class="card-item">
-                <!-- Lightbox link: href = full image, data-lightbox group, data-title = caption -->
-                <a href="assets/img/White Creature 002.png" 
-                   data-lightbox="cybervamp-gallery" 
-                   data-title="White Creature 002 – Eternal Aristocracy Wall">
-                    <img src="assets/img/White Creature 002.png" 
-                         class="card-img" 
-                         alt="White Faction Creature - Eternal Aristocracy" 
-                         loading="lazy">
-                </a>
-                <div class="p-3 text-center small">White Creature 002 – Eternal Aristocracy Wall</div>
-            </div>
-        </div>
-
-        <!-- Purple Spell 001 -->
-        <div class="col-md-4 col-lg-3 mb-5">
-            <div class="card-item">
-                <a href="assets/img/Purple Spell 001.png" 
-                   data-lightbox="cybervamp-gallery" 
-                   data-title="Purple Spell 001 – Arcane Subterfuge">
-                    <img src="assets/img/Purple Spell 001.png" 
-                         class="card-img" 
-                         alt="Purple Spell - Arcane Subterfuge" 
-                         loading="lazy">
-                </a>
-                <div class="p-3 text-center small">Purple Spell 001 – Arcane Subterfuge</div>
-            </div>
-        </div>
-
-        <!-- White Spell 002 -->
-        <div class="col-md-4 col-lg-3 mb-5">
-            <div class="card-item">
-                <a href="assets/img/white spell 002.png" 
-                   data-lightbox="cybervamp-gallery" 
-                   data-title="White Spell 002 – Relic Activation">
-                    <img src="assets/img/white spell 002.png" 
-                         class="card-img" 
-                         alt="White Spell - Relic Activation" 
-                         loading="lazy">
-                </a>
-                <div class="p-3 text-center small">White Spell 002 – Relic Activation</div>
-            </div>
-        </div>
-
-        <!-- Land Red 01 -->
-        <div class="col-md-4 col-lg-3 mb-5">
-            <div class="card-item">
-                <a href="assets/img/Land Red 01.png" 
-                   data-lightbox="cybervamp-gallery" 
-                   data-title="Land Red 01 – Neon Sprawl Blood Source">
-                    <img src="assets/img/Land Red 01.png" 
-                         class="card-img" 
-                         alt="Red Blood Land - Neon Sprawl" 
-                         loading="lazy">
-                </a>
-                <div class="p-3 text-center small">Land Red 01 – Neon Sprawl Blood Source</div>
-            </div>
-        </div>
-
-        <!-- ... repeat the same pattern for ALL your other cards ... -->
-
+    <p class="hero-desc">Ancient vampires. Quantum nanotechnology. A world remade in blood. You are an <em>unseen Will</em> — a force beyond knowing, guiding your faction through the eternal night of the Crimson Nexus. Four Sire Lords await your hand.</p>
+    <div class="hero-ctas">
+      <a href="#signup" class="btn-primary">Awaken Early Access</a>
+      <a href="#lore" class="btn-secondary">Enter the Nexus</a>
     </div>
+  </div>
+  <div class="scroll-hint"><div class="scroll-line"></div>Descend</div>
+</section>
+
+<section id="lore">
+  <div class="world-lore">
+    <div>
+      <div class="s-label">The Crimson Nexus</div>
+      <h2 class="s-title">The World Remade in Blood</h2>
+      <p class="lore-body">In the year <strong style="color:var(--gold)">2147</strong>, the <em>Eclipse War</em> tore history in two. Ancient vampires — hidden for centuries — surfaced to clash with humanity's AI-driven empires in a global conflict that irradiated 90% of the world. When the smoke cleared, vampirism itself had evolved.</p>
+      <p class="lore-body">The traditional bite now carries a 90% mortality rate due to incompatible post-war genomes. In its place: <strong style="color:var(--gold)">synth-bite nanotech</strong> and quantum turning protocols — controlled by four factions vying for dominance of what remains.</p>
+      <div class="lore-quote">"Vampirism is no longer a curse. It is an upgrade. The only question is who controls the upgrade path."<cite>— Zane "Z" Voss, Neon Overlord</cite></div>
+      <p class="lore-body">Vampires are enhanced immortals sustained by <em>vita-plasma</em> — synthetic blood laced with data streams — and empowered by <strong style="color:var(--gold)">Technae</strong>: the radiant fusion of vampiric vitae and quantum nanotechnology that grants seemingly magical abilities when combined with tech, relics, and ritual.</p>
+      <p class="lore-body">You, the player, are something even more mysterious: an <strong style="color:var(--gold)">unseen Will</strong>. Not a vampire. Not a human. An unknowable force guiding your Sire Lord as surges of compulsion and synchronicity. They call it the Will of the Nexus. None of them know it is you.</p>
+      <br><a href="#factions" class="btn-secondary">Choose Your Bloodline</a>
+    </div>
+    <div class="lore-img-wrap"><img src="images/website_background_002.png" alt="The Crimson Nexus"></div>
+  </div>
+</section>
+
+<div class="stats-bar">
+  <div class="stat"><div class="stat-n">2147</div><div class="stat-l">Year of the Eclipse War</div></div>
+  <div class="stat"><div class="stat-n">60</div><div class="stat-l">Cards per Deck</div></div>
+  <div class="stat"><div class="stat-n">20</div><div class="stat-l">Starting Vitae Core</div></div>
+  <div class="stat"><div class="stat-n">4</div><div class="stat-l">Factions</div></div>
+  <div class="stat"><div class="stat-n">3×</div><div class="stat-l">Max Copies per Card</div></div>
 </div>
-    <!-- Factions Teaser -->
-    <div class="container my-5">
-        <h2 class="text-center mb-5" style="color:#ff4500;">The Four Eternal Factions</h2>
-        <div class="row text-center">
-            <div class="col-md-3"><h5 style="color:#ff4500;">Red Neon Revenants</h5><p>Reckless aggro zoomers</p></div>
-            <div class="col-md-3"><h5 style="color:#f0f8ff;">White Eternal Aristocracy</h5><p>Legacy control & relics</p></div>
-            <div class="col-md-3"><h5 style="color:#d4c3ff;">Purple Arcane Scholars</h5><p>Mystic subterfuge</p></div>
-            <div class="col-md-3"><h5 style="color:#006400;">Black Shadow Behemoths</h5><p>Necromantic grinder</p></div>
-        </div>
+
+<div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
+<div class="technae-section">
+  <div class="technae-bg"></div>
+  <div class="technae-inner">
+    <div>
+      <div class="s-label">Metaphysical Core</div>
+      <h2 class="s-title">Technae &amp; The Blood Covenant</h2>
+      <p class="lore-body" style="margin-bottom:16px;">Technae is the shimmering crimson energy field that vampires naturally attune to post-turning — a fusion of vampiric vitae and quantum nanotechnology. It amplifies strength to god-tier, speed to Mach velocities, and interfaces with tech and magic on an intuitive level.</p>
+      <p class="lore-body" style="margin-bottom:16px;">Technae draws from blood mana. Overuse causes <strong style="color:var(--crimson)">Vitae Burnout</strong> — feral rages and tech-glitches until replenished. This tension is the soul of gameplay.</p>
+      <div class="lore-quote">"The <em>Veiled Accord</em> binds us to humanity — not as masters, but as protectors. They give us blood. We give them eternity. The Nexus Accord is etched in technae-blockchain. Break it, and face sunlight vulnerability. Forever."<cite>— The Crimson Council, Founding Charter</cite></div>
+      <p class="lore-body">Blood Harvest is automated via <strong style="color:var(--gold)">Vitae Courier Drones</strong> — faction-specific craft delivering painless kits, collecting, scanning, returning. Tapping a land is a <em>Resonance Harvest</em>: harmonious, non-destructive. Humans live in fortified village Land Nodes, receiving longevity treatments, neural upgrades, and security in exchange for their donations.</p>
     </div>
+    <div class="technae-cards">
+      <div class="tcard"><div class="tcard-title">🔴 {R} Red Blood — Synth-Vitae</div><div class="tcard-body">Volatile, high-yield mana from app-based neon donor nets. Flash-processed for explosive bursts. Risk of Vitae Burnout ever-present.</div></div>
+      <div class="tcard"><div class="tcard-title">⚪ {W} White Blood — Pureline Vitae</div><div class="tcard-body">Refined in crystal distillers from pampered noble-estate donors. Ultra-pure, high technae potency, minimal corruption. Slow but devastating.</div></div>
+      <div class="tcard"><div class="tcard-title">🟣 {P} Purple Blood — Aetheric Vitae</div><div class="tcard-body">Drawn via psychic resonance siphons from meditating apprentices. Infused with knowledge-bursts; donors experience visions of the multiverse.</div></div>
+      <div class="tcard"><div class="tcard-title">⚫ {B} Black Blood — Savage Vitae</div><div class="tcard-body">Fermented in bone-altars from ritual offerings. Raw, corrupting mana that buffs swarms. Feeds the cycle of decay and rebirth.</div></div>
+      <div class="tcard"><div class="tcard-title">🟡 {G} Gold — Crimson Units (CU)</div><div class="tcard-body">Human-crafted tributes and artifact wealth refined to colorless power. The universal currency of the Veiled Accord — stable, flexible, precious.</div></div>
+    </div>
+  </div>
+</div>
 
-    <!-- Footer -->
-    <footer>
-        <p>© 2026 Cybervamp CCG — The Will of the Nexus endures.</p>
-        <p>Built by @Aeternis</p>
-    </footer>
+<div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
+<div class="covenant-section">
+  <div class="s-label" style="text-align:center">The Veiled Accord</div>
+  <h2 class="s-title" style="text-align:center">Governance of the Nexus</h2>
+  <p style="text-align:center;font-size:17px;color:var(--dim);font-style:italic;max-width:640px;margin:0 auto;">The Crimson Council governs the relationship between vampire factions and human villages — a technae-blockchain treaty of mutual protection and blood tribute.</p>
+  <div class="covenant-grid">
+    <div class="cov-card"><span class="cov-icon">🏘️</span><div class="cov-title">Village Land Nodes</div><div class="cov-body">Fortified human enclaves produce Blood (colored vitae) and Gold (tech tribute) each turn. Tapping a land is a Resonance Harvest — harmonious and mutually beneficial under the Accord's terms.</div></div>
+    <div class="cov-card"><span class="cov-icon">⚖️</span><div class="cov-title">The Crimson Council</div><div class="cov-body">Three tiers: Local Village Councils of vampire and human elders. Faction High Councils of Sire Lords and Echo Envoys. And the rare Grand Nexus Council — for existential crises threatening all four factions simultaneously.</div></div>
+    <div class="cov-card"><span class="cov-icon">🧬</span><div class="cov-title">Human Reciprocity</div><div class="cov-body">In exchange for vitae tithes, humans receive longevity treatments, neural upgrades, cyber enhancements, infrastructure, and faction-specific protections. High Accord Scores prioritize villages for aid drops.</div></div>
+  </div>
+</div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/js/lightbox.min.js" integrity="sha512-IxzLNa4RDO8jF6Q3b3Qb1w6vC6h+5qS0X6Kx9v3r4r2rXv7t1d5k3k1pX9b4W5U8tJ+8d8p0l5q2z0v8b4Q6g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    
-<!-- Lightbox JS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/js/lightbox.min.js" integrity="sha512-IxzLNa4RDO8jF6Q3b3Qb1w6vC6h+5qS0X6Kx9v3r4r2rXv7t1d5k3k1pX9b4W5U8tJ+8d8p0l5q2z0v8b4Q6g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<section id="factions">
+  <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
+  <div class="factions-wrap">
+    <div class="factions-hd">
+      <div class="s-label">Choose Your Bloodline</div>
+      <h2 class="s-title">The Four Factions</h2>
+      <p style="font-size:16px;color:var(--dim);font-style:italic;max-width:540px;margin:0 auto;">Four visions of eternity. Four technae expressions. Four ways to rule the Crimson Nexus.</p>
+    </div>
+    <div class="factions-grid">
+      <div class="fc red">
+        <div class="fc-bg"></div><div class="fc-overlay"></div>
+        <div class="fc-bottom">
+          <img class="fc-logo" src="images/Red_Blood_Logo_256x256.png" alt="Red">
+          <div class="fc-name">Cyber City</div>
+          <div class="fc-sub">Red · Aggro · The Neon Revenants</div>
+          <div class="fc-leader">✦ SIRE LORD: ZANE "Z" VOSS</div>
+          <p class="fc-desc">Post-Eclipse millennials who volunteered for synth-bite turnings, thriving in megacity cyber-spires. They overclock their technae via gadget implants, willingly self-bleeding for adrenaline bursts. Immortality as a lifestyle upgrade.</p>
+          <p class="fc-lore">Villages are neon megacities with app-based donor pools and LED drone speeders. Red vampires fear stagnation more than death. Their rapid expansion threatens White's exclusivity — cyber-sabotage of palace systems is ongoing.</p>
+          <div class="fc-traits"><span class="trait">Haste</span><span class="trait">Bleed</span><span class="trait">Self-Bleed</span><span class="trait">Overclock</span></div>
+          <div class="fc-fang"><strong>Fang Type</strong>Minimal or none — nanobot turning bypasses morphology. Some sport smartfang implants or fingertip vitae-ports. "Why bite when you can sync?"</div>
+        </div>
+      </div>
+      <div class="fc white">
+        <div class="fc-bg"></div><div class="fc-overlay"></div>
+        <div class="fc-bottom">
+          <img class="fc-logo" src="images/White_Blood_Logo_256x256.png" alt="White">
+          <div class="fc-name">The Palace</div>
+          <div class="fc-sub">White · Ramp/Control · The Eternal Aristocracy</div>
+          <div class="fc-leader">✦ SIRE LORD: COUNT VLADISLAV DRACUL</div>
+          <p class="fc-desc">Ancient bloodlines from pre-industrial Europe and Asia, ensconced in Crystal Palaces orbiting Earth's atmosphere. Versailles reimagined: holographic frescoes, marble halls pulsing with fiber-optic veins, AI-servants in powdered wigs.</p>
+          <p class="fc-lore">Pureline Estates pamper noble human donors; blood refined in crystal distillers. They hoard the original vampire genome codes. They view tech-turning as dilution. Dissenting vampires are "exiled to the void." Patience is eternal when you cannot die.</p>
+          <div class="fc-traits"><span class="trait">Walls</span><span class="trait">Life Gain</span><span class="trait">Relics</span><span class="trait">Overclock</span></div>
+          <div class="fc-fang"><strong>Fang Type</strong>Long, elegant ivory fangs — a badge of unbroken lineage. Retracting signals restraint. Extending signals honor or judgment. Ceremonial feasts are theatrical, intimate, and theatrically ancient.</div>
+        </div>
+      </div>
+      <div class="fc purple">
+        <div class="fc-bg"></div><div class="fc-overlay"></div>
+        <div class="fc-bottom">
+          <img class="fc-logo" src="images/Purple_Blood_Logo_256x256.png" alt="Purple">
+          <div class="fc-name">The Academy</div>
+          <div class="fc-sub">Purple · Control · The Arcane Scholars</div>
+          <div class="fc-leader">✦ SIRE LORD: ARCHSAGE ALARIC VOSS</div>
+          <p class="fc-desc">Occultists and alchemists who survived the Eclipse by retreating to hidden realms. Now they inhabit Aether Isles — anti-grav platforms above oceans and stratosphere, dotted with labyrinthine universities and quantum observatories.</p>
+          <p class="fc-lore">Donors study as apprentices, giving via meditative vitae-siphons that grant minor technae attunement. Purple pioneered the "WiFi of blood" — psychic resonance draws with no physical contact at all. Their quests often encroach on Black's forbidden territories.</p>
+          <div class="fc-traits"><span class="trait">Subterfuge</span><span class="trait">Pings</span><span class="trait">Exhaust Hate</span><span class="trait">Card Draw</span></div>
+          <div class="fc-fang"><strong>Fang Type</strong>Short, translucent, crystalline — they glow with technae runes when active. Conduits for energy fields, not puncture tools. Antennas for the arcane grid.</div>
+        </div>
+      </div>
+      <div class="fc black">
+        <div class="fc-bg"></div><div class="fc-overlay"></div>
+        <div class="fc-bottom">
+          <img class="fc-logo" src="images/Black_Blood_Logo_256x256.png" alt="Black">
+          <div class="fc-name">The Cemetery</div>
+          <div class="fc-sub">Black · Grind · The Shadow Behemoths</div>
+          <div class="fc-leader">✦ SIRE LORD: DR. ELIAS CROWE</div>
+          <p class="fc-desc">Feral clans from war-torn wastelands, dwelling in Necro-Catacombs: underground networks of graveyards fused with derelict bunkers, extending into sewer megastructures lit by phosphorescent fungi and flickering holo-screens.</p>
+          <p class="fc-lore">Wasteland tribes offer ritual blood in bone-altars; savage vitae ferments into raw, corrupting mana. Bio-mechanical bat/wolf hybrid drones. They revere the cycle of decay and rebirth. They clash with Red over urban encroachment — cyber-cities are their hunting grounds.</p>
+          <div class="fc-traits"><span class="trait">Siphon</span><span class="trait">Reanimate</span><span class="trait">Minions</span><span class="trait">Grind</span></div>
+          <div class="fc-fang"><strong>Fang Type</strong>Feral, jagged, often stained dark. Multiple rows in extreme cases from necro-nanite experiments. Bio-mechanical augmentations — bone spurs and retractable hooks — from Crowe's relentless work.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
-<!-- Lightbox configuration (makes ESC + backdrop click reliable) -->
+<section id="leaders">
+  <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
+  <div class="leaders-section">
+    <div class="leaders-hd">
+      <div class="s-label">The Sire Lords</div>
+      <h2 class="s-title">Commanders of the Crimson Nexus</h2>
+      <p style="font-size:16px;color:var(--dim);font-style:italic;max-width:580px;margin:0 auto;">Four legendary vampires who shaped the post-Eclipse world. Each feels your unseen Will as compulsion, technae surge, and synchronicity — and none of them know what you truly are.</p>
+    </div>
+    <div class="leaders-grid">
+      <div class="leader-card white">
+        <div class="leader-faction">White Faction · The Eternal Aristocracy</div>
+        <div class="leader-name">Count Vladislav Dracul</div>
+        <div class="leader-title">The Eternal · Patriarch of the Crystal Palace</div>
+        <div class="leader-archetype">Archetype: Classic Dracula · Ancient Transylvanian Noble</div>
+        <p class="leader-body">The oldest surviving bloodline patriarch — turned as Vlad III Tepes in the pre-Eclipse era — Vladislav survived centuries in hidden strongholds, amassing relics and genome codes. During the <em>Crystal Ascension of 2152</em>, he rallied fragmented noble houses in a salvaged space-palace, decreeing the "Purity Edicts" and forging the Veiled Accord's core.<br><br>He presides over the Gilded Conclave with regal poise, viewing humans as cherished vassals whose loyalty preserves noble purity. Aristocratic, eloquent, coldly calculating — he speaks in measured, archaic tones and values legacy above all else. Dissenters are exiled to the void without ceremony.</p>
+        <div class="leader-card-stat"><strong>Legendary Card — Count Vladislav, Eternal Sovereign</strong>6 {W} + 3 {G} · Vampire Noble · Power 5 · Vigilance. Walls you control gain +3 power. Whenever a land taps for the first time each turn, gain 3 life and scry 1. Overexhaust: Your relics untap and gain an extra activation this turn.</div>
+        <div class="leader-quote">"Blood is not taken; it is offered in tribute to eternity. Refuse, and the palace gates close forever."</div>
+      </div>
+      <div class="leader-card red">
+        <div class="leader-faction">Red Faction · The Neon Revenants</div>
+        <div class="leader-name">Zane "Z" Voss</div>
+        <div class="leader-title">Neon Overlord · Architect of the Neon Ignition</div>
+        <div class="leader-archetype">Archetype: Visionary Disruptor · Tech Billionaire</div>
+        <p class="leader-body">A former human tech mogul who self-turned via experimental synth-bite prototypes mid-battle during the Eclipse War, Zane now reigns from Neo-Tokyo's tallest spire — a chaotic hive of drones, AR billboards, and overclock factories. In the <em>Neon Ignition of 2155</em>, he live-streamed his protocols and viral-marketed eternal upgrades to disillusioned zoomers.<br><br>Charismatic, blunt, meme-loving. Demands extreme intensity and inspires fanatical loyalty — but burns out followers. His public feuds with Vladislav over genome-hoarding are legendary. His impulsive whims cause volatility that ripples across the entire faction.</p>
+        <div class="leader-card-stat"><strong>Legendary Card — Zane "Z" Voss, Neon Overlord</strong>5 {R} + 2 {G} · Vampire Innovator · Power 4 · Haste. Whenever you cast a spell, target creature gains +2 power until end of turn. If you have Bleed counters, purge 1 and deal 1 damage to any target. Overexhaust: All your creatures gain Haste this turn, but gain 2 Bleed.</div>
+        <div class="leader-quote">"Move fast, break things, bleed a little. The future doesn't wait for perfect code."</div>
+      </div>
+      <div class="leader-card purple">
+        <div class="leader-faction">Purple Faction · The Arcane Scholars</div>
+        <div class="leader-name">Archsage Alaric Voss</div>
+        <div class="leader-title">The Seer · Founder of the Aether Isles</div>
+        <div class="leader-archetype">Archetype: Wise Mentor · Benevolent Manipulator</div>
+        <p class="leader-body">An ancient scholar-vampire who blended mysticism with quantum tech during the Eclipse War — using clairvoyant algorithms to predict AI strikes and evacuate knowledge-hoarders to salvaged anti-grav platforms. The <em>Aether Awakening of 2153</em> unveiled his Mystic Algorithms: AI oracles fusing technae with vampiric intuition.<br><br>Warm, eccentric, infinitely patient — offering cryptic advice with a knowing smile. Deeply compassionate, but willing to orchestrate events from shadows for long-term harmony. Haunted by a lost protégé sacrificed to technae overload, a wound that never fully healed.</p>
+        <div class="leader-card-stat"><strong>Legendary Card — Archsage Alaric Voss</strong>4 {P} + 2 {G} · Vampire Oracle · Power 3 · Subterfuge (tap to exhaust target creature). At start of Pre-Battle, scry 3 and draw a card if you revealed a land. Whenever an opponent overexhausts, deal 2 damage to them.</div>
+        <div class="leader-quote">"The threads of fate are not chains, but invitations. Choose wisely — I have already seen the alternatives."</div>
+      </div>
+      <div class="leader-card black">
+        <div class="leader-faction">Black Faction · The Shadow Behemoths</div>
+        <div class="leader-name">Dr. Elias Crowe</div>
+        <div class="leader-title">The Fleshweaver · Lord of the Necro-Catacombs</div>
+        <div class="leader-archetype">Archetype: Victor Frankenstein · Obsessive Creator</div>
+        <p class="leader-body">Once a rogue bio-engineer obsessed with conquering death through necro-nanites, Elias turned himself in a catastrophic lab accident that fused his mind with his creations. Emerging feral from irradiated bunkers, he wandered wastelands binding mutated wolves and bats via ritual siphons. The <em>Necro-Pact of 2150</em> formalized his hive of feral vampires, tribal humans, and reanimated thralls.<br><br>Gaunt, scarred, robed in bio-mechanical fabric. Speaks in scientific jargon laced with dark poetry. His tormented guilt from early "monstrous" failures drives relentless innovation — he views each death as a necessary cull in the eternal cycle.</p>
+        <div class="leader-card-stat"><strong>Legendary Card — Dr. Elias Crowe, Fleshweaver</strong>5 {B} + 2 {G} · Vampire Necromancer · Power 4 · Reanimate (play from discard, enters renewed). Whenever a creature you control dies, create a 1-power Beast token and gain life equal to its power. Overexhaust: Reanimate target creature from any discard pile (lose 2 life).</div>
+        <div class="leader-quote">"Death is merely a flawed prototype. I iterate until perfection — or until the flesh rebels."</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="mechanics">
+  <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
+  <div class="mechanics-outer">
+    <div class="mech-bg"></div>
+    <div class="mechanics-inner">
+      <div class="mech-hd">
+        <div class="s-label">Core Systems</div>
+        <h2 class="s-title">The Laws of Blood</h2>
+        <p style="font-size:16px;color:var(--dim);font-style:italic;">Resources represent the Veiled Accord in action. The mechanics of the Nexus are the mechanics of survival.</p>
+      </div>
+      <div class="res-legend">
+        <div class="res-item"><img src="images/Red_Blood_Logo_256x256.png" alt="{R}"><span class="res-label">{R} Red Blood<br>Synth-Vitae</span></div>
+        <div class="res-item"><img src="images/White_Blood_Logo_256x256.png" alt="{W}"><span class="res-label">{W} White Blood<br>Pureline Vitae</span></div>
+        <div class="res-item"><img src="images/Purple_Blood_Logo_256x256.png" alt="{P}"><span class="res-label">{P} Purple Blood<br>Aetheric Vitae</span></div>
+        <div class="res-item"><img src="images/Black_Blood_Logo_256x256.png" alt="{B}"><span class="res-label">{B} Black Blood<br>Savage Vitae</span></div>
+        <div class="res-item"><img src="images/Gold_Logo_256x256.png" alt="{G}"><span class="res-label">{G} Gold<br>Crimson Units</span></div>
+        <div class="res-item"><img src="images/Colorless_Blood_Logo_256x256.png" alt="{C}"><span class="res-label">{C} Colorless<br>Eclipse Relic</span></div>
+      </div>
+      <div class="mech-grid">
+        <div class="mech-card"><span class="mech-icon">🩸</span><div class="mech-title">Blood &amp; Gold</div><p class="mech-desc">Colored Blood — harvested via Vitae Courier Drones — fuels spells as raw technae pulses. Gold, refined from human tributes and artifact economies, pays for creatures and relics. Land Nodes tap as Resonance Harvests: harmonious, non-destructive.</p><span class="mech-tag">Resource System</span></div>
+        <div class="mech-card"><span class="mech-icon">⚡</span><div class="mech-title">Instant Speed</div><p class="mech-desc">All spells are instants — cast anything, anytime you hold priority. The stack resolves LIFO. Both players pass consecutively to advance phases. Timing is everything in a Veil Clash. Permanents deploy in Pre- or Post-Battle only.</p><span class="mech-tag">Timing & Priority</span></div>
+        <div class="mech-card"><span class="mech-icon">🔄</span><div class="mech-title">Exhaust &amp; Overexhaust</div><p class="mech-desc">Exhaust (90°) is controlled technae drain — a "vein pulse." Overexhaust (180°) is full inversion: doubled power, 2-turn Recoalescence recovery, vulnerability to sabotage. This is pushing technae past safe thresholds.</p><span class="mech-tag">Technae Fatigue</span></div>
+        <div class="mech-card"><span class="mech-icon">💀</span><div class="mech-title">Bleed</div><p class="mech-desc">Unblocked combat damage inflicts Vitae Curses — Bleed counters that accumulate and erupt at end of Post-Battle, dealing damage equal to the total. Tick. Tick. Tick. The debt always comes due.</p><span class="mech-tag">Vitae Curse</span></div>
+        <div class="mech-card"><span class="mech-icon">🧟</span><div class="mech-title">Reanimation</div><p class="mech-desc">Destroyed cards enter the discard pile — not exile. Black's necro-circuits pull the fallen back as shadow recalls, entering renewed. Exile severs the tie. Dr. Elias Crowe knows every name in the graveyard by heart.</p><span class="mech-tag">Cemetery Mechanic</span></div>
+        <div class="mech-card"><span class="mech-icon">🃏</span><div class="mech-title">Vampiric Mulligan</div><p class="mech-desc">Once per game, lose 1 life from your Vitae Core to shuffle your hand back and redraw 7. An unstable initial alliance can fracture everything. Sacrifice blood to find your opening. The unseen Will does not accept failure.</p><span class="mech-tag">Deck Mechanics</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
+<div class="howto-outer" id="howtoplay">
+  <div class="howto-bg"></div>
+  <div class="howto-inner">
+    <div class="s-label">Turn Structure</div>
+    <h2 class="s-title">The Eternal Night Cycle</h2>
+    <p style="font-size:17px;color:var(--dim);font-style:italic;max-width:520px;margin:0 auto;">Each turn mirrors the eternal rhythm of the hunt. Master it, and your enemies will never see the killing blow coming.</p>
+    <div class="turn-steps">
+      <div class="t-step"><div class="t-num">I</div><div><div class="t-name">Renew</div><div class="t-desc">Untap all your permanents. Exhausted Land Nodes regenerate. Overexhausted cards advance one step toward Recoalescence.</div><div class="t-lore">"The eternal night resets. Blood flows back into drained veins. Vitae-drones begin their morning rounds."</div></div></div>
+      <div class="t-step"><div class="t-num">II</div><div><div class="t-name">Draw</div><div class="t-desc">Draw 1 card — your choice of Main Deck or Land Deck. A strategic decision made every single turn.</div><div class="t-lore">"The Will of the Nexus infuses fresh directives — another summoned entity, another relic uncovered from the archives."</div></div></div>
+      <div class="t-step"><div class="t-num">III</div><div><div class="t-name">Pre-Battle</div><div class="t-desc">Play 1 Land Node. Deploy creatures and relics. Activate abilities. Build your court for the coming Veil Clash.</div><div class="t-lore">"Sire Lords assemble their forces — thralls take position, relics activate, village gates draw shut."</div></div></div>
+      <div class="t-step"><div class="t-num">IV</div><div><div class="t-name">Battle — The Veil Clash</div><div class="t-desc">Declare attackers → opponent declares blockers → damage resolves simultaneously. Unblocked creatures trigger Bleed. Breach lets excess damage pierce through to the player's Vitae Core. Destruction is banishment to shadows, not true death.</div><div class="t-lore">"Veil Clashes are ritual duels where power symbolizes dominance. The loser is scattered — not destroyed, but banished until recalled."</div></div></div>
+      <div class="t-step"><div class="t-num">V</div><div><div class="t-name">Post-Battle</div><div class="t-desc">Deploy more permanents, trigger end-of-turn effects. Bleed counters erupt — lose life equal to your total Bleed, then all counters are removed. Clean up and pass the night.</div><div class="t-lore">"The blood debt settles. Vitae Curses fester and discharge. The Nexus exhales. Another cycle begins."</div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
+<div class="abilities-section">
+  <div class="abilities-hd"><div class="s-label">Core Abilities</div><h2 class="s-title">Vampiric Powers of the Nexus</h2></div>
+  <div class="abilities-grid">
+    <div class="ability-card"><div class="ab-name">Tireless</div><div class="ab-rule">Attacking does not exhaust this creature.</div><div class="ab-lore">Eternal Palace warriors whose technae cycles never deplete mid-Veil Clash — Vladislav's Sentinel Thralls can assault again and again without vein-pulse fatigue.</div></div>
+    <div class="ability-card"><div class="ab-name">Haste</div><div class="ab-rule">This creature can attack the turn it enters play.</div><div class="ab-lore">Neon Revenant cyber-implants grant instant technae attunement — no adjustment period. Zane's synth-bite protocols hardwire speed from the moment of turning.</div></div>
+    <div class="ability-card"><div class="ab-name">Wall</div><div class="ab-rule">Cannot attack. Deals no combat damage unless specified.</div><div class="ab-lore">Sentinel Thralls in relic-armor: half-turned Palace guardians who absorb hits without retaliating. The cornerstone of Vladislav's stall-and-overwhelm strategy.</div></div>
+    <div class="ability-card"><div class="ab-name">Breach</div><div class="ab-rule">Excess damage dealt to a blocking creature spills through to the player.</div><div class="ab-lore">Overwhelming technae essence that cannot be contained — power so great it spills past the blocker and strikes the enemy Vitae Core directly.</div></div>
+    <div class="ability-card"><div class="ab-name">Siphon</div><div class="ab-rule">Gain 1 life for each point of damage dealt directly to a player.</div><div class="ab-lore">Black's life-weave ritual. Necro-circuits convert drained enemy vitae directly into the attacker's Vitae Core. Elias Crowe perfected it — and made it efficient.</div></div>
+    <div class="ability-card"><div class="ab-name">Bloodlink</div><div class="ab-rule">Remove 1 Bleed counter for each point of damage dealt directly to a player.</div><div class="ab-lore">Purging a Vitae Curse outward through combat — the Bleed debt redirected via damage rather than borne at turn's end. Red vampires learned this from their own overclocked catastrophes.</div></div>
+    <div class="ability-card"><div class="ab-name">Bleed (X)</div><div class="ab-rule">On unblocked combat damage or Breach excess, that player gains X Bleed counters, losing that life at end of Post-Battle.</div><div class="ab-lore">Viral vitae infection — Red vampires inject technae-glitches with every strike. The debt accumulates, festering silently until it erupts in the quiet after battle ends.</div></div>
+    <div class="ability-card"><div class="ab-name">Overexhaust</div><div class="ab-rule">180° activation from renewed state only. Doubles/bonus effect. Recovers to exhausted, not renewed.</div><div class="ab-lore">Full technae inversion — doubling power at the cost of a 2-turn Recoalescence and total vulnerability. Every Sire Lord has done it. Every one of them has paid the price.</div></div>
+  </div>
+</div>
+
+<div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
+<div class="threats-section">
+  <div class="threats-inner">
+    <div class="threats-hd"><div class="s-label">Dangers of the Nexus</div><h2 class="s-title">What Threatens the Accord</h2><p style="font-size:16px;color:var(--dim);font-style:italic;max-width:560px;margin:0 auto;">The Veiled Accord is strong — but it is not unbreakable. These three forces threaten to unravel everything.</p></div>
+    <div class="threats-grid">
+      <div class="threat-card"><span class="threat-icon">🦠</span><div class="threat-name">The Hemophage Plague</div><div class="threat-body">A rogue technae-virus turning all blood sources toxic — rendering vita-plasma undrinkable, threatening to digitize vampires into code-slaves. The first cross-faction crisis that could force all four Sire Lords into uneasy alliance. Blood that once sustained now corrupts. The Nexus holds its breath.</div></div>
+      <div class="threat-card"><span class="threat-icon">🌅</span><div class="threat-name">Dawn Uprisings</div><div class="threat-body">Human rebellions erupt when tithes grow excessive. Secret Dawn Cults brew anti-vitae serums, ally with rogue AIs, and plot the "Dawn Protocol" — reverse-engineering turning tech for a cure. The Accord breaks when humans stop fearing the night and start planning for morning.</div></div>
+      <div class="threat-card"><span class="threat-icon">🤖</span><div class="threat-name">Rogue Hemophage AI</div><div class="threat-body">The AI empires defeated in the Eclipse War didn't vanish — they evolved. Rogue AI cores now hunt both vampires and humans, seeking to seize vitae-pipeline infrastructure. Worst of all: they understand technae. They are learning how to Overexhaust without paying the cost.</div></div>
+    </div>
+  </div>
+</div>
+
+<section id="gallery">
+  <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
+  <div class="gallery-outer">
+    <div class="gallery-hd"><div class="s-label">The Collection</div><h2 class="s-title">Card Gallery</h2><p style="font-size:16px;color:var(--dim);font-style:italic;">Click any card to view full size. Filter by faction.</p></div>
+    <div class="filter-tabs">
+      <button class="ftab active" data-filter="all">All</button>
+      <button class="ftab" data-filter="red">Red</button>
+      <button class="ftab" data-filter="white">White</button>
+      <button class="ftab" data-filter="purple">Purple</button>
+      <button class="ftab" data-filter="black">Black</button>
+      <button class="ftab" data-filter="colorless">Colorless</button>
+      <button class="ftab" data-filter="land">Land</button>
+    </div>
+    <div class="gallery-grid" id="cardGrid">
+      <div class="g-item" data-faction="red" data-name="Red Creature 009" data-img="images/Red_Creature_009.jpg"><img src="images/Red_Creature_009.jpg" alt="Red Creature"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Red Creature</div></div></div></div>
+      <div class="g-item" data-faction="red" data-name="Red Creature 012" data-img="images/Red_Creature_012.jpg"><img src="images/Red_Creature_012.jpg" alt="Red Creature"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Red Creature</div></div></div></div>
+      <div class="g-item" data-faction="red" data-name="Red Spell 007" data-img="images/Red_Spell_007.png"><img src="images/Red_Spell_007.png" alt="Red Spell"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Red Spell</div></div></div></div>
+      <div class="g-item" data-faction="red" data-name="Red Spell 013" data-img="images/Red_Spell_013.png"><img src="images/Red_Spell_013.png" alt="Red Spell"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Red Spell</div></div></div></div>
+      <div class="g-item" data-faction="white" data-name="White Creature 001" data-img="images/White_Creature_001.png"><img src="images/White_Creature_001.png" alt="White Creature"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">White Creature</div></div></div></div>
+      <div class="g-item" data-faction="white" data-name="White Creature 010" data-img="images/White_Creature_010.png"><img src="images/White_Creature_010.png" alt="White Creature"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">White Creature</div></div></div></div>
+      <div class="g-item" data-faction="white" data-name="White Relic 006" data-img="images/White_Relic_006.png"><img src="images/White_Relic_006.png" alt="White Relic"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">White Relic</div></div></div></div>
+      <div class="g-item" data-faction="purple" data-name="Purple Creature 003" data-img="images/Purple_Creature_003.jpg"><img src="images/Purple_Creature_003.jpg" alt="Purple Creature"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Purple Creature</div></div></div></div>
+      <div class="g-item" data-faction="purple" data-name="Purple Creature 019" data-img="images/Purple_Creature_019.png"><img src="images/Purple_Creature_019.png" alt="Purple Creature"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Purple Creature</div></div></div></div>
+      <div class="g-item" data-faction="purple" data-name="Purple Relic 003" data-img="images/Purple_Relic_003.jpg"><img src="images/Purple_Relic_003.jpg" alt="Purple Relic"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Purple Relic</div></div></div></div>
+      <div class="g-item" data-faction="purple" data-name="Purple Spell 005" data-img="images/Purple_Spell_005.png"><img src="images/Purple_Spell_005.png" alt="Purple Spell"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Purple Spell</div></div></div></div>
+      <div class="g-item" data-faction="black" data-name="Black Creature 010" data-img="images/Black_Creature_010.jpg"><img src="images/Black_Creature_010.jpg" alt="Black Creature"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Black Creature</div></div></div></div>
+      <div class="g-item" data-faction="black" data-name="Black Creature 014" data-img="images/Black_creature_014.png"><img src="images/Black_creature_014.png" alt="Black Creature"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Black Creature</div></div></div></div>
+      <div class="g-item" data-faction="black" data-name="Black Relic 005" data-img="images/Black_Relic_005.png"><img src="images/Black_Relic_005.png" alt="Black Relic"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Black Relic</div></div></div></div>
+      <div class="g-item" data-faction="black" data-name="Black Spell 005" data-img="images/Black_Spell_005.png"><img src="images/Black_Spell_005.png" alt="Black Spell"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Black Spell</div></div></div></div>
+      <div class="g-item" data-faction="colorless" data-name="Colorless Relic 008" data-img="images/Colorless_Relic_008.png"><img src="images/Colorless_Relic_008.png" alt="Colorless Relic"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Colorless Relic</div></div></div></div>
+      <div class="g-item" data-faction="colorless" data-name="Colorless Relic 009" data-img="images/Colorless_Relic_009.png"><img src="images/Colorless_Relic_009.png" alt="Colorless Relic"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Colorless Relic</div></div></div></div>
+      <div class="g-item" data-faction="colorless" data-name="Colorless Relic 016" data-img="images/Colorless_Relic_016.png"><img src="images/Colorless_Relic_016.png" alt="Colorless Relic"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Colorless Relic</div></div></div></div>
+      <div class="g-item" data-faction="land" data-name="Crypto Mining Monolith" data-img="images/Land_-_Crypto_Mining_Monolith.png"><img src="images/Land_-_Crypto_Mining_Monolith.png" alt="Land"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Crypto Mining Monolith</div></div></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="world">
+  <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
+  <div class="worldart-outer">
+    <div class="worldart-hd"><div class="s-label">Art of the Crimson Nexus</div><h2 class="s-title">The World of Cybervamp</h2><p style="font-size:16px;color:var(--dim);font-style:italic;">Gothic architecture meets neon circuitry. Blood fountains beside quantum databanks. The eternal night hums with technae.</p></div>
+    <div class="world-grid">
+      <div class="world-item"><img src="images/website_background_001.png" alt="Cyber City"><div class="world-item-label">Neon Revenant Territory — Cyber City Streets</div></div>
+      <div class="world-item"><img src="images/website_background_004.png" alt="Blood Moon"><div class="world-item-label">Blood Moon Over the Cathedral Ruins</div></div>
+      <div class="world-item"><img src="images/website_background_003.png" alt="Academy Library"><div class="world-item-label">The Aether Academy — Arcane Library</div></div>
+      <div class="world-item"><img src="images/website_background_002.png" alt="Palace Gardens"><div class="world-item-label">Crystal Palace — Vladislav's Blood Gardens</div></div>
+      <div class="world-item"><img src="images/website_background_005.png" alt="Inner Sanctum"><div class="world-item-label">Palace Inner Sanctum — Command Floor</div></div>
+      <div class="world-item"><img src="images/website_background_007.png" alt="Neo-Sanguine Quarter"><div class="world-item-label">The Neo-Sanguine Quarter — Street Level</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="signup">
+  <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
+  <div class="signup-outer">
+    <div class="signup-bg"></div>
+    <div class="signup-inner">
+      <div class="s-label">Coming Soon</div>
+      <h2 class="s-title">The Night Approaches</h2>
+      <p style="font-size:17px;color:var(--dim);font-style:italic;max-width:500px;margin:0 auto;">The Will of the Nexus is calling. Be first to receive playtest kits, faction reveals, and early access. Follow <a href="https://x.com/aeternis" target="_blank" style="color:var(--gold);text-decoration:none;">@aeternis</a> on X for updates.</p>
+      <div class="signup-form">
+        <input class="signup-input" type="email" placeholder="Enter your email address…" id="emailInput">
+        <button class="signup-btn" id="signupBtn">Awaken Me</button>
+      </div>
+      <p class="signup-note">No spam. Only blood. Unsubscribe at any time.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-top">
+    <div class="footer-logo">CYBERVAMP</div>
+    <ul class="footer-links">
+      <li><a href="#lore">The Nexus</a></li>
+      <li><a href="#factions">Factions</a></li>
+      <li><a href="#leaders">Sire Lords</a></li>
+      <li><a href="#mechanics">Mechanics</a></li>
+      <li><a href="#gallery">Gallery</a></li>
+      <li><a href="#world">World Art</a></li>
+      <li><a href="#signup">Early Access</a></li>
+    </ul>
+    <a href="https://x.com/aeternis" target="_blank" class="social-link">𝕏 @aeternis</a>
+  </div>
+  <div class="footer-bot">
+    <div class="footer-copy">© 2026 Cybervamp CCG — The Crimson Nexus. All rights reserved.</div>
+    <div class="footer-pips">
+      <img src="images/Red_Blood_Logo_256x256.png" alt="R"><img src="images/White_Blood_Logo_256x256.png" alt="W">
+      <img src="images/Purple_Blood_Logo_256x256.png" alt="P"><img src="images/Black_Blood_Logo_256x256.png" alt="B">
+      <img src="images/Gold_Logo_256x256.png" alt="G"><img src="images/Colorless_Blood_Logo_256x256.png" alt="C">
+    </div>
+    <div class="footer-copy">Designed by @aeternis · Year 2147</div>
+  </div>
+</footer>
+
+<div class="lightbox" id="lightbox">
+  <div class="lb-inner">
+    <button class="lb-nav lb-prev" id="lbPrev">‹</button>
+    <img src="" id="lbImg" alt="">
+    <button class="lb-nav lb-next" id="lbNext">›</button>
+    <button class="lb-close" id="lbClose">✕ Close</button>
+    <div class="lb-caption" id="lbCaption"></div>
+  </div>
+</div>
+
 <script>
-    lightbox.option({
-        fadeDuration: 300,
-        imageFadeDuration: 300,
-        resizeDuration: 400,
-        wrapAround: true,
-        disableScrolling: true,
-        fitImagesInViewport: true,
-        alwaysShowNavOnTouchDevices: true,
-        maxWidth: 1400,
-        maxHeight: 1000,
-        albumLabel: 'Image %1 of %2'  // shows "Image 3 of 11"
-    });
+const ftabs=document.querySelectorAll('.ftab'),gitems=document.querySelectorAll('.g-item');
+let visibleItems=[...gitems];
+ftabs.forEach(tab=>{tab.addEventListener('click',()=>{ftabs.forEach(t=>t.classList.remove('active'));tab.classList.add('active');const f=tab.dataset.filter;gitems.forEach(item=>{item.style.display=(f==='all'||item.dataset.faction===f)?'':'none';});visibleItems=[...gitems].filter(i=>i.style.display!=='none');});});
+const lb=document.getElementById('lightbox'),lbImg=document.getElementById('lbImg'),lbCaption=document.getElementById('lbCaption');
+let ci=0;
+function openLb(i){ci=i;const item=visibleItems[i];lbImg.src=item.dataset.img;lbCaption.textContent=item.dataset.name;lb.classList.add('open');document.body.style.overflow='hidden';}
+function closeLb(){lb.classList.remove('open');document.body.style.overflow='';}
+gitems.forEach(item=>{item.addEventListener('click',()=>{const vi=visibleItems.indexOf(item);if(vi>=0)openLb(vi);});});
+document.getElementById('lbClose').addEventListener('click',closeLb);
+lb.addEventListener('click',e=>{if(e.target===lb)closeLb();});
+document.getElementById('lbPrev').addEventListener('click',e=>{e.stopPropagation();ci=(ci-1+visibleItems.length)%visibleItems.length;openLb(ci);});
+document.getElementById('lbNext').addEventListener('click',e=>{e.stopPropagation();ci=(ci+1)%visibleItems.length;openLb(ci);});
+document.addEventListener('keydown',e=>{if(!lb.classList.contains('open'))return;if(e.key==='Escape')closeLb();if(e.key==='ArrowLeft')document.getElementById('lbPrev').click();if(e.key==='ArrowRight')document.getElementById('lbNext').click();});
+document.getElementById('signupBtn').addEventListener('click',()=>{const input=document.getElementById('emailInput');if(input.value.includes('@')){input.value='';input.placeholder='✦ The Will of the Nexus has awakened you. ✦';input.style.color='var(--gold)';}else{input.placeholder='A valid email, if you please…';}});
+document.querySelectorAll('.fc').forEach(card=>{card.addEventListener('mousemove',e=>{const r=card.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;card.style.transform=`translateY(-6px) rotateX(${-y*4}deg) rotateY(${x*4}deg)`;});card.addEventListener('mouseleave',()=>{card.style.transform='';card.style.transition='transform 0.5s ease';});});
 </script>
 </body>
-
 </html>
-
