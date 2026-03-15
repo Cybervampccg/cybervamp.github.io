@@ -302,17 +302,19 @@ nav{position:fixed;top:0;left:0;right:0;z-index:500;display:flex;justify-content
 .community-card h3{font-family:'Cinzel Decorative',serif;font-size:1.2rem;color:var(--gold);margin-bottom:12px;}
 .community-card p{font-size:16px;line-height:1.75;color:var(--text);margin-bottom:28px;}
 
-/* SIGNUP */
-#signup{padding:100px 60px;position:relative;overflow:hidden;}
-.signup-bg{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(255,23,68,.06),transparent 60%);pointer-events:none;}
-.signup-inner{max-width:600px;margin:0 auto;text-align:center;position:relative;}
-.signup-form{display:flex;gap:0;max-width:480px;margin:0 auto 16px;}
-.signup-input{flex:1;background:rgba(8,6,12,.9);border:1px solid var(--border);border-right:none;color:var(--text);font-family:'EB Garamond',serif;font-size:16px;padding:13px 20px;outline:none;border-radius:2px 0 0 2px;transition:border-color .2s;}
-.signup-input::placeholder{color:var(--dim);}
-.signup-input:focus{border-color:var(--gold-dk);}
-.signup-btn{font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;background:var(--gold);color:var(--black);border:none;padding:13px 24px;cursor:pointer;border-radius:0 2px 2px 0;transition:background .2s,box-shadow .2s;white-space:nowrap;}
-.signup-btn:hover{background:var(--gold-lt);box-shadow:0 0 20px rgba(210,175,95,.35);}
-.signup-note{font-size:13px;color:var(--dim);font-style:italic;margin-top:10px;}
+<!-- SIGNUP -->
+<section id="signup">
+  <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
+  <div class="signup-bg"></div>
+  <div class="signup-inner">
+    <div class="s-label reveal" style="justify-content:center">Coming Soon</div>
+    <h2 class="s-title reveal">The Night Approaches</h2>
+    <p style="font-size:18px;color:var(--dim);font-style:italic;max-width:500px;margin:0 auto 32px;" class="reveal">Be first to receive playtest kits, faction reveals, and Kickstarter early access. Follow <a href="https://x.com/aeternis" target="_blank" style="color:var(--neon);text-decoration:none;text-shadow:0 0 8px rgba(255,23,68,.5);">@aeternis</a> on X for updates.</p>
+    <div class="reveal" style="max-width:480px;margin:0 auto;">
+      <script async data-uid="3cfed9308c" src="https://cybervamp-ccg.kit.com/3cfed9308c/index.js"></script>
+    </div>
+  </div>
+</section>
 
 /* FOOTER */
 footer{background:var(--void);border-top:1px solid var(--border);padding:60px 60px 40px;}
