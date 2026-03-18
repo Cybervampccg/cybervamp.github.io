@@ -635,7 +635,7 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
     <li><a href="#lore">The Nexus</a></li>
     <li><a href="#factions">Factions</a></li>
     <li><a href="#leaders">Sire Lords</a></li>
-    <li><a href="#mechanics">Mechanics</a></li>
+    <li><a href="#mechanics">Rules</a></li>
     <li><a href="#gallery">Gallery</a></li>
   </ul>
   <div class="nav-right">
@@ -925,17 +925,150 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
   </div>
 </section>
 
-<!-- MECHANICS -->
+<!-- RULES — COMPLETE & REFERENCE -->
 <section id="mechanics">
   <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
-  <div class="mechanics-outer">
-    <div class="mech-bg"></div>
-    <div class="mechanics-inner">
-      <div class="mech-hd">
-        <div class="s-label">Core Systems</div>
-        <h2 class="s-title">The Laws of Blood</h2>
-        <p style="font-size:18px;color:var(--dim);font-style:italic;">Resources represent the Veiled Accord in action. The mechanics of the Nexus are the mechanics of survival.</p>
+
+  <!-- RULES NAV TABS -->
+  <style>
+    /* ═══ RULES SECTION ═══ */
+    .rules-outer { max-width:1100px; margin:0 auto; padding:60px 60px 100px; }
+    .rules-hd { text-align:center; margin-bottom:50px; }
+    .rules-nav { display:flex; flex-wrap:wrap; justify-content:center; gap:0; margin-bottom:56px; border:1px solid rgba(255,23,68,.2); width:fit-content; margin-left:auto; margin-right:auto; }
+    .rtab { font-family:'Cinzel',serif; font-size:10px; letter-spacing:2px; text-transform:uppercase; padding:11px 18px; background:transparent; border:none; border-right:1px solid rgba(255,23,68,.15); color:var(--dim); cursor:crosshair; transition:all .3s; white-space:nowrap; }
+    .rtab:last-child { border-right:none; }
+    .rtab.active { background:rgba(255,23,68,.08); color:var(--neon); text-shadow:0 0 8px rgba(255,23,68,.4); }
+    .rtab:hover:not(.active) { color:var(--chrome); }
+    .rules-panel { display:none; }
+    .rules-panel.active { display:block; animation:fadeUp .4s ease both; }
+
+    /* Rule blocks */
+    .rule-section { margin-bottom:40px; }
+    .rule-section-title { font-family:'Cinzel',serif; font-size:13px; letter-spacing:3px; text-transform:uppercase; color:var(--chrome-lt); margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid rgba(255,23,68,.18); display:flex; align-items:center; gap:10px; }
+    .rule-section-title::before { content:'✦'; color:var(--neon); font-size:10px; text-shadow:0 0 8px var(--neon-glow); }
+    .rule-body { font-size:17px; line-height:1.95; color:var(--text); margin-bottom:12px; }
+    .rule-body strong { color:var(--chrome-lt); }
+    .rule-note {
+      margin:16px 0; padding:16px 22px;
+      border-left:2px solid rgba(255,23,68,.5);
+      background:rgba(255,23,68,.05);
+      box-shadow:inset 0 0 14px rgba(255,23,68,.03), -2px 0 12px rgba(255,23,68,.12);
+      font-size:15px; line-height:1.8; color:var(--chrome-dim); font-style:italic;
+    }
+    .rule-note strong { color:var(--neon); font-style:normal; }
+
+    /* Rules table */
+    .rule-table { width:100%; border-collapse:collapse; margin:18px 0; font-size:15px; }
+    .rule-table th { font-family:'Cinzel',serif; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--neon); text-align:left; padding:10px 14px; border-bottom:1px solid rgba(255,23,68,.3); background:rgba(255,23,68,.05); }
+    .rule-table td { padding:10px 14px; border-bottom:1px solid rgba(255,255,255,.04); color:var(--text); vertical-align:top; }
+    .rule-table tr:last-child td { border-bottom:none; }
+    .rule-table tr:hover td { background:rgba(255,23,68,.03); }
+    .rule-table td:first-child { color:var(--chrome-lt); font-family:'Cinzel',serif; font-size:11px; letter-spacing:1px; }
+
+    /* Keyword cards */
+    .keyword-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:3px; margin-top:20px; }
+    .kw-card { background:var(--gothic-mid); padding:20px 24px; border-left:2px solid var(--neon); transition:background .3s; box-shadow:-2px 0 8px rgba(255,23,68,.08); }
+    .kw-card:hover { background:var(--gothic-lt); }
+    .kw-name { font-family:'Cinzel',serif; font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--chrome-lt); margin-bottom:6px; }
+    .kw-rule { font-size:15px; line-height:1.7; color:var(--text); }
+
+    /* Turn timeline */
+    .turn-steps { margin-top:40px; position:relative; }
+    .turn-steps::before { content:''; position:absolute; left:27px; top:0; bottom:0; width:1px; background:linear-gradient(to bottom,var(--neon),rgba(255,23,68,.08)); box-shadow:0 0 6px rgba(255,23,68,.4); }
+    .t-step { display:grid; grid-template-columns:54px 1fr; gap:22px; align-items:start; padding:22px 0; text-align:left; border-bottom:1px solid rgba(255,255,255,.04); }
+    .t-step:last-child { border-bottom:none; }
+    .t-num { width:54px; height:54px; border:1px solid rgba(255,23,68,.45); display:flex; align-items:center; justify-content:center; font-family:'Cinzel Decorative',serif; font-size:15px; color:var(--neon); background:var(--gothic-dk); position:relative; z-index:1; flex-shrink:0; box-shadow:0 0 10px rgba(255,23,68,.2), inset 0 0 10px rgba(255,23,68,.05); }
+    .t-name { font-family:'Cinzel',serif; font-size:13px; letter-spacing:3px; text-transform:uppercase; color:var(--chrome-lt); margin-bottom:6px; }
+    .t-desc { font-size:16px; line-height:1.75; color:var(--text); }
+    .t-sub { font-size:14px; line-height:1.6; color:var(--dim); margin-top:6px; font-style:italic; }
+
+    /* Combat outcome table */
+    .combat-table { width:100%; border-collapse:collapse; font-size:15px; margin:18px 0; }
+    .combat-table th { font-family:'Cinzel',serif; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--neon); text-align:left; padding:10px 16px; border-bottom:1px solid rgba(255,23,68,.3); background:rgba(255,23,68,.05); }
+    .combat-table td { padding:10px 16px; border-bottom:1px solid rgba(255,255,255,.04); color:var(--text); }
+    .combat-table tr:last-child td { border-bottom:none; }
+
+    /* Resource legend */
+    .res-legend { display:flex; justify-content:center; gap:26px; flex-wrap:wrap; margin-bottom:44px; }
+    .res-item { display:flex; flex-direction:column; align-items:center; gap:9px; }
+    .res-item img { width:50px; height:50px; object-fit:contain; filter:drop-shadow(0 0 10px rgba(255,23,68,.35)); transition:transform .3s,filter .3s; }
+    .res-item:hover img { transform:scale(1.2) translateY(-4px); filter:drop-shadow(0 0 20px rgba(255,23,68,.7)) brightness(1.15); }
+    .res-label { font-family:'Cinzel',serif; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); text-align:center; }
+
+    @media(max-width:700px) {
+      .rules-outer { padding:40px 20px 60px; }
+      .keyword-grid { grid-template-columns:1fr; }
+      .rules-nav { width:100%; }
+      .rtab { font-size:9px; padding:9px 12px; }
+    }
+  </style>
+
+  <div class="rules-outer">
+    <div class="rules-hd">
+      <div class="s-label">Complete Rules &amp; Reference</div>
+      <h2 class="s-title">The Laws of Blood</h2>
+      <p style="font-size:18px;color:var(--dim);font-style:italic;max-width:560px;margin:0 auto;">Four vampire factions battle for dominance over an eternal night city. You are a faction lord. These are your laws.</p>
+    </div>
+
+    <div class="rules-nav">
+      <button class="rtab active" data-rules="overview">Overview</button>
+      <button class="rtab" data-rules="resources">Resources</button>
+      <button class="rtab" data-rules="turns">Turn Order</button>
+      <button class="rtab" data-rules="spells">Spells &amp; Responses</button>
+      <button class="rtab" data-rules="combat">Combat</button>
+      <button class="rtab" data-rules="bleed">Bleed</button>
+      <button class="rtab" data-rules="advanced">Advanced Rules</button>
+      <button class="rtab" data-rules="keywords">Keyword Glossary</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="rules-panel active" id="rules-overview">
+      <div class="rule-section">
+        <div class="rule-section-title">The World</div>
+        <p class="rule-body">Four vampire factions battle for dominance over an eternal night city. You are a <strong>faction lord</strong> — summoning creatures, playing spells, and deploying relics — all with one goal: reduce your opponent's life to zero.</p>
       </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Winning &amp; Losing</div>
+        <p class="rule-body"><strong>Starting life:</strong> Both players begin with 20 life. Life has no upper limit — you may gain life beyond 20.</p>
+        <p class="rule-body"><strong>You win</strong> when your opponent reaches 0 life. <strong>You lose</strong> when your own life reaches 0 — loss is immediate at any point during the game, regardless of phase.</p>
+        <p class="rule-body"><strong>Draw:</strong> If both players reach 0 simultaneously — from the same Bleed resolution or mutual combat — the game is a draw.</p>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Your Decks</div>
+        <p class="rule-body">You bring two separate shuffled decks to every game:</p>
+        <p class="rule-body"><strong>Main Deck</strong> — minimum 40 cards. Contains creatures, spells, and relics.<br><strong>Land Deck</strong> — minimum 20 cards. Contains only land cards.</p>
+        <table class="rule-table">
+          <tr><th>Card Type</th><th>Copy Limit</th></tr>
+          <tr><td>Core cards</td><td>No limit</td></tr>
+          <tr><td>All other cards</td><td>Maximum 3 copies per deck</td></tr>
+          <tr><td>Unique cards</td><td>Maximum 1 copy in deck; only 1 in play on your side at any time</td></tr>
+          <tr><td>Token cards</td><td>Cannot be included in decks</td></tr>
+        </table>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Starting the Game</div>
+        <p class="rule-body">Shuffle your Main Deck and Land Deck separately. Each player draws 7 cards — you may draw from either deck in any combination. Decide who goes first by coin flip or mutual agreement. The player going first does not draw a card on their first turn.</p>
+        <div class="rule-note"><strong>Vampiric Mulligan:</strong> Once per game, before your first turn begins, you may return your entire hand to your decks, reshuffle, and draw a fresh 7 cards. If you use the Vampiric Mulligan, you immediately lose 1 life.</div>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Exhaust States</div>
+        <p class="rule-body">Every card in play is always in one of three states:</p>
+        <table class="rule-table">
+          <tr><th>State</th><th>Position</th><th>Effect</th></tr>
+          <tr><td>Renewed</td><td>Upright</td><td>Ready to act. Default state at start of each turn. Ongoing abilities are active.</td></tr>
+          <tr><td>Exhausted</td><td>Rotated 90°</td><td>Card has been used. Cannot act again until it renews. Ongoing abilities are inactive.</td></tr>
+          <tr><td>Overexhausted</td><td>Rotated 180°</td><td>Powerful special ability — can only activate from Renewed state. Takes two full Renew phases to return to Renewed (first to Exhausted, then Renewed). Ongoing abilities are inactive.</td></tr>
+        </table>
+        <div class="rule-note"><strong>Think of Overexhaust</strong> as burning extra energy for a bigger effect — but you'll be left vulnerable for two turns instead of one.</div>
+      </div>
+    </div>
+
+    <!-- RESOURCES -->
+    <div class="rules-panel" id="rules-resources">
       <div class="res-legend">
         <div class="res-item"><img src="images/Red_Blood_Logo_256x256.png" alt="{R}"><span class="res-label">{R} Red Blood<br>Synth-Vitae</span></div>
         <div class="res-item"><img src="images/White_Blood_Logo_256x256.png" alt="{W}"><span class="res-label">{W} White Blood<br>Pureline Vitae</span></div>
@@ -944,51 +1077,284 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
         <div class="res-item"><img src="images/Gold_Logo_256x256.png" alt="{G}"><span class="res-label">{G} Gold<br>Crimson Units</span></div>
         <div class="res-item"><img src="images/Colorless_Blood_Logo_256x256.png" alt="{C}"><span class="res-label">{C} Colorless<br>Eclipse Relic</span></div>
       </div>
-      <div class="mech-grid">
-        <div class="mech-card"><span class="mech-icon">🩸</span><div class="mech-title">Blood &amp; Gold</div><p class="mech-desc">Colored Blood — harvested via Vitae Courier Drones — fuels spells as raw technae pulses. Gold, refined from human tributes, pays for creatures and relics. Land Nodes exhaust as Resonance Harvests: harmonious, non-destructive.</p><span class="mech-tag">Resource System</span></div>
-        <div class="mech-card"><span class="mech-icon">⚡</span><div class="mech-title">Instant Speed</div><p class="mech-desc">All spells are instants — cast anything, anytime you hold priority. The stack resolves LIFO. Both players pass consecutively to advance phases. Permanents deploy in Pre- or Post-Battle only.</p><span class="mech-tag">Timing & Priority</span></div>
-        <div class="mech-card"><span class="mech-icon">🔄</span><div class="mech-title">Exhaust &amp; Overexhaust</div><p class="mech-desc">Exhaust (90°) is controlled technae drain — a "vein pulse." Overexhaust (180°) is full inversion: doubled power, 2-turn Recoalescence recovery, vulnerability. Pushing technae past safe thresholds. Renews to exhausted, not renewed.</p><span class="mech-tag">Technae Fatigue</span></div>
-        <div class="mech-card"><span class="mech-icon">💀</span><div class="mech-title">Bleed</div><p class="mech-desc">Unblocked combat damage inflicts Vitae Curses — Bleed counters that accumulate and erupt at end of Post-Battle, dealing damage equal to the total. Then all counters are removed. Tick. Tick. Tick.</p><span class="mech-tag">Vitae Curse</span></div>
-        <div class="mech-card"><span class="mech-icon">🧟</span><div class="mech-title">Reanimation</div><p class="mech-desc">Destroyed cards enter the discard pile — not exile. Black's necro-circuits pull the fallen back as shadow recalls, entering renewed. Exile severs the tie. Dr. Elias Crowe knows every name in the graveyard by heart.</p><span class="mech-tag">Cemetery Mechanic</span></div>
-        <div class="mech-card"><span class="mech-icon">🃏</span><div class="mech-title">Vampiric Mulligan</div><p class="mech-desc">Once per game, lose 1 life to shuffle your hand back and redraw 7 — at the cost of blood from your Vitae Core. Sacrifice blood to find your opening. The unseen Will does not accept a fractured pact.</p><span class="mech-tag">Deck Mechanics</span></div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Blood</div>
+        <p class="rule-body">Blood is the colored resource used to play cards and activate abilities. Each faction produces its own color: Red, White, Black, or Purple. Colored Blood can also be spent to pay generic colorless costs.</p>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Gold</div>
+        <p class="rule-body">Gold is a separate colorless resource produced by Gold lands. It appears in the playing cost of most creatures and relics alongside Blood. Gold can substitute for any generic colorless cost — but it <strong>cannot pay for colored Blood requirements</strong>, and colored Blood cannot substitute for Gold.</p>
+        <div class="rule-note"><strong>Example:</strong> A card costing {W}{W}{G} requires 2 White Blood and 1 Gold. You cannot use Gold to pay the {W}{W}, and you cannot use White Blood to pay the {G}.</div>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Reading a Card's Cost</div>
+        <p class="rule-body">Every card that has a cost shows it in the top-right corner as a row of icons. To play the card, you must spend exactly those resources from your lands.</p>
+        <p class="rule-body">Each colored blood drop icon represents 1 Blood of that faction's color. The Gold coin icon represents 1 Gold. You pay costs by exhausting your lands — each land produces 1 resource when exhausted.</p>
+        <div class="rule-note"><strong>Example:</strong> Korzathrax, Marrow Sovereign costs {B}{B}{B}{G}. To play him, exhaust 3 Black Blood lands and 1 Gold land.</div>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Lands</div>
+        <p class="rule-body">Lands are your resource base. You may only play <strong>1 land per turn</strong>, during your own Pre-Battle or Post-Battle phase. Lands have no playing cost — they are placed in play directly from your hand. Lands enter play in a Renewed state and are not subject to Newly Turned.</p>
+      </div>
+    </div>
+
+    <!-- TURN ORDER -->
+    <div class="rules-panel" id="rules-turns">
+      <p class="rule-body" style="text-align:center;font-style:italic;color:var(--dim);margin-bottom:36px;">Each turn has five phases, always in this order. Master the eternal rhythm of the hunt.</p>
+      <div class="turn-steps">
+        <div class="t-step">
+          <div class="t-num">I</div>
+          <div>
+            <div class="t-name">Renew</div>
+            <div class="t-desc">All your Exhausted cards return to Renewed. All your Overexhausted cards move to Exhausted — one more turn before they are fully renewed.</div>
+            <div class="t-sub">No cards may be played and no abilities may be activated during the Renew phase.</div>
+          </div>
+        </div>
+        <div class="t-step">
+          <div class="t-num">II</div>
+          <div>
+            <div class="t-name">Draw</div>
+            <div class="t-desc">Draw 1 card from either your Main Deck or Land Deck — your choice each turn.</div>
+            <div class="t-sub">If your chosen deck is empty, you simply do not draw. There is no penalty. The game continues.</div>
+          </div>
+        </div>
+        <div class="t-step">
+          <div class="t-num">III</div>
+          <div>
+            <div class="t-name">Pre-Battle</div>
+            <div class="t-desc">Your first main phase. Play 1 land (if you haven't yet this turn), play creatures, spells, and relics, and activate abilities on your cards.</div>
+            <div class="t-sub">Newly played creatures are Newly Turned — they cannot attack or activate abilities this turn unless they have Haste.</div>
+          </div>
+        </div>
+        <div class="t-step">
+          <div class="t-num">IV</div>
+          <div>
+            <div class="t-name">Battle — The Veil Clash</div>
+            <div class="t-desc">Declare attackers → Response window → Declare blockers → Response window → Resolve damage simultaneously. Unblocked attackers deal direct damage to the defending player.</div>
+            <div class="t-sub">See the Combat tab for full rules including Breach, blocking, and simultaneous destruction.</div>
+          </div>
+        </div>
+        <div class="t-step">
+          <div class="t-num">V</div>
+          <div>
+            <div class="t-name">Post-Battle</div>
+            <div class="t-desc">Your second main phase. Play cards and activate abilities. At the end of this phase: take damage equal to your current Bleed counters, remove all Bleed counters, and resolve end-of-turn effects.</div>
+            <div class="t-sub">"The blood debt settles. Vitae Curses fester and discharge. The Nexus exhales. Another cycle begins."</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rule-section" style="margin-top:40px;">
+        <div class="rule-section-title">Quick Reference: Turn Order</div>
+        <table class="rule-table">
+          <tr><th>Phase</th><th>Key Actions</th></tr>
+          <tr><td>1 — Renew</td><td>Exhausted → Renewed. Overexhausted → Exhausted.</td></tr>
+          <tr><td>2 — Draw</td><td>Draw 1 card from Main or Land deck. Skip if empty.</td></tr>
+          <tr><td>3 — Pre-Battle</td><td>Play land, play cards, activate abilities.</td></tr>
+          <tr><td>4 — Battle</td><td>Declare attackers → respond → declare blockers → respond → resolve damage.</td></tr>
+          <tr><td>5 — Post-Battle</td><td>Play cards, activate abilities. Then: take Bleed damage, remove Bleed counters, end-of-turn effects.</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- SPELLS & RESPONSES -->
+    <div class="rules-panel" id="rules-spells">
+      <div class="rule-section">
+        <div class="rule-section-title">Playing Spells</div>
+        <p class="rule-body">Spells can be played during <strong>any phase of any player's turn</strong> except the Renew phase. All spells resolve immediately when played — there is no waiting. However, both players have a window to respond before resolution occurs. Spells are placed in your Discard Pile after they resolve.</p>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">The Response Window</div>
+        <p class="rule-body">Whenever a spell is played or an ability is activated, both players have a chance to respond before it resolves. Responses are resolved in <strong>Last In, First Out (LIFO)</strong> order — the most recently played response resolves first.</p>
+        <div class="rule-note"><strong>Example:</strong> Player A plays a spell that destroys a creature. Player B responds by playing a spell that gives that creature +3 power. Player B's spell resolves first (it was played last), boosting the creature. Then Player A's destruction spell resolves. The creature is destroyed at its new power value.</div>
+        <p class="rule-body">This creates a response chain. Either player may continue adding responses until both players pass without adding anything new. The chain then resolves from the top down.</p>
+        <p class="rule-body">Land plays <strong>do not use the response system</strong>. A land entering play cannot be responded to.</p>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Invalid Targets</div>
+        <p class="rule-body">If a spell or ability targets a specific card or player and that target is no longer valid when the spell resolves — for example, the targeted creature was destroyed by a response — the spell <strong>fizzles</strong>. It has no effect and is placed in the Discard Pile.</p>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Ability Responses</div>
+        <p class="rule-body">Activated abilities on cards (such as Exhaust abilities or Overexhaust abilities) can be responded to in the same way as spells. <strong>Triggered abilities</strong> — those that say "when" or "whenever" — also go through the response system and can be responded to before they resolve.</p>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">When Cards Can Be Played</div>
+        <table class="rule-table">
+          <tr><th>Card Type</th><th>When It Can Be Played</th></tr>
+          <tr><td>Creatures, Relics, Lands</td><td>Only during your own Pre-Battle or Post-Battle phase.</td></tr>
+          <tr><td>Spells</td><td>During any phase of any player's turn, except the Renew phase. All spells resolve immediately and can be responded to.</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- COMBAT -->
+    <div class="rules-panel" id="rules-combat">
+      <div class="rule-section">
+        <div class="rule-section-title">Step 1 — Declare Attackers</div>
+        <p class="rule-body">During your Battle phase, choose any number of your <strong>Renewed</strong> creatures to attack. Newly Turned creatures cannot attack unless they have Haste. Attacking exhausts each attacker unless it has Tireless.</p>
+        <div class="rule-note">If a creature is exhausted by a spell or ability <em>after</em> it is declared as an attacker — before combat resolves — it is removed from the attack and no longer participates in combat that step.</div>
+        <p class="rule-body"><strong>Response window:</strong> After attackers are declared, both players may play spells or activate abilities before blockers are declared.</p>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Step 2 — Declare Blockers</div>
+        <p class="rule-body">Your opponent may block using any of their Renewed creatures. Each blocker is assigned to exactly one attacker. A creature with a multi-block ability may block more than one attacker — the blocking player chooses the assignments.</p>
+        <p class="rule-body"><strong>Response window:</strong> After blockers are declared, both players may play spells or activate abilities before damage resolves.</p>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Step 3 — Resolve Combat</div>
+        <p class="rule-body">Once both players pass on the final response window, all damage is dealt <strong>simultaneously</strong>. Unblocked attackers deal their full power as damage directly to the defending player. Blocked attackers deal their power to their blocker; the blocker deals its power back to the attacker.</p>
+        <table class="combat-table">
+          <tr><th>Situation</th><th>Result</th></tr>
+          <tr><td>Attacker power &gt; Blocker power</td><td>Blocker is destroyed. If the attacker has <strong>Breach</strong>, excess damage hits the defending player.</td></tr>
+          <tr><td>Blocker power &gt; Attacker power</td><td>Attacker is destroyed. Excess damage does not carry back to the attacking player.</td></tr>
+          <tr><td>Equal power</td><td>Both creatures are destroyed.</td></tr>
+        </table>
+        <p class="rule-body">All destruction is simultaneous. Triggered abilities that fire on destruction all trigger at the same time and are then resolved through the response system in LIFO order. Destroyed creatures are placed in their owner's Discard Pile unless an effect specifies otherwise.</p>
+        <div class="rule-note"><strong>Walls</strong> cannot attack and deal no combat damage unless a card effect specifically says otherwise.</div>
+      </div>
+    </div>
+
+    <!-- BLEED -->
+    <div class="rules-panel" id="rules-bleed">
+      <div class="rule-section">
+        <div class="rule-section-title">Bleed X</div>
+        <p class="rule-body">When a creature with Bleed X deals combat damage directly to a player (unblocked hit or Breach overflow), that player gains X Bleed counters. At the end of your own Post-Battle phase, you take damage equal to your total Bleed counters, then all counters are removed.</p>
+        <div class="rule-note"><strong>Direct damage</strong> includes damage from creatures, spells, abilities, and land effects. All of these can trigger Siphon, Bloodlink, and Bleed unless the card specifies otherwise.</div>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Stacking &amp; Multiple Instances</div>
+        <p class="rule-body">If a creature would apply Bleed to a player who already has Bleed counters, the new counters are simply added to the existing total.</p>
+        <p class="rule-body">If a creature has Bleed 1 applied to it twice — through abilities or effects — it has Bleed 2. Multiple instances of Bleed on the same creature are combined into a single value.</p>
+        <div class="rule-note"><strong>Important:</strong> Siphon does not trigger from Bleed damage — only from direct combat or ability damage.</div>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Strategy Note</div>
+        <p class="rule-body" style="font-style:italic;color:var(--dim);">"Bleed represents a wound that festers — the full pain hits after the battle is over. Some cards benefit from having Bleed counters, so managing them is part of the strategy."</p>
+      </div>
+    </div>
+
+    <!-- ADVANCED RULES -->
+    <div class="rules-panel" id="rules-advanced">
+      <div class="rule-section">
+        <div class="rule-section-title">Unique Cards</div>
+        <p class="rule-body">Unique cards represent legendary, one-of-a-kind vampires and relics. Only 1 copy of a Unique card may be <strong>in play on your side</strong> at any time. Both players may control a copy of the same Unique card simultaneously — one on each side.</p>
+        <p class="rule-body">If you would ever control two copies of the same Unique card — due to a spell, ability, or other effect — the copy you controlled <em>before</em> the new one is immediately destroyed.</p>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Relics</div>
+        <p class="rule-body">Relics are permanent cards that remain in play once played. Unlike creatures they cannot attack or block, but they provide ongoing passive effects or activated abilities. Relics enter play in a Renewed state and are <strong>not subject to Newly Turned</strong>. Relics remain in play until destroyed by a card effect.</p>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Tokens</div>
+        <p class="rule-body">Tokens are created by card effects during the game. They are treated as creatures in all respects — they can attack, block, and be targeted by spells and abilities. They cannot be included in decks. There is no limit to how many tokens of the same type can be in play at once. If a token leaves play for any reason, it is <strong>removed from the game entirely</strong> rather than going to the Discard Pile.</p>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Control &amp; Ownership</div>
+        <p class="rule-body">You <strong>own</strong> every card that came from your decks. You <strong>control</strong> any card currently in play on your side, including cards you gained from your opponent.</p>
+        <p class="rule-body">If a card you control but do not own is destroyed, it goes to its <em>owner's</em> Discard Pile — not yours. If you lose control of a card, it moves to the appropriate zone under its owner's control.</p>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Enters Play Triggers</div>
+        <p class="rule-body">Any ability that says "when this enters play" triggers whenever that card enters play by any means — played from hand, returned from the Discard Pile via Reanimate, created as a token, or put in play by any other effect. There are no exceptions unless a card specifically states one.</p>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">The Discard Pile</div>
+        <p class="rule-body">Each player has their own Discard Pile — a face-up pile kept beside their Main Deck. Destroyed creatures, resolved spells, and any card sent from play are placed here. Cards in the Discard Pile are not in play and cannot be used unless a card effect specifically allows it — such as <strong>Reanimate</strong>, which allows a creature to be played directly from it.</p>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Newly Turned</div>
+        <p class="rule-body">Newly Turned applies to all creatures the turn they enter play. A Newly Turned creature cannot attack or activate abilities until the start of your next Renew phase. Creatures with <strong>Haste</strong> ignore Newly Turned entirely. Lands and relics are never subject to Newly Turned.</p>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Inactive Abilities &amp; Empty Decks</div>
+        <p class="rule-body">A card's ongoing abilities are not active while it is Exhausted or Overexhausted. Only cards in a Renewed state have their ongoing abilities in effect.</p>
+        <p class="rule-body">If the deck you choose to draw from is empty, you simply skip the draw. There is no penalty for an empty deck — the game continues normally.</p>
+      </div>
+    </div>
+
+    <!-- KEYWORDS -->
+    <div class="rules-panel" id="rules-keywords">
+      <p class="rule-body" style="text-align:center;font-style:italic;color:var(--dim);margin-bottom:30px;">The powers of the Crimson Nexus — every keyword that governs its vampiric laws.</p>
+      <div class="keyword-grid">
+        <div class="kw-card">
+          <div class="kw-name">Haste</div>
+          <div class="kw-rule">This creature can attack and activate abilities the turn it enters play. It is not affected by Newly Turned.</div>
+        </div>
+        <div class="kw-card">
+          <div class="kw-name">Newly Turned</div>
+          <div class="kw-rule">This creature cannot attack or activate abilities the turn it enters play. Becomes fully active at the start of your next Renew phase. Does not apply to lands or relics.</div>
+        </div>
+        <div class="kw-card">
+          <div class="kw-name">Tireless</div>
+          <div class="kw-rule">Attacking does not exhaust this creature. The creature must still be in a Renewed state to declare an attack. If it is exhausted after being declared as an attacker, it is removed from the attack.</div>
+        </div>
+        <div class="kw-card">
+          <div class="kw-name">Wall</div>
+          <div class="kw-rule">Cannot attack. Deals no combat damage unless a card effect says otherwise.</div>
+        </div>
+        <div class="kw-card">
+          <div class="kw-name">Breach</div>
+          <div class="kw-rule">Excess damage dealt to a blocker beyond what is needed to destroy it spills over to the defending player.</div>
+        </div>
+        <div class="kw-card">
+          <div class="kw-name">Bleed X</div>
+          <div class="kw-rule">When this creature deals direct damage to a player, that player gains X Bleed counters. Multiple instances of Bleed on the same creature are combined into a single value.</div>
+        </div>
+        <div class="kw-card">
+          <div class="kw-name">Siphon</div>
+          <div class="kw-rule">Gain 1 life for each point of direct damage this creature deals to a player. Does not trigger from Bleed damage.</div>
+        </div>
+        <div class="kw-card">
+          <div class="kw-name">Bloodlink</div>
+          <div class="kw-rule">Remove 1 Bleed counter from a player for each point of direct damage this creature deals to them.</div>
+        </div>
+        <div class="kw-card">
+          <div class="kw-name">Reanimate</div>
+          <div class="kw-rule">This card can be played directly from your Discard Pile. It enters play Exhausted with a Finality counter on it. Enters play triggers still apply.</div>
+        </div>
+        <div class="kw-card">
+          <div class="kw-name">Finality</div>
+          <div class="kw-rule">If this card would be destroyed, remove it from the game instead of sending it to the Discard Pile. A card with both Reanimate and Finality that is destroyed after being Reanimated is removed from the game permanently.</div>
+        </div>
       </div>
     </div>
   </div>
+
+  <script>
+    (function(){
+      const tabs = document.querySelectorAll('.rtab');
+      const panels = document.querySelectorAll('.rules-panel');
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(t => t.classList.remove('active'));
+          panels.forEach(p => p.classList.remove('active'));
+          tab.classList.add('active');
+          document.getElementById('rules-' + tab.dataset.rules).classList.add('active');
+        });
+      });
+    })();
+  </script>
 </section>
-
-<!-- HOW TO PLAY -->
-<div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
-<div class="howto-outer" id="howtoplay">
-  <div class="howto-bg"></div>
-  <div class="howto-inner">
-    <div class="s-label">Turn Structure</div>
-    <h2 class="s-title">The Eternal Night Cycle</h2>
-    <p style="font-size:18px;color:var(--dim);font-style:italic;max-width:520px;margin:0 auto;">Each turn mirrors the eternal rhythm of the hunt. Master it, and your enemies will never see the killing blow coming.</p>
-    <div class="turn-steps">
-      <div class="t-step"><div class="t-num">I</div><div><div class="t-name">Renew</div><div class="t-desc">Renew all your permanents. Exhausted Land Nodes regenerate. Overexhausted cards advance one step toward Recoalescence.</div><div class="t-lore">"The eternal night resets. Blood flows back into drained veins. Vitae-drones begin their morning rounds."</div></div></div>
-      <div class="t-step"><div class="t-num">II</div><div><div class="t-name">Draw</div><div class="t-desc">Draw 1 card — your choice of Main Deck or Land Deck. A strategic decision made every single turn.</div><div class="t-lore">"The Will of the Nexus infuses fresh directives — another summoned entity, another relic from the archives."</div></div></div>
-      <div class="t-step"><div class="t-num">III</div><div><div class="t-name">Pre-Battle</div><div class="t-desc">Play 1 Land Node. Deploy creatures and relics. Activate abilities. Build your court for the coming Veil Clash.</div><div class="t-lore">"Sire Lords assemble their forces — thralls take position, relics activate, village gates draw shut."</div></div></div>
-      <div class="t-step"><div class="t-num">IV</div><div><div class="t-name">Battle — The Veil Clash</div><div class="t-desc">Declare attackers → opponent declares blockers → damage resolves simultaneously. Unblocked creatures trigger Bleed. Breach lets excess damage pierce to the player's Vitae Core. Destruction is banishment to shadows — not true death.</div><div class="t-lore">"Veil Clashes are ritual duels where power symbolizes dominance. The loser is scattered — not destroyed, but banished until recalled."</div></div></div>
-      <div class="t-step"><div class="t-num">V</div><div><div class="t-name">Post-Battle</div><div class="t-desc">Deploy more permanents, trigger end-of-turn effects. Bleed counters erupt — lose life equal to your total, then all counters are removed. Clean up and pass the night.</div><div class="t-lore">"The blood debt settles. Vitae Curses fester and discharge. The Nexus exhales. Another cycle begins."</div></div></div>
-    </div>
-  </div>
-</div>
-
-<!-- ABILITIES -->
-<div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
-<div class="abilities-section">
-  <div class="abilities-hd"><div class="s-label">Core Abilities</div><h2 class="s-title">Vampiric Powers of the Nexus</h2></div>
-  <div class="abilities-grid">
-    <div class="ability-card"><div class="ab-name">Tireless</div><div class="ab-rule">Attacking does not exhaust this creature.</div><div class="ab-lore">Eternal Palace warriors whose technae cycles never deplete mid-Veil Clash. Vladislav's Sentinel Thralls can assault again and again without vein-pulse fatigue.</div></div>
-    <div class="ability-card"><div class="ab-name">Haste</div><div class="ab-rule">This creature can attack the turn it enters play, without needing to renew first.</div><div class="ab-lore">Neon Revenant cyber-implants grant instant technae attunement — no adjustment period. Zane's synth-bite protocols hardwire speed from the moment of turning.</div></div>
-    <div class="ability-card"><div class="ab-name">Wall</div><div class="ab-rule">Cannot attack. Deals no combat damage unless specified.</div><div class="ab-lore">Sentinel Thralls in relic-armor: half-turned Palace guardians who absorb hits without retaliating. The cornerstone of Vladislav's stall-and-overwhelm strategy.</div></div>
-    <div class="ability-card"><div class="ab-name">Breach</div><div class="ab-rule">Excess damage dealt to a blocking creature spills through to the player.</div><div class="ab-lore">Overwhelming technae essence that cannot be contained — power so great it spills past the blocker and strikes the enemy Vitae Core directly.</div></div>
-    <div class="ability-card"><div class="ab-name">Siphon</div><div class="ab-rule">Gain 1 life for each point of damage dealt directly to a player.</div><div class="ab-lore">Black's life-weave ritual. Necro-circuits convert drained enemy vitae directly into the attacker's Vitae Core. Elias Crowe perfected it.</div></div>
-    <div class="ability-card"><div class="ab-name">Bloodlink</div><div class="ab-rule">Remove 1 Bleed counter for each point of damage dealt directly to a player.</div><div class="ab-lore">Purging a Vitae Curse outward through combat damage rather than bearing it at turn's end. Red vampires learned this from their own overclocked catastrophes.</div></div>
-    <div class="ability-card"><div class="ab-name">Bleed (X)</div><div class="ab-rule">On unblocked combat damage or Breach excess, that player gains X Bleed counters — losing that life at end of Post-Battle.</div><div class="ab-lore">Viral vitae infection — technae-glitches injected with every strike. The debt accumulates, festering silently until it erupts in the quiet after battle ends.</div></div>
-    <div class="ability-card"><div class="ab-name">Overexhaust</div><div class="ab-rule">180° activation from renewed state only. Doubles/bonus effect. Recovers to exhausted, not renewed.</div><div class="ab-lore">Full technae inversion — doubling power at the cost of a 2-turn Recoalescence and total vulnerability. Every Sire Lord has done it. Every one of them has paid the price.</div></div>
-  </div>
-</div>
 
 <!-- THREATS -->
 <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
@@ -1175,7 +1541,7 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
       <li><a href="#lore">The Nexus</a></li>
       <li><a href="#factions">Factions</a></li>
       <li><a href="#leaders">Sire Lords</a></li>
-      <li><a href="#mechanics">Mechanics</a></li>
+      <li><a href="#mechanics">Rules</a></li>
       <li><a href="#gallery">Gallery</a></li>
       <li><a href="#world">World Art</a></li>
       <li><a href="#signup">Early Access</a></li>
