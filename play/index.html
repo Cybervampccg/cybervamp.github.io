@@ -260,23 +260,77 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .log-entry.bleed { color: var(--bleed-red); }
 .log-entry.phase { color: var(--gold); letter-spacing: 1px; font-weight: 600; }
 
-/* ── CARD DETAIL OVERLAY ── */
-#card-detail {
-  position: fixed; left: 8px; top: 50%;
-  transform: translateY(-50%);
-  width: 200px; background: var(--bg-panel);
-  border: 1px solid var(--border-bright); border-radius: 6px;
-  padding: 10px; z-index: 300; pointer-events: none;
-  opacity: 0; transition: opacity 0.15s ease;
+/* ── CARD PREVIEW (large) ── */
+#card-preview {
+  position: fixed; bottom: 54px; left: 8px;
+  width: 220px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-bright);
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 300;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
 }
-#card-detail.visible { opacity: 1; }
-#card-detail img { width: 100%; border-radius: 4px; margin-bottom: 8px; }
-#card-detail .cd-name { font-size: 13px; font-weight: 600; color: var(--text-bright); margin-bottom: 4px; }
-#card-detail .cd-type { font-size: 10px; color: var(--text-mid); margin-bottom: 4px; letter-spacing: 1px; text-transform: uppercase; }
-#card-detail .cd-cost { font-size: 11px; color: var(--gold); margin-bottom: 4px; font-family: 'Share Tech Mono', monospace; }
-#card-detail .cd-power { font-size: 12px; color: #ffdd60; margin-bottom: 6px; }
-#card-detail .cd-abilities { font-size: 10px; color: var(--text-mid); line-height: 1.5; }
-#card-detail .cd-flavor { font-size: 9px; color: var(--text-dim); font-style: italic; margin-top: 6px; border-top: 1px solid var(--border-dim); padding-top: 6px; }
+#card-preview.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+#card-preview .cp-color-bar {
+  height: 4px; width: 100%;
+}
+#card-preview img {
+  width: 100%; display: block;
+  max-height: 200px; object-fit: cover; object-position: top;
+}
+#card-preview .cp-body {
+  padding: 10px 12px;
+}
+#card-preview .cp-name {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 11px; color: var(--text-bright);
+  margin-bottom: 3px; line-height: 1.3;
+}
+#card-preview .cp-meta {
+  font-size: 9px; color: var(--text-mid);
+  letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 6px;
+}
+#card-preview .cp-cost {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px; color: var(--gold);
+  margin-bottom: 4px;
+}
+#card-preview .cp-power-line {
+  font-size: 13px; font-weight: 700;
+  color: #ffdd60; margin-bottom: 8px;
+}
+#card-preview .cp-divider {
+  height: 1px; background: var(--border-dim); margin-bottom: 8px;
+}
+#card-preview .cp-abilities {
+  font-size: 10px; color: var(--text-mid);
+  line-height: 1.6; margin-bottom: 6px;
+}
+#card-preview .cp-flavor {
+  font-size: 9px; color: var(--text-dim);
+  font-style: italic; line-height: 1.5;
+  border-top: 1px solid var(--border-dim);
+  padding-top: 6px; margin-top: 4px;
+}
+#card-preview .cp-keywords {
+  display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 8px;
+}
+#card-preview .cp-kw {
+  font-size: 9px; padding: 2px 6px; border-radius: 3px;
+  font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+}
+
+/* Hand card hover — lift MORE and show glow */
+.hand-card:hover { transform: translateY(-20px) scale(1.12); z-index: 50; }
 
 /* ── MODAL ── */
 #modal-overlay {
@@ -508,14 +562,19 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   <div id="log-entries"></div>
 </div>
 
-<div id="card-detail">
-  <img id="cd-img" src="" alt="">
-  <div class="cd-name" id="cd-name"></div>
-  <div class="cd-type" id="cd-type"></div>
-  <div class="cd-cost" id="cd-cost"></div>
-  <div class="cd-power" id="cd-power"></div>
-  <div class="cd-abilities" id="cd-abilities"></div>
-  <div class="cd-flavor" id="cd-flavor"></div>
+<div id="card-preview">
+  <div class="cp-color-bar" id="cp-color-bar"></div>
+  <img id="cp-img" src="" alt="">
+  <div class="cp-body">
+    <div class="cp-name" id="cp-name"></div>
+    <div class="cp-meta" id="cp-meta"></div>
+    <div class="cp-cost" id="cp-cost"></div>
+    <div class="cp-power-line" id="cp-power-line"></div>
+    <div class="cp-keywords" id="cp-keywords"></div>
+    <div class="cp-divider"></div>
+    <div class="cp-abilities" id="cp-abilities"></div>
+    <div class="cp-flavor" id="cp-flavor"></div>
+  </div>
 </div>
 
 <div id="turn-banner"></div>
@@ -1364,7 +1423,10 @@ function resolvePlayerCombat() {
   G.player.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
   G.ai.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
 
-  document.getElementById('btn-attack').style.display = 'none';
+  const attackBtn = document.getElementById('btn-attack');
+  attackBtn.textContent = 'DECLARE ATTACK';
+  attackBtn.onclick = declareAttack;
+  attackBtn.style.display = 'none';
   updateUI();
   checkWin();
 }
@@ -1607,20 +1669,137 @@ function resolveSpell(inst, caster) {
   updateUI();
 }
 
-// ── LAND TAPPING (player) ─────────────────────────────────────
+// ── BATTLEFIELD CLICK HANDLER ─────────────────────────────────
 function handleBattlefieldClick(inst) {
-  if (G.activePlayer !== 'player') return;
+  if (G.activePlayer !== 'player') {
+    log('It is not your turn.', '');
+    return;
+  }
 
-  if (inst.owner === 'player') {
-    if (inst.type === 'Land') {
-      tapLandForMana(inst);
+  // Land tap — works in any player phase
+  if (inst.type === 'Land') {
+    if (inst.exhaustState !== 'renewed') {
+      log(`${inst.name} is already exhausted.`, '');
       return;
     }
-    if (combatPhase === 'declare') {
-      toggleAttacker(inst);
+    tapLandForMana(inst);
+    return;
+  }
+
+  // Combat — declare attackers
+  if (G.phase === 'battle' && combatPhase === 'declare') {
+    toggleAttacker(inst);
+    return;
+  }
+
+  // Non-combat phases — show what the card can do
+  if (inst.type === 'Creature' || inst.type === 'Relic') {
+    if (inst.exhaustState !== 'renewed') {
+      log(`${inst.name} is ${inst.exhaustState} and cannot activate abilities.`, '');
       return;
     }
-    // Could add ability activation here
+    // Abilities can be activated in pre/post battle
+    if (['prebattle','postbattle'].includes(G.phase)) {
+      tryActivateAbility(inst);
+    } else {
+      log(`Click during Pre-Battle or Post-Battle to activate ${inst.name}'s abilities.`, '');
+    }
+  }
+}
+
+// Basic ability activation — exhausts card and applies stated effect
+function tryActivateAbility(inst) {
+  const txt = (inst.abilities || '').toLowerCase();
+  if (!txt.includes('{exhaust}') && !txt.includes('{overexhaust}')) {
+    log(`${inst.name} has no activated abilities.`, '');
+    return;
+  }
+  // Show options if card has both exhaust and overexhaust
+  const hasExhaust = txt.includes('{exhaust}');
+  const hasOverExhaust = txt.includes('{overexhaust}');
+
+  if (hasExhaust && hasOverExhaust) {
+    showModal(
+      inst.name,
+      inst.abilities,
+      [
+        { label: 'EXHAUST', cls: 'btn-secondary', action: () => activateAbility(inst, 'exhaust') },
+        { label: 'OVEREXHAUST', cls: 'btn-danger', action: () => activateAbility(inst, 'overexhaust') },
+        { label: 'CANCEL', cls: 'btn-muted', action: () => {} },
+      ]
+    );
+  } else if (hasExhaust) {
+    activateAbility(inst, 'exhaust');
+  } else if (hasOverExhaust) {
+    activateAbility(inst, 'overexhaust');
+  }
+}
+
+function activateAbility(inst, mode) {
+  if (mode === 'exhaust') {
+    if (inst.exhaustState !== 'renewed') { log('Already exhausted.', ''); return; }
+    inst.exhaustState = 'exhausted';
+  } else {
+    if (inst.exhaustState !== 'renewed') { log('Must be renewed to overexhaust.', ''); return; }
+    inst.exhaustState = 'overexhausted';
+  }
+  // Apply the ability effect using same resolver
+  resolveAbilityEffect(inst, mode, 'player');
+  updateUI();
+}
+
+function resolveAbilityEffect(inst, mode, who) {
+  const txt = (inst.abilities || '').toLowerCase();
+  const opp = who === 'player' ? 'ai' : 'player';
+
+  // Gain life
+  if (txt.includes('gain 1 life') && mode === 'exhaust') {
+    G[who].life += 1; updateLifeDisplay(who);
+    log(`${inst.name}: Gained 1 life.`, 'heal');
+  }
+  // Remove bleed
+  else if (txt.includes('remove') && txt.includes('bleed counter')) {
+    const n = mode === 'overexhaust' ? 2 : 1;
+    G[who].bleed = Math.max(0, G[who].bleed - n);
+    log(`${inst.name}: Removed ${n} Bleed counter(s).`, 'heal');
+    updateLifeDisplay(who);
+  }
+  // Add blood/mana
+  else if (txt.includes('add {b}') || (txt.includes('add') && txt.includes('{b}'))) {
+    addMana(who, 'B', mode === 'overexhaust' ? 2 : 1);
+    log(`${inst.name}: Added Black mana.`, '');
+  }
+  else if (txt.includes('add {g}')) {
+    addMana(who, 'G', 1);
+    log(`${inst.name}: Added Gold.`, '');
+  }
+  // Exhaust target creature
+  else if (txt.includes('exhaust target creature')) {
+    const targets = G[opp].battlefield.filter(i => i.type === 'Creature' && i.exhaustState === 'renewed');
+    if (targets.length > 0) {
+      targets[0].exhaustState = 'exhausted';
+      log(`${inst.name}: Exhausted ${targets[0].name}.`, '');
+    } else {
+      log(`${inst.name}: No valid targets.`, '');
+    }
+  }
+  // Siphon grant
+  else if (txt.includes('gains siphon')) {
+    const allies = G[who].battlefield.filter(i => i.type === 'Creature' && i.exhaustState === 'renewed');
+    if (allies.length > 0) {
+      allies[0].tempKeywords = allies[0].tempKeywords || {};
+      allies[0].tempKeywords.siphon = true;
+      log(`${inst.name}: ${allies[0].name} gains Siphon until end of turn.`, '');
+    }
+  }
+  // Lose life and add mana (e.g. Muckmouth Bauble)
+  else if (txt.includes('lose') && txt.includes('life') && txt.includes('add')) {
+    G[who].life -= 2; updateLifeDisplay(who);
+    addMana(who, 'B', 1);
+    log(`${inst.name}: Lost 2 life, added 1 Black mana.`, 'bleed');
+  }
+  else {
+    log(`${inst.name}: Ability activated (${mode}).`, '');
   }
 }
 
@@ -1721,6 +1900,8 @@ function renderHand(who) {
       selectedCardId = inst.instId === selectedCardId ? null : inst.instId;
       updateUI();
     };
+    card.onmouseenter = () => showCardDetail(inst);
+    card.onmouseleave = () => hideCardDetail();
     el.appendChild(card);
   });
 }
@@ -1731,6 +1912,13 @@ function renderBattlefield(who) {
 
   G[who].battlefield.forEach(inst => {
     const card = createCardElement(inst, false);
+
+    // Visual cues
+    if (who === 'player' && inst.type === 'Land' && inst.exhaustState === 'renewed' && G.activePlayer === 'player') {
+      card.style.cursor = 'pointer';
+      card.title = 'Click to tap for mana';
+      card.style.boxShadow = '0 0 6px rgba(212,160,32,0.4)';
+    }
 
     if (who === 'player') {
       if (combatPhase === 'declare' && inst.type==='Creature' && !inst.newlyTurned && inst.exhaustState==='renewed' && !hasKeyword(inst,'wall')) {
@@ -1860,22 +2048,66 @@ function toggleLog() {
   document.getElementById('log-toggle').textContent = logOpen ? 'LOG ◀' : 'LOG ▶';
 }
 
-// ── CARD DETAIL ───────────────────────────────────────────────
+// ── CARD PREVIEW ──────────────────────────────────────────────
+const COLOR_HEX = {
+  Red:'#e03030', White:'#c8c0f0', Black:'#6030c0',
+  Purple:'#a020f0', Colorless:'#8090a0', Land:'#d4a020'
+};
+const KW_STYLES = {
+  haste:   { label:'Haste',     bg:'rgba(224,80,0,0.85)',   color:'#fff' },
+  wall:    { label:'Wall',      bg:'rgba(80,120,200,0.85)', color:'#fff' },
+  breach:  { label:'Breach',    bg:'rgba(200,60,0,0.85)',   color:'#fff' },
+  tireless:{ label:'Tireless',  bg:'rgba(0,160,80,0.85)',   color:'#fff' },
+  siphon:  { label:'Siphon',    bg:'rgba(120,0,200,0.85)',  color:'#fff' },
+  bleed:   { label:'Bleed',     bg:'rgba(220,30,50,0.85)',  color:'#fff' },
+};
+
 function showCardDetail(inst) {
-  const el = document.getElementById('card-detail');
+  const el = document.getElementById('card-preview');
   const base = CARD_MAP[inst.cardId] || inst;
-  document.getElementById('cd-img').src = inst.image || '';
-  document.getElementById('cd-name').textContent = inst.name;
-  document.getElementById('cd-type').textContent = `${inst.color} ${inst.type}${inst.subtype ? ' — '+inst.subtype : ''}`;
-  document.getElementById('cd-cost').textContent = inst.cost ? `Cost: ${inst.cost}` : '';
-  document.getElementById('cd-power').textContent = inst.type==='Creature' ? `Power: ${getEffectivePower(inst)}` : '';
-  document.getElementById('cd-abilities').textContent = inst.abilities || '';
-  document.getElementById('cd-flavor').textContent = base.flavor || '';
+  const color = COLOR_HEX[inst.color] || '#888';
+
+  document.getElementById('cp-color-bar').style.background = color;
+  document.getElementById('cp-img').src = inst.image || '';
+  document.getElementById('cp-name').textContent = inst.name;
+  document.getElementById('cp-meta').textContent =
+    `${inst.color} · ${inst.type}${inst.subtype ? ' — '+inst.subtype : ''} · ${inst.rarity || ''}`;
+  document.getElementById('cp-cost').textContent = inst.cost ? `Cost: ${inst.cost}` : 'No cost';
+
+  const powerEl = document.getElementById('cp-power-line');
+  if (inst.type === 'Creature' && inst.power !== null) {
+    const eff = getEffectivePower(inst);
+    const base = inst.power;
+    powerEl.textContent = eff !== base ? `Power: ${eff} (base ${base})` : `Power: ${eff}`;
+    powerEl.style.display = 'block';
+  } else {
+    powerEl.style.display = 'none';
+  }
+
+  // Keyword badges
+  const kwEl = document.getElementById('cp-keywords');
+  kwEl.innerHTML = '';
+  const kw = inst.keywords || {};
+  Object.entries(KW_STYLES).forEach(([key, style]) => {
+    if (kw[key]) {
+      const badge = document.createElement('span');
+      badge.className = 'cp-kw';
+      badge.style.background = style.bg;
+      badge.style.color = style.color;
+      badge.textContent = key === 'bleed' ? `Bleed ${kw.bleed}` : style.label;
+      kwEl.appendChild(badge);
+    }
+  });
+
+  document.getElementById('cp-abilities').textContent = inst.abilities || '—';
+  document.getElementById('cp-flavor').textContent = base.flavor || '';
+  document.getElementById('cp-flavor').style.display = base.flavor ? 'block' : 'none';
+
   el.classList.add('visible');
 }
 
 function hideCardDetail() {
-  document.getElementById('card-detail').classList.remove('visible');
+  document.getElementById('card-preview').classList.remove('visible');
 }
 
 // ── MODAL ─────────────────────────────────────────────────────
