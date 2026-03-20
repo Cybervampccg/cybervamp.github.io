@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cybervamp CCG</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #07080d;
+  --bg-panel: #0d0f1a;
+  --bg-card: #111420;
+  --bg-hover: #1a1d2e;
+  --border-dim: #2a2d42;
+  --border-bright: #4a4d6a;
+  --red: #e03030;
+  --red-glow: rgba(224,48,48,0.25);
+  --white-c: #c8c0f0;
+  --white-glow: rgba(200,192,240,0.25);
+  --black-c: #6030c0;
+  --black-glow: rgba(96,48,192,0.25);
+  --purple: #a020f0;
+  --purple-glow: rgba(160,32,240,0.25);
+  --gold: #d4a020;
+  --gold-glow: rgba(212,160,32,0.25);
+  --colorless: #8090a0;
+  --text-bright: #e0e8ff;
+  --text-mid: #8090b0;
+  --text-dim: #4a5070;
+  --life-green: #30d060;
+  --bleed-red: #ff3040;
+  --transition: 0.15s ease;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-deep); color: var(--text-bright); font-family: 'Rajdhani', sans-serif; }
+
+/* ── LAYOUT ── */
+#app { display: flex; flex-direction: column; height: 100vh; gap: 0; position: relative; }
+
+/* ── TOP BAR ── */
+#topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 16px; background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-dim); flex-shrink: 0; height: 44px; z-index: 100;
+}
+#topbar .logo { font-family: 'Cinzel Decorative', serif; font-size: 14px; color: var(--red); letter-spacing: 2px; }
+.phase-track { display: flex; gap: 4px; align-items: center; }
+.phase-pip {
+  padding: 3px 10px; border-radius: 3px; font-size: 10px; letter-spacing: 1px;
+  font-weight: 600; text-transform: uppercase; border: 1px solid var(--border-dim);
+  color: var(--text-dim); background: transparent; transition: var(--transition);
+}
+.phase-pip.active { color: var(--text-bright); border-color: var(--gold); background: rgba(212,160,32,0.15); }
+.phase-pip.done { color: var(--text-dim); border-color: var(--border-dim); }
+
+#turn-info { font-size: 12px; color: var(--text-mid); font-family: 'Share Tech Mono', monospace; }
+
+/* ── MAIN ARENA ── */
+#arena {
+  display: grid;
+  grid-template-rows: 1fr auto auto auto auto 1fr;
+  grid-template-columns: 64px 1fr 64px;
+  flex: 1; overflow: hidden; gap: 0;
+  padding: 4px;
+}
+
+/* ── HAND AREAS ── */
+.hand-zone {
+  display: flex; align-items: center; justify-content: center;
+  gap: 4px; padding: 6px; overflow-x: auto; overflow-y: hidden;
+  min-height: 130px; max-height: 150px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 6px; scrollbar-width: thin;
+}
+#hand-ai { grid-row: 1; grid-column: 1 / 4; filter: brightness(0.4); cursor: default; }
+#hand-player { grid-row: 6; grid-column: 1 / 4; }
+
+/* AI info strip */
+#ai-info-strip {
+  grid-row: 2; grid-column: 1 / 4; 
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 12px; background: rgba(96,48,192,0.08);
+  border-top: 1px solid var(--border-dim); border-bottom: 1px solid var(--border-dim);
+}
+#player-info-strip {
+  grid-row: 5; grid-column: 1 / 4;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 12px; background: rgba(224,48,48,0.06);
+  border-top: 1px solid var(--border-dim); border-bottom: 1px solid var(--border-dim);
+}
+
+.player-stats { display: flex; align-items: center; gap: 16px; }
+.stat-block { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.stat-icon { font-size: 16px; }
+.stat-val { font-family: 'Share Tech Mono', monospace; font-size: 15px; font-weight: 600; }
+.life-val { color: var(--life-green); }
+.bleed-val { color: var(--bleed-red); }
+.deck-val { color: var(--text-mid); }
+
+/* ── BATTLEFIELD ZONES ── */
+.bf-zone {
+  display: flex; flex-direction: column;
+  gap: 4px; padding: 6px; min-height: 120px;
+  border-radius: 4px;
+  overflow-y: auto; scrollbar-width: thin;
+}
+#bf-ai { 
+  grid-row: 3; grid-column: 1 / 4; 
+  background: rgba(96,48,192,0.04);
+  border-bottom: 1px solid var(--border-dim);
+  flex-direction: row; flex-wrap: wrap; min-height: 110px; max-height: 130px;
+}
+#bf-player { 
+  grid-row: 4; grid-column: 1 / 4; 
+  background: rgba(224,48,48,0.04);
+  border-top: 1px solid var(--border-dim);
+  flex-direction: row; flex-wrap: wrap; min-height: 110px; max-height: 130px;
+}
+
+.bf-label {
+  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text-dim); align-self: flex-start;
+}
+
+/* ── CARD COMPONENT ── */
+.card {
+  width: 72px; height: 100px;
+  border-radius: 4px; border: 1px solid var(--border-dim);
+  background: var(--bg-card); cursor: pointer;
+  position: relative; overflow: hidden;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  flex-shrink: 0;
+  display: flex; flex-direction: column;
+}
+.card:hover { transform: translateY(-6px) scale(1.05); z-index: 50; }
+.card.selected { border-color: var(--gold); box-shadow: 0 0 8px var(--gold-glow); transform: translateY(-8px) scale(1.06); z-index: 60; }
+.card.attackable { border-color: var(--red); box-shadow: 0 0 6px var(--red-glow); animation: pulse-red 1.2s infinite; }
+.card.blockable { border-color: #30a0e0; box-shadow: 0 0 6px rgba(48,160,224,0.3); animation: pulse-blue 1.2s infinite; }
+.card.exhausted { opacity: 0.65; transform: rotate(4deg); }
+.card.exhausted:hover { transform: rotate(4deg) translateY(-6px) scale(1.05); }
+.card.overexhausted { opacity: 0.45; transform: rotate(9deg); }
+.card.overexhausted:hover { transform: rotate(9deg) translateY(-6px) scale(1.05); }
+.card.newly-turned { outline: 2px solid rgba(255,200,0,0.4); }
+.card.attacking { outline: 2px solid var(--red); }
+.card.blocking { outline: 2px solid #30a0e0; }
+
+.card-img {
+  width: 100%; flex: 1; object-fit: cover; object-position: top;
+  background: var(--bg-panel);
+}
+.card-img-placeholder {
+  width: 100%; flex: 1; display: flex; align-items: center; justify-content: center;
+  background: var(--bg-panel); font-size: 22px;
+}
+
+.card-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 2px 4px; background: rgba(0,0,0,0.7);
+  font-size: 9px; font-weight: 600; letter-spacing: 0.5px;
+}
+.card-name-mini { color: var(--text-bright); max-width: 52px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.card-power { color: var(--gold); font-family: 'Share Tech Mono', monospace; font-size: 11px; }
+
+/* Power mod overlays */
+.card .power-mod {
+  position: absolute; top: 3px; right: 3px;
+  background: rgba(0,0,0,0.7); border-radius: 2px;
+  font-size: 9px; font-family: 'Share Tech Mono', monospace;
+  padding: 1px 3px; font-weight: 700;
+}
+.power-mod.plus { color: #40e060; }
+.power-mod.minus { color: #e04040; }
+
+/* Bleed counter */
+.bleed-indicator {
+  position: absolute; bottom: 18px; left: 3px;
+  background: rgba(224,32,48,0.85); border-radius: 2px;
+  font-size: 8px; font-family: 'Share Tech Mono', monospace;
+  padding: 1px 3px; color: #fff; font-weight: 700;
+}
+
+/* Keyword badges */
+.kw-badges {
+  position: absolute; top: 3px; left: 3px;
+  display: flex; flex-direction: column; gap: 1px;
+}
+.kw-badge {
+  font-size: 7px; padding: 1px 3px; border-radius: 2px;
+  font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+}
+.kw-haste { background: rgba(224,80,0,0.85); color: #fff; }
+.kw-wall { background: rgba(80,120,200,0.85); color: #fff; }
+.kw-breach { background: rgba(200,60,0,0.85); color: #fff; }
+.kw-tireless { background: rgba(0,160,80,0.85); color: #fff; }
+.kw-siphon { background: rgba(120,0,200,0.85); color: #fff; }
+
+.color-bar {
+  height: 3px; width: 100%;
+}
+.color-bar.Red { background: var(--red); }
+.color-bar.White { background: var(--white-c); }
+.color-bar.Black { background: var(--black-c); }
+.color-bar.Purple { background: var(--purple); }
+.color-bar.Colorless { background: var(--colorless); }
+.color-bar.Land { background: var(--gold); }
+
+/* ── HAND CARDS (bigger) ── */
+.hand-card {
+  width: 80px; height: 112px;
+}
+.hand-card:hover { transform: translateY(-12px) scale(1.1); z-index: 50; }
+.hand-card.selected { transform: translateY(-14px) scale(1.12); border-color: var(--gold); box-shadow: 0 0 12px var(--gold-glow); }
+.hand-card.playable { border-color: rgba(212,160,32,0.6); }
+.hand-card.unplayable { opacity: 0.45; cursor: not-allowed; }
+
+/* ── LANDS STRIP ── */
+#lands-ai { grid-row: 3; grid-column: 1; /* overlapping, now horizontal strip */ }
+/* keep simple: lands shown in battlefield via type */
+
+/* ── ACTION BAR ── */
+#action-bar {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 6px 16px; background: var(--bg-panel);
+  border-top: 1px solid var(--border-dim); flex-shrink: 0; flex-wrap: wrap;
+}
+
+.btn {
+  padding: 6px 16px; border-radius: 3px; cursor: pointer;
+  font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase;
+  border: 1px solid; transition: var(--transition); white-space: nowrap;
+}
+.btn-primary { background: rgba(224,48,48,0.2); border-color: var(--red); color: #ffaaaa; }
+.btn-primary:hover { background: rgba(224,48,48,0.4); }
+.btn-secondary { background: rgba(212,160,32,0.1); border-color: var(--gold); color: var(--gold); }
+.btn-secondary:hover { background: rgba(212,160,32,0.2); }
+.btn-muted { background: transparent; border-color: var(--border-dim); color: var(--text-mid); }
+.btn-muted:hover { border-color: var(--border-bright); color: var(--text-bright); }
+.btn-danger { background: rgba(255,32,64,0.15); border-color: #ff2040; color: #ff8090; }
+.btn-danger:hover { background: rgba(255,32,64,0.3); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+
+/* ── LOG ── */
+#log-panel {
+  position: fixed; right: 0; top: 44px; bottom: 40px;
+  width: 240px; background: var(--bg-panel);
+  border-left: 1px solid var(--border-dim);
+  display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform 0.2s ease;
+  z-index: 200;
+}
+#log-panel.open { transform: translateX(0); }
+#log-header { padding: 8px 12px; border-bottom: 1px solid var(--border-dim); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-mid); display: flex; justify-content: space-between; }
+#log-entries { flex: 1; overflow-y: auto; padding: 6px 8px; display: flex; flex-direction: column; gap: 3px; scrollbar-width: thin; }
+.log-entry { font-size: 11px; color: var(--text-mid); line-height: 1.4; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.log-entry.important { color: var(--text-bright); }
+.log-entry.damage { color: #ff6060; }
+.log-entry.heal { color: var(--life-green); }
+.log-entry.bleed { color: var(--bleed-red); }
+.log-entry.phase { color: var(--gold); letter-spacing: 1px; font-weight: 600; }
+
+/* ── CARD DETAIL OVERLAY ── */
+#card-detail {
+  position: fixed; left: 8px; top: 50%;
+  transform: translateY(-50%);
+  width: 200px; background: var(--bg-panel);
+  border: 1px solid var(--border-bright); border-radius: 6px;
+  padding: 10px; z-index: 300; pointer-events: none;
+  opacity: 0; transition: opacity 0.15s ease;
+}
+#card-detail.visible { opacity: 1; }
+#card-detail img { width: 100%; border-radius: 4px; margin-bottom: 8px; }
+#card-detail .cd-name { font-size: 13px; font-weight: 600; color: var(--text-bright); margin-bottom: 4px; }
+#card-detail .cd-type { font-size: 10px; color: var(--text-mid); margin-bottom: 4px; letter-spacing: 1px; text-transform: uppercase; }
+#card-detail .cd-cost { font-size: 11px; color: var(--gold); margin-bottom: 4px; font-family: 'Share Tech Mono', monospace; }
+#card-detail .cd-power { font-size: 12px; color: #ffdd60; margin-bottom: 6px; }
+#card-detail .cd-abilities { font-size: 10px; color: var(--text-mid); line-height: 1.5; }
+#card-detail .cd-flavor { font-size: 9px; color: var(--text-dim); font-style: italic; margin-top: 6px; border-top: 1px solid var(--border-dim); padding-top: 6px; }
+
+/* ── MODAL ── */
+#modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+  z-index: 500; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+}
+#modal-overlay.visible { opacity: 1; pointer-events: all; }
+#modal-box {
+  background: var(--bg-panel); border: 1px solid var(--border-bright);
+  border-radius: 8px; padding: 24px; min-width: 320px; max-width: 480px;
+  text-align: center;
+}
+#modal-title { font-family: 'Cinzel Decorative', serif; font-size: 16px; color: var(--red); margin-bottom: 12px; }
+#modal-body { font-size: 13px; color: var(--text-mid); line-height: 1.6; margin-bottom: 20px; }
+#modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* ── ANIMATIONS ── */
+@keyframes pulse-red { 0%,100%{box-shadow:0 0 6px var(--red-glow)} 50%{box-shadow:0 0 14px rgba(224,48,48,0.5)} }
+@keyframes pulse-blue { 0%,100%{box-shadow:0 0 6px rgba(48,160,224,0.3)} 50%{box-shadow:0 0 14px rgba(48,160,224,0.6)} }
+@keyframes float-in { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes damage-flash { 0%,100%{background:transparent} 50%{background:rgba(255,32,48,0.3)} }
+@keyframes heal-flash { 0%,100%{background:transparent} 50%{background:rgba(48,200,80,0.3)} }
+
+.damage-flash { animation: damage-flash 0.4s ease; }
+.heal-flash { animation: heal-flash 0.4s ease; }
+
+/* ── RESOURCE DISPLAY ── */
+.resource-row { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.mana-pip {
+  width: 14px; height: 14px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 700; border: 1px solid rgba(255,255,255,0.2);
+}
+.mana-R { background: var(--red); color: #fff; }
+.mana-W { background: var(--white-c); color: #200040; }
+.mana-B { background: var(--black-c); color: #fff; }
+.mana-P { background: var(--purple); color: #fff; }
+.mana-G { background: var(--gold); color: #000; }
+.mana-C { background: var(--colorless); color: #000; }
+
+/* ── TURN BANNER ── */
+#turn-banner {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  font-family: 'Cinzel Decorative', serif; font-size: 28px; color: var(--gold);
+  text-shadow: 0 0 20px var(--gold-glow);
+  pointer-events: none; z-index: 400; opacity: 0; transition: opacity 0.3s ease;
+  letter-spacing: 4px;
+}
+#turn-banner.show { opacity: 1; }
+
+/* ── COMBAT ASSIGNMENT DISPLAY ── */
+#combat-info {
+  position: fixed; top: 44px; left: 50%; transform: translateX(-50%);
+  background: var(--bg-panel); border: 1px solid var(--border-bright);
+  border-top: none; border-radius: 0 0 6px 6px;
+  padding: 6px 16px; font-size: 11px; color: var(--text-mid);
+  z-index: 150; display: none;
+}
+#combat-info.visible { display: block; }
+
+/* ── DECK CARD BACKS ── */
+.deck-back {
+  width: 54px; height: 76px; border-radius: 4px;
+  background: linear-gradient(135deg, #1a0030, #0d0515);
+  border: 1px solid var(--border-bright);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: var(--text-dim); cursor: pointer;
+  flex-direction: column; gap: 3px;
+}
+
+/* ── SCROLLBARS ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-dim); border-radius: 2px; }
+
+/* ── FACTION CHOOSER ── */
+#faction-chooser {
+  position: fixed; inset: 0; background: var(--bg-deep);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 32px; z-index: 1000;
+}
+.chooser-title { font-family: 'Cinzel Decorative', serif; font-size: 32px; color: var(--red); letter-spacing: 4px; }
+.chooser-subtitle { font-size: 14px; color: var(--text-mid); letter-spacing: 2px; }
+.faction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.faction-btn {
+  padding: 24px 40px; border-radius: 6px; cursor: pointer;
+  font-family: 'Cinzel Decorative', serif; font-size: 18px; font-weight: 700;
+  border: 2px solid; transition: all 0.2s ease; text-align: center; min-width: 180px;
+}
+.faction-btn.red { border-color: var(--red); color: var(--red); background: var(--red-glow); }
+.faction-btn.red:hover { background: rgba(224,48,48,0.35); box-shadow: 0 0 20px var(--red-glow); }
+.faction-btn.white { border-color: var(--white-c); color: var(--white-c); background: var(--white-glow); }
+.faction-btn.white:hover { background: rgba(200,192,240,0.35); box-shadow: 0 0 20px var(--white-glow); }
+.faction-btn.black { border-color: var(--black-c); color: var(--black-c); background: var(--black-glow); }
+.faction-btn.black:hover { background: rgba(96,48,192,0.35); box-shadow: 0 0 20px var(--black-glow); }
+.faction-btn.purple { border-color: var(--purple); color: var(--purple); background: var(--purple-glow); }
+.faction-btn.purple:hover { background: rgba(160,32,240,0.35); box-shadow: 0 0 20px var(--purple-glow); }
+
+/* toggles */
+#log-toggle {
+  position: fixed; right: 8px; bottom: 50px; z-index: 250;
+  background: var(--bg-panel); border: 1px solid var(--border-dim);
+  color: var(--text-mid); padding: 4px 8px; border-radius: 3px;
+  cursor: pointer; font-size: 10px; letter-spacing: 1px;
+}
+</style>
+</head>
+<body>
+
+<!-- FACTION CHOOSER SCREEN -->
+<div id="faction-chooser">
+  <div class="chooser-title">CYBERVAMP</div>
+  <div class="chooser-subtitle">CHOOSE YOUR FACTION</div>
+  <div class="faction-grid">
+    <div class="faction-btn red" onclick="startGame('Red')">⚡ RED</div>
+    <div class="faction-btn white" onclick="startGame('White')">🏛 WHITE</div>
+    <div class="faction-btn black" onclick="startGame('Black')">🐺 BLACK</div>
+    <div class="faction-btn purple" onclick="startGame('Purple')">🔮 PURPLE</div>
+  </div>
+  <div style="font-size:11px;color:var(--text-dim);text-align:center;max-width:400px;line-height:1.6;">
+    You play against the AI. Use pre-built decks to learn the system.<br>Deckbuilder coming in a future update.
+  </div>
+</div>
+
+<!-- MAIN GAME UI -->
+<div id="app" style="display:none;">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="logo">CYBERVAMP CCG</div>
+    <div class="phase-track" id="phase-track">
+      <div class="phase-pip" data-phase="renew">RENEW</div>
+      <div class="phase-pip" data-phase="draw">DRAW</div>
+      <div class="phase-pip" data-phase="prebattle">PRE-BATTLE</div>
+      <div class="phase-pip" data-phase="battle">BATTLE</div>
+      <div class="phase-pip" data-phase="postbattle">POST-BATTLE</div>
+    </div>
+    <div id="turn-info">TURN 1</div>
+  </div>
+
+  <!-- ARENA -->
+  <div id="arena">
+    <!-- AI HAND -->
+    <div class="hand-zone" id="hand-ai"></div>
+
+    <!-- AI INFO -->
+    <div id="ai-info-strip">
+      <div class="player-stats">
+        <div class="stat-block">
+          <span class="stat-icon">❤️</span>
+          <span class="stat-val life-val" id="ai-life">20</span>
+        </div>
+        <div class="stat-block">
+          <span class="stat-icon">🩸</span>
+          <span class="stat-val bleed-val" id="ai-bleed">0</span>
+        </div>
+        <div class="stat-block">
+          <span style="font-size:10px;color:var(--text-dim)">DECK</span>
+          <span class="stat-val deck-val" id="ai-deck-count">40</span>
+        </div>
+        <div class="stat-block">
+          <span style="font-size:10px;color:var(--text-dim)">LANDS</span>
+          <span class="stat-val deck-val" id="ai-land-count">20</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;">AI OPPONENT</div>
+      <div class="resource-row" id="ai-mana-display"></div>
+    </div>
+
+    <!-- AI BATTLEFIELD -->
+    <div class="bf-zone" id="bf-ai">
+      <span class="bf-label">AI BATTLEFIELD</span>
+    </div>
+
+    <!-- PLAYER BATTLEFIELD -->
+    <div class="bf-zone" id="bf-player">
+      <span class="bf-label">YOUR BATTLEFIELD</span>
+    </div>
+
+    <!-- PLAYER INFO -->
+    <div id="player-info-strip">
+      <div class="player-stats">
+        <div class="stat-block">
+          <span class="stat-icon">❤️</span>
+          <span class="stat-val life-val" id="player-life">20</span>
+        </div>
+        <div class="stat-block">
+          <span class="stat-icon">🩸</span>
+          <span class="stat-val bleed-val" id="player-bleed">0</span>
+        </div>
+        <div class="stat-block">
+          <span style="font-size:10px;color:var(--text-dim)">DECK</span>
+          <span class="stat-val deck-val" id="player-deck-count">40</span>
+        </div>
+        <div class="stat-block">
+          <span style="font-size:10px;color:var(--text-dim)">LANDS</span>
+          <span class="stat-val deck-val" id="player-land-count">20</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;">YOU</div>
+      <div class="resource-row" id="player-mana-display"></div>
+    </div>
+
+    <!-- PLAYER HAND -->
+    <div class="hand-zone" id="hand-player"></div>
+  </div>
+
+  <!-- ACTION BAR -->
+  <div id="action-bar">
+    <button class="btn btn-muted" id="btn-mulligan" onclick="doMulligan()">MULLIGAN</button>
+    <button class="btn btn-secondary" id="btn-play-land" onclick="playSelectedLand()">PLAY LAND</button>
+    <button class="btn btn-primary" id="btn-play-card" onclick="playSelectedCard()">PLAY CARD</button>
+    <button class="btn btn-danger" id="btn-attack" onclick="declareAttack()" style="display:none">DECLARE ATTACK</button>
+    <button class="btn btn-muted" id="btn-end-combat" onclick="endCombatPhase()" style="display:none">END COMBAT</button>
+    <button class="btn btn-primary" id="btn-next-phase" onclick="nextPhase()">NEXT PHASE →</button>
+  </div>
+
+</div>
+
+<!-- PANELS & OVERLAYS -->
+<button id="log-toggle" onclick="toggleLog()">LOG ▶</button>
+
+<div id="log-panel">
+  <div id="log-header">
+    <span>GAME LOG</span>
+    <span style="cursor:pointer" onclick="toggleLog()">✕</span>
+  </div>
+  <div id="log-entries"></div>
+</div>
+
+<div id="card-detail">
+  <img id="cd-img" src="" alt="">
+  <div class="cd-name" id="cd-name"></div>
+  <div class="cd-type" id="cd-type"></div>
+  <div class="cd-cost" id="cd-cost"></div>
+  <div class="cd-power" id="cd-power"></div>
+  <div class="cd-abilities" id="cd-abilities"></div>
+  <div class="cd-flavor" id="cd-flavor"></div>
+</div>
+
+<div id="turn-banner"></div>
+<div id="combat-info"></div>
+
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div id="modal-title"></div>
+    <div id="modal-body"></div>
+    <div id="modal-actions"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// CYBERVAMP CCG — GAME ENGINE
+// ══════════════════════════════════════════════════════════════
+
+// ── CARD DATABASE (inline) ──────────────────────────────────
+const CARDS_RAW = [
+  {id:1,color:"Red",type:"Creature",name:"Neon Revenant Striker",rarity:"Common",cost:"R",power:2,abilities:"This creature gets -1 power while blocking.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Neon_Revenant_Striker.png?raw=true"},
+  {id:2,color:"Red",type:"Creature",name:"Glitch Crimson Reaver",rarity:"Common",cost:"RR",power:2,abilities:"Haste",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Glitch_Crimson_Reaver.png?raw=true"},
+  {id:3,color:"Red",type:"Creature",name:"Pulse Jumper",rarity:"Common",cost:"RR",power:2,abilities:"Cannot be blocked by walls",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Pulse_Jumper.png?raw=true"},
+  {id:4,color:"Red",type:"Creature",name:"Phase Techie",rarity:"Common",cost:"GR",power:1,abilities:"{Exhaust}: Target gains +1 power and Tireless until end of turn",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Phase_Techie.png?raw=true"},
+  {id:5,color:"Red",type:"Creature",name:"Flame Bully Crew",rarity:"Common",cost:"GGR",power:3,abilities:"+1 power when blocked, Bleed 1",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Flame_Bully_Crew.png?raw=true"},
+  {id:6,color:"Red",type:"Creature",name:"Neon Revenant Blitzer",rarity:"Uncommon",cost:"GRR",power:3,abilities:"Haste",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Neon_Revenant_Blitzer.png?raw=true"},
+  {id:7,color:"Red",type:"Creature",name:"Vein Hacker",rarity:"Uncommon",cost:"GGRR",power:3,abilities:"Bleed 2",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Vein_Hacker.png?raw=true"},
+  {id:8,color:"Red",type:"Creature",name:"Cyber Bleed Rusher",rarity:"Uncommon",cost:"GCRR",power:4,abilities:"Breach, Bleed 1",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Cyber_Bleed_Rusher.png?raw=true"},
+  {id:9,color:"Red",type:"Creature",name:"Bloodnet Raver",rarity:"Uncommon",cost:"GCCR",power:5,abilities:"Haste, must overexhaust to attack",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Bloodnet_Raver.png?raw=true"},
+  {id:10,color:"Red",type:"Creature",name:"Slashfang Sprinter",rarity:"Uncommon",cost:"GRRR",power:4,abilities:"Haste, Bleed 0",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Slashfang_Sprinter.png?raw=true"},
+  {id:11,color:"Red",type:"Creature",name:"Chrome Fang Berserker",rarity:"Rare",cost:"GCRR",power:4,abilities:"Breach, Bleed 1",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Chrome_Fang_Berserker.png?raw=true"},
+  {id:13,color:"Red",type:"Creature",name:"Nano Vein Flexer",rarity:"Rare",cost:"GRRR",power:5,abilities:"Breach, Bleed 2, Self Bleed 1",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Nano_Vein_Flexer.png?raw=true"},
+  {id:14,color:"Red",type:"Creature",name:"Velocity Glitcher",rarity:"Rare",cost:"CRRR",power:3,abilities:"Breach, Bleed 1",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Velocity_Glitcher.png?raw=true"},
+  {id:16,color:"Red",type:"Creature",subtype:"Unique",name:"Zyra Vex",rarity:"Mythic Rare",cost:"GCRRR",power:5,abilities:"Breach, Bleed 3",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Zyra_Vex.png?raw=true"},
+  {id:17,color:"Red",type:"Creature",subtype:"Unique",name:"Kael Thorne",rarity:"Mythic Rare",cost:"GGRRR",power:6,abilities:"Haste",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Kael_Thorne.png?raw=true"},
+  {id:18,color:"Red",type:"Creature",name:"Crimwire Overlord",rarity:"Mythic Rare",cost:"GCCRRR",power:7,abilities:"Breach, Bleed 2",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Crimwire_Overlord.png?raw=true"},
+  {id:27,color:"Red",type:"Spell",name:"Flankwire Feint",rarity:"Common",cost:"R",power:null,abilities:"Target attacking creature's Bleed triggers regardless of any direct player damage.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Flankwire_Feint.png?raw=true"},
+  {id:28,color:"Red",type:"Spell",name:"Overclock Surge",rarity:"Common",cost:"R",power:null,abilities:"Until end of turn target creature gains +1 power, and gains an additional +1 power if it has Bleed",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Overclock_Surge.png?raw=true"},
+  {id:29,color:"Red",type:"Spell",name:"Veinshock Pulse",rarity:"Common",cost:"RR",power:null,abilities:"Deal 1 damage to all creatures under target player's control",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Veinshock_Pulse.png?raw=true"},
+  {id:30,color:"Red",type:"Spell",name:"Left Behind",rarity:"Common",cost:"RRR",power:null,abilities:"Target player can only block with one creature this turn.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Left_Behind.png?raw=true"},
+  {id:36,color:"Red",type:"Spell",name:"Cut the Line",rarity:"Rare",cost:"GRR",power:null,abilities:"Renew target creature or Relic",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Cut_the_Line.png?raw=true"},
+  {id:37,color:"Red",type:"Spell",name:"Burnout",rarity:"Rare",cost:"RR",power:null,abilities:"Destroy target overexhausted creature",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Burnout.png?raw=true"},
+  {id:40,color:"Red",type:"Spell",name:"Reckless Surge",rarity:"Rare",cost:"R",power:null,abilities:"Target creature gains +1 power and Breach",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Reckless_Surge.png?raw=true"},
+  {id:21,color:"Red",type:"Relic",name:"AR Visor",rarity:"Uncommon",cost:"GR",power:null,abilities:"{G}{R}{Exhaust}: Target creature gives -1 power to any creature blocking it until end of turn",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/AR_Visor.png?raw=true"},
+  {id:24,color:"Red",type:"Relic",name:"Crimson Vein Miner",rarity:"Uncommon",cost:"GR",power:null,abilities:"{Exhaust}: Lose 1 life and add 1 Gold",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Crimson_Vein_Miner.png?raw=true"},
+  {id:25,color:"Red",type:"Relic",name:"Blood Vial Toolbelt",rarity:"Rare",cost:"GGR",power:null,abilities:"{Exhaust}: Self Bleed 1, Target creature gains Bleed +1 until end of turn",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Blood_Vial_Toolbelt.png?raw=true"},
+  // White faction
+  {id:41,color:"White",type:"Creature",name:"Heir Apparent's Aide",rarity:"Common",cost:"W",power:1,abilities:"When this card is destroyed its controller gains 1 life point",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Heir_Apparent's_Aide.png?raw=true"},
+  {id:43,color:"White",type:"Creature",name:"Hallmark Sigil",rarity:"Common",cost:"WW",power:3,abilities:"Wall",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Hallmark_Sigil.png?raw=true"},
+  {id:45,color:"White",type:"Creature",name:"Faithful Healer",rarity:"Common",cost:"GWW",power:2,abilities:"{Exhaust}: Remove 1 bleed token from target player",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Faithful_Healer.png?raw=true"},
+  {id:46,color:"White",type:"Creature",name:"Snowfleece Elder",rarity:"Uncommon",cost:"GWW",power:2,abilities:"Gains +1 power when blocking",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Snowfleece_Elder.png?raw=true"},
+  {id:48,color:"White",type:"Creature",name:"Eternal Aristocrat Defender",rarity:"Uncommon",cost:"GWWW",power:4,abilities:"Tireless, Bleed 1",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Eternal_Aristocrat_Defender_.png?raw=true"},
+  {id:49,color:"White",type:"Creature",name:"Relic Spire Sentinel",rarity:"Uncommon",cost:"GGWW",power:5,abilities:"Wall",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Relic_Spire_Sentinel.png?raw=true"},
+  {id:53,color:"White",type:"Creature",name:"Runed Sentry",rarity:"Rare",cost:"CWWWW",power:5,abilities:"",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Runed_Sentry.png?raw=true"},
+  {id:60,color:"White",type:"Creature",name:"Marble Shield Sentinel",rarity:"Mythic Rare",cost:"GGWWWW",power:6,abilities:"Breach",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Marble_Shield_Sentinel.png?raw=true"},
+  {id:66,color:"White",type:"Spell",name:"Marble Ward",rarity:"Common",cost:"W",power:null,abilities:"Target creature gains Wall and +2 power until end of turn. Gain 2 life",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Marble_Ward.png?raw=true"},
+  {id:67,color:"White",type:"Spell",name:"Purity Pulse",rarity:"Common",cost:"WW",power:null,abilities:"Remove up to 3 Bleed counters from target player. Gain life equal to the number removed",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Purity_Pulse.png?raw=true"},
+  {id:72,color:"White",type:"Spell",name:"Gilded Rebuke",rarity:"Uncommon",cost:"WW",power:null,abilities:"Prevent all combat damage target creature would deal this turn. Its controller loses 2 life",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Gilded_Rebuke.png?raw=true"},
+  {id:74,color:"White",type:"Spell",name:"Dawn Defier",rarity:"Uncommon",cost:"WWW",power:null,abilities:"Target creature gains +1 power, Siphon, and Breach until end of turn",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Dawn_Defier.png?raw=true"},
+  {id:61,color:"White",type:"Relic",name:"Gilded Lifewell Chalice",rarity:"Uncommon",cost:"GW",power:null,abilities:"{W}{Exhaust}: Gain 1 life",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Gilded_Lifewell_Chalice.png?raw=true"},
+  {id:63,color:"White",type:"Relic",name:"Ivory Hemaclaw",rarity:"Uncommon",cost:"GG",power:null,abilities:"{W}{Exhaust}: Target creature gains Siphon until end of turn.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Ivory_Hemaclaw.png?raw=true"},
+  // Black faction
+  {id:81,color:"Black",type:"Creature",name:"Dusk Warrior",rarity:"Common",cost:"B",power:1,abilities:"When this card is destroyed, create 1 bat token",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Dusk_Warrior.png?raw=true"},
+  {id:82,color:"Black",type:"Creature",name:"Swarmshade Witch",rarity:"Common",cost:"CB",power:1,abilities:"{Exhaust}: Create 1 bat token",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Swarmshade_Witch__.png?raw=true"},
+  {id:83,color:"Black",type:"Creature",name:"Fleshwoven Lurker",rarity:"Common",cost:"BB",power:2,abilities:"{Exhaust}: Target token creature cannot be destroyed by spells this turn",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Fleshwoven_Lurker.png?raw=true"},
+  {id:84,color:"Black",type:"Creature",name:"Ebonwing Matriarch",rarity:"Common",cost:"GBB",power:3,abilities:"Whenever a Bat Token you control deals combat damage to a player, gain life equal to the damage dealt.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Ebonwing_Matriarch.png?raw=true"},
+  {id:85,color:"Black",type:"Creature",name:"Werewolf Shaman",rarity:"Common",cost:"BBB",power:3,abilities:"Bleed 1",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Werewolf_Shaman.png?raw=true"},
+  {id:87,color:"Black",type:"Creature",name:"Ironmaw Butcher",rarity:"Uncommon",cost:"GBB",power:3,abilities:"Breach",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Ironmaw_Butcher.png?raw=true"},
+  {id:89,color:"Black",type:"Creature",name:"Shadowpack Mistress",rarity:"Uncommon",cost:"GGBB",power:4,abilities:"{B}{Exhaust}: Create 1 Wolf token",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Shadowpack_Mistress.png?raw=true"},
+  {id:97,color:"Black",type:"Creature",subtype:"Unique",name:"Lyssara, Witch of the Apex",rarity:"Mythic Rare",cost:"GBBBBB",power:7,abilities:"Breach",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Lyssara,_Witch_of_the_Apex.png?raw=true"},
+  {id:98,color:"Black",type:"Creature",subtype:"Unique",name:"Valthor, the Eternal Cadaver",rarity:"Mythic Rare",cost:"CCBBBB",power:6,abilities:"Siphon",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Valthor,_the_Eternal_Cadaver.png?raw=true"},
+  {id:106,color:"Black",type:"Spell",name:"Dark Reach",rarity:"Common",cost:"B",power:null,abilities:"Target player loses 1 life and you gain 1 life.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Dark_Reach.png?raw=true"},
+  {id:108,color:"Black",type:"Spell",name:"Swarm Surge",rarity:"Common",cost:"BB",power:null,abilities:"Target creature gets +2 power until end of turn.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Swarm_Surge.png?raw=true"},
+  {id:113,color:"Black",type:"Spell",name:"Death's Grasp",rarity:"Uncommon",cost:"BBB",power:null,abilities:"Target creature is destroyed.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Death's_Grasp.png?raw=true"},
+  {id:101,color:"Black",type:"Relic",name:"Muckmouth Bauble",rarity:"Uncommon",cost:"GB",power:null,abilities:"{Exhaust}: Lose 2 life, add B",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Muckmouth_Bauble.png?raw=true"},
+  // Purple faction
+  {id:121,color:"Purple",type:"Creature",name:"Arcane Scholar Acolyte",rarity:"Common",cost:"P",power:1,abilities:"{P}{Exhaust}: Glimpse 1",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Arcane_Scholar_Acolyte.png?raw=true"},
+  {id:122,color:"Purple",type:"Creature",name:"Aetheric Archivist",rarity:"Common",cost:"PP",power:2,abilities:"{P}{Exhaust}: Glimpse 2",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Aetheric_Archivist.png?raw=true"},
+  {id:124,color:"Purple",type:"Creature",name:"Mystic Fledgling",rarity:"Common",cost:"CP",power:2,abilities:"{Exhaust}: Target attacking creature with power less than 3 deals no damage this turn.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Mystic_Fledgling.png?raw=true"},
+  {id:125,color:"Purple",type:"Creature",name:"Whetforge Adept",rarity:"Common",cost:"GPP",power:3,abilities:"{G}{P}: Other creatures attacking with this creature get +1 power until end of turn",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Whetforge_Adept.png?raw=true"},
+  {id:127,color:"Purple",type:"Creature",name:"Mystic Alchemist",rarity:"Uncommon",cost:"PP",power:2,abilities:"{Exhaust}: Target creature gets -1 power until end of turn.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Mystic_Alchemist.png?raw=true"},
+  {id:132,color:"Purple",type:"Creature",subtype:"Unique",name:"Elowen Thornveil",rarity:"Rare",cost:"PPP",power:3,abilities:"If blocked, the blocking creature becomes overexhausted after the battle phase ends.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Elowen_Thornveil.png?raw=true"},
+  {id:139,color:"Purple",type:"Creature",subtype:"Unique",name:"Isolde, Veil Sovereign",rarity:"Mythic Rare",cost:"GGPPP",power:5,abilities:"When this creature is declared as an attacker, you may exhaust up to 2 target creature cards.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Isolde,_Veil_Sovereign__.png?raw=true"},
+  {id:140,color:"Purple",type:"Creature",subtype:"Unique",name:"Elias Veyr",rarity:"Mythic Rare",cost:"PPPPPP",power:6,abilities:"Blocker damage dealt to this card is reduced by 2.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Elias_Veyr__.png?raw=true"},
+  {id:147,color:"Purple",type:"Spell",name:"Idle Thoughts",rarity:"Common",cost:"P",power:null,abilities:"Target exhausted creature becomes overexhausted",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Idle_Thoughts.png?raw=true"},
+  {id:148,color:"Purple",type:"Spell",name:"Mist Trap",rarity:"Common",cost:"PPP",power:null,abilities:"Target creature card is returned to its owner's hand",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Mist_Trap.png?raw=true"},
+  {id:151,color:"Purple",type:"Spell",name:"Curse of Fatigue",rarity:"Uncommon",cost:"PP",power:null,abilities:"Destroy target overexhausted creature or relic",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Curse_of_Fatigue.png?raw=true"},
+  {id:158,color:"Purple",type:"Spell",name:"Illusion Portal",rarity:"Rare",cost:"PP",power:null,abilities:"Target attacking creature deals no combat damage this turn.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Illusion_Portal.png?raw=true"},
+  {id:141,color:"Purple",type:"Relic",name:"Astral Archive",rarity:"Uncommon",cost:"GPPP",power:null,abilities:"{Exhaust}: Look at the top 3 cards of your deck",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Astral_Archive.png?raw=true"},
+  // Colorless relics
+  {id:162,color:"Colorless",type:"Relic",name:"Bloodletter Ring",rarity:"Common",cost:"GCC",power:null,abilities:"{C}{Exhaust}: Target creature gains Siphon until end of turn",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Bloodletter_Ring.png?raw=true"},
+  {id:164,color:"Colorless",type:"Relic",name:"Obsidian Resonance Tower",rarity:"Common",cost:"GGCC",power:null,abilities:"{Exhaust}: Add {C}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Obsidian_Resonance_Tower.png?raw=true"},
+  {id:177,color:"Colorless",type:"Relic",name:"Vein Tap",rarity:"Mythic Rare",cost:"GG",power:null,abilities:"{G}{Exhaust}: Remove 1 bleed counter from target player",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Vein_Tap.png?raw=true"},
+  // Tokens
+  {id:191,color:"Black",type:"Creature",subtype:"Token",name:"Raven Token",rarity:"Token",cost:"",power:1,abilities:"",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Raven_Token.png?raw=true"},
+  {id:192,color:"Black",type:"Creature",subtype:"Token",name:"Bat Token",rarity:"Token",cost:"",power:1,abilities:"Bleed 1",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Bat_Token.png?raw=true"},
+  {id:193,color:"Black",type:"Creature",subtype:"Token",name:"Wolf Token",rarity:"Token",cost:"",power:2,abilities:"Bleed 1",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Wolf_Token.png?raw=true"},
+  {id:194,color:"Black",type:"Creature",subtype:"Token",name:"Zombie Token",rarity:"Token",cost:"",power:3,abilities:"Must overexhaust to attack",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Zombie_Token.png?raw=true"},
+  // Lands
+  {id:181,color:"Land",type:"Land",subtype:"Core",name:"Red Land",rarity:"Common",cost:"",power:null,abilities:"{Exhaust}: Add {R}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Red_Land.png?raw=true",produces:"R"},
+  {id:182,color:"Land",type:"Land",subtype:"Core",name:"White Land",rarity:"Common",cost:"",power:null,abilities:"{Exhaust}: Add {W}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/White_Land.png?raw=true",produces:"W"},
+  {id:183,color:"Land",type:"Land",subtype:"Core",name:"Black Land",rarity:"Common",cost:"",power:null,abilities:"{Exhaust}: Add {B}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Black_Land.png?raw=true",produces:"B"},
+  {id:184,color:"Land",type:"Land",subtype:"Core",name:"Purple Land",rarity:"Common",cost:"",power:null,abilities:"{Exhaust}: Add {P}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Purple_Land.png?raw=true",produces:"P"},
+  {id:185,color:"Land",type:"Land",subtype:"Core",name:"Gold Land",rarity:"Common",cost:"",power:null,abilities:"{Exhaust}: Add {G}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Gold_Land.png?raw=true",produces:"G"},
+  {id:186,color:"Land",type:"Land",name:"Crypto Mining Monolith",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust}: Add {G} or {R}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Crypto_Mining_Monolith.png?raw=true",produces:"GR"},
+  {id:187,color:"Land",type:"Land",name:"Vault of Eternal Coins",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust}: Add {G} or {W}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Vault_of_Eternal_Coins.png?raw=true",produces:"GW"},
+  {id:188,color:"Land",type:"Land",name:"Reliquary Cache",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust}: Add {G} or {B}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Reliquary_Cache.png?raw=true",produces:"GB"},
+  {id:189,color:"Land",type:"Land",name:"Golden Shard Requiem",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust}: Add {G} or {P}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Golden_Shard_Requiem.png?raw=true",produces:"GP"},
+  {id:190,color:"Land",type:"Land",name:"The Promised Land",rarity:"Rare",cost:"",power:null,abilities:"{Exhaust}: Take 1 damage and add {G} or any color",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/The_Promised_Land.png?raw=true",produces:"any"},
+];
+
+const CARD_MAP = {};
+CARDS_RAW.forEach(c => CARD_MAP[c.id] = c);
+
+// ── FACTION DECKS ─────────────────────────────────────────────
+const FACTION_DECKS = {
+  Red: {
+    main: shuffle([1,1,1,2,2,2,3,3,3,4,4,4,5,5,5,6,6,6,7,7,8,8,9,10,10,11,13,16,17,18,
+                   27,27,27,28,28,28,29,29,30,30,36,37,37,40,40,40,21,21,24,24]),
+    land: shuffle([181,181,181,181,181,181,181,181,181,181,181,181,
+                   185,185,185,185,185,185,185,185,
+                   186,186,186])
+  },
+  White: {
+    main: shuffle([41,41,41,43,43,43,45,45,45,46,46,46,48,48,49,49,53,53,60,41,
+                   66,66,66,67,67,67,72,72,72,74,74,74,66,67,72,74,67,66,72,74,
+                   61,61,63,63,67,66,74,72,61,63]),
+    land: shuffle([182,182,182,182,182,182,182,182,182,182,182,182,
+                   185,185,185,185,185,185,185,185,
+                   187,187,187])
+  },
+  Black: {
+    main: shuffle([81,81,81,82,82,82,83,83,83,84,84,84,85,85,85,87,87,89,89,97,
+                   106,106,106,108,108,108,113,113,106,108,113,106,108,113,108,106,
+                   101,101,106,108,113,106,108,113,106,108,113,108,97,98]),
+    land: shuffle([183,183,183,183,183,183,183,183,183,183,183,183,
+                   185,185,185,185,185,185,185,185,
+                   188,188,188])
+  },
+  Purple: {
+    main: shuffle([121,121,121,122,122,122,124,124,124,125,125,125,127,127,127,132,132,139,140,121,
+                   147,147,147,148,148,148,151,151,151,158,158,158,147,148,151,158,147,148,151,158,
+                   141,141,158,151,148,147,147,148,141,141]),
+    land: shuffle([184,184,184,184,184,184,184,184,184,184,184,184,
+                   185,185,185,185,185,185,185,185,
+                   189,189,189])
+  }
+};
+
+// Choose opposite faction for AI
+const FACTION_OPPOSITES = { Red:'Black', Black:'Red', White:'Purple', Purple:'White' };
+
+// ── HELPERS ───────────────────────────────────────────────────
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function parseCost(costStr) {
+  const c = {R:0,W:0,B:0,P:0,G:0,C:0};
+  if (!costStr) return c;
+  for (const ch of costStr) if (c[ch]!==undefined) c[ch]++;
+  return c;
+}
+
+function parseKeywords(txt) {
+  if (!txt) return {};
+  const t = txt.toLowerCase();
+  const kw = {};
+  if (t.includes('haste')) kw.haste = true;
+  if (t.includes('tireless')) kw.tireless = true;
+  if (t.includes('wall')) kw.wall = true;
+  if (t.includes('breach')) kw.breach = true;
+  if (t.includes('siphon')) kw.siphon = true;
+  const bm = t.match(/bleed (\d+)/); if (bm) kw.bleed = parseInt(bm[1]);
+  return kw;
+}
+
+// ── GAME STATE ────────────────────────────────────────────────
+let G = null; // game state object
+let selectedCardId = null; // instance id of selected hand card
+let combatPhase = null; // null | 'declare' | 'block' | 'resolve'
+let attackers = []; // instance ids
+let blockers = {}; // blocker instId -> attacker instId
+let selectedBlocker = null;
+let mulliganUsed = { player: false, ai: false };
+let logOpen = false;
+let hoverCard = null;
+let nextInstId = 1;
+
+function makeInst(cardId, owner) {
+  const base = CARD_MAP[cardId];
+  if (!base) return null;
+  const kw = parseKeywords(base.abilities || '');
+  return {
+    instId: nextInstId++,
+    cardId,
+    owner, // 'player' | 'ai'
+    name: base.name,
+    color: base.color,
+    type: base.type,
+    subtype: base.subtype || null,
+    cost: base.cost || '',
+    basePower: base.power,
+    power: base.power,
+    abilities: base.abilities || '',
+    image: base.image,
+    rarity: base.rarity,
+    produces: base.produces || null,
+    // runtime state
+    exhaustState: 'renewed', // 'renewed' | 'exhausted' | 'overexhausted'
+    newlyTurned: false,
+    powerMods: [], // [{amount, until:'eot'}]
+    keywords: { ...kw },
+    tempKeywords: {},
+    attacking: false,
+    blocking: false,
+    blockTarget: null,
+  };
+}
+
+function startGame(faction) {
+  document.getElementById('faction-chooser').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  const aiFaction = FACTION_OPPOSITES[faction] || 'Black';
+  const pDecks = FACTION_DECKS[faction];
+  const aDecks = FACTION_DECKS[aiFaction];
+
+  G = {
+    playerFaction: faction,
+    aiFaction,
+    turn: 1,
+    activePlayer: 'player',
+    phase: 'prebattle',
+    player: {
+      life: 20, bleed: 0,
+      hand: [], main: [...(pDecks?.main||[])], land: [...(pDecks?.land||[])],
+      battlefield: [], // instances
+      discard: [],
+      mana: {R:0,W:0,B:0,P:0,G:0,C:0},
+      landPlayedThisTurn: false,
+      drawnFirstTurn: false,
+    },
+    ai: {
+      life: 20, bleed: 0,
+      hand: [], main: [...(aDecks?.main||[])], land: [...(aDecks?.land||[])],
+      battlefield: [],
+      discard: [],
+      mana: {R:0,W:0,B:0,P:0,G:0,C:0},
+      landPlayedThisTurn: false,
+    },
+    endOfTurnEffects: [],
+  };
+
+  // Draw starting hands
+  for (let i=0; i<7; i++) { drawCard('player'); drawCard('ai'); }
+
+  // Player goes first – no draw on first turn
+  setPhase('prebattle');
+  updateUI();
+  log('⚔ New Game: ' + faction + ' vs ' + aiFaction, 'phase');
+  log('Your opening hand — play a land to start generating resources.', 'important');
+  showBanner('YOUR TURN');
+}
+
+function drawCard(who) {
+  const s = G[who];
+  // Choose deck: prefer main, but allow either
+  let source = null;
+  if (s.main.length > 0) source = 'main';
+  else if (s.land.length > 0) source = 'land';
+  if (!source) return; // both empty = no draw, no penalty
+  const id = s[source].shift();
+  const inst = makeInst(id, who);
+  if (inst) s.hand.push(inst);
+}
+
+function setPhase(phase) {
+  G.phase = phase;
+  document.querySelectorAll('.phase-pip').forEach(el => {
+    el.classList.remove('active','done');
+  });
+  const order = ['renew','draw','prebattle','battle','postbattle'];
+  const idx = order.indexOf(phase);
+  order.forEach((p,i) => {
+    const el = document.querySelector(`.phase-pip[data-phase="${p}"]`);
+    if (!el) return;
+    if (i < idx) el.classList.add('done');
+    else if (i === idx) el.classList.add('active');
+  });
+
+  // Update action bar visibility
+  const attackBtn = document.getElementById('btn-attack');
+  const endCombatBtn = document.getElementById('btn-end-combat');
+  attackBtn.style.display = (phase === 'battle' && combatPhase === null) ? 'block' : 'none';
+  endCombatBtn.style.display = (phase === 'battle') ? 'block' : 'none';
+
+  const mulliganBtn = document.getElementById('btn-mulligan');
+  mulliganBtn.disabled = (G.turn > 1 || mulliganUsed.player);
+}
+
+// ── MANA SYSTEM ──────────────────────────────────────────────
+function tapLandForMana(inst) {
+  if (inst.exhaustState !== 'renewed') { log('Land is already exhausted.'); return; }
+  const prod = inst.produces;
+  if (!prod || prod === 'any') {
+    // Prompt for color
+    showManaChoice(inst);
+    return;
+  }
+  if (prod.length === 1) {
+    addMana(inst.owner, prod, 1);
+    exhaustCard(inst);
+    log(`${inst.name} → +1 ${prod}`, '');
+  } else {
+    // Dual land: pick one
+    showManaChoice(inst, prod.split(''));
+  }
+}
+
+function addMana(who, color, amount) {
+  const s = G[who];
+  s.mana[color] = (s.mana[color] || 0) + amount;
+  updateManaDisplay(who);
+}
+
+function canPayCost(who, costStr) {
+  const needed = parseCost(costStr);
+  const have = G[who].mana;
+  for (const color of ['R','W','B','P']) {
+    if ((needed[color] || 0) > (have[color] || 0)) return false;
+  }
+  // Gold check
+  const totalGold = (have.G || 0) + (have.C || 0);
+  if ((needed.G || 0) > totalGold) return false;
+  if ((needed.C || 0) > (have.C || 0)) return false;
+  return true;
+}
+
+function payCost(who, costStr) {
+  const needed = parseCost(costStr);
+  const have = G[who].mana;
+  for (const color of ['R','W','B','P','G','C']) {
+    have[color] = Math.max(0, (have[color]||0) - (needed[color]||0));
+  }
+  updateManaDisplay(who);
+}
+
+function clearMana(who) {
+  G[who].mana = {R:0,W:0,B:0,P:0,G:0,C:0};
+  updateManaDisplay(who);
+}
+
+// ── EXHAUST STATES ────────────────────────────────────────────
+function exhaustCard(inst) { inst.exhaustState = 'exhausted'; updateUI(); }
+function overexhaustCard(inst) { inst.exhaustState = 'overexhausted'; updateUI(); }
+function renewCard(inst) { inst.exhaustState = 'renewed'; updateUI(); }
+
+// ── TURN PHASES ───────────────────────────────────────────────
+function nextPhase() {
+  const phases = ['renew','draw','prebattle','battle','postbattle'];
+  const idx = phases.indexOf(G.phase);
+  if (G.activePlayer !== 'player') return;
+
+  if (G.phase === 'battle') {
+    if (combatPhase !== null) {
+      log('Resolve or end combat first.');
+      return;
+    }
+    setPhase('postbattle');
+    return;
+  }
+
+  if (G.phase === 'postbattle') {
+    endPlayerTurn();
+    return;
+  }
+
+  if (idx < phases.length-1) {
+    const next = phases[idx+1];
+    if (next === 'draw' && G.turn === 1 && !G.player.drawnFirstTurn) {
+      // first player skips draw on their first turn — just advance
+      G.player.drawnFirstTurn = true;
+      setPhase('prebattle');
+      updateUI();
+      return;
+    }
+    if (next === 'draw') {
+      drawCard('player');
+      log('You drew a card.', '');
+    }
+    setPhase(next);
+    updateUI();
+  }
+}
+
+function endPlayerTurn() {
+  // Bleed resolution
+  if (G.player.bleed > 0) {
+    const dmg = G.player.bleed;
+    G.player.life -= dmg;
+    log(`Bleed resolves: you take ${dmg} damage from ${dmg} Bleed counters.`, 'bleed');
+    G.player.bleed = 0;
+    updateLifeDisplay('player');
+    if (checkWin()) return;
+  }
+
+  // Clear end-of-turn power mods
+  clearEotEffects('player');
+
+  // Clear mana
+  clearMana('player');
+  G.player.landPlayedThisTurn = false;
+
+  G.turn++;
+  G.activePlayer = 'ai';
+
+  document.getElementById('turn-info').textContent = 'TURN ' + G.turn + ' (AI)';
+  updateUI();
+
+  setTimeout(() => runAITurn(), 500);
+}
+
+// ── AI TURN ───────────────────────────────────────────────────
+async function runAITurn() {
+  showBanner("AI'S TURN");
+
+  // Phase 1: Renew
+  await delay(300);
+  renewPhase('ai');
+
+  // Phase 2: Draw
+  await delay(300);
+  drawCard('ai');
+  log('AI draws a card.', '');
+
+  // Phase 3: Pre-Battle — play land + cards
+  await delay(400);
+  aiPlayLand();
+  await delay(400);
+  await aiPlayCards();
+
+  // Phase 4: Battle
+  await delay(500);
+  setPhase('battle');
+  await delay(400);
+  await aiDeclareAttack();
+
+  // Phase 5: Post-Battle
+  await delay(400);
+  setPhase('postbattle');
+
+  if (G.ai.bleed > 0) {
+    const dmg = G.ai.bleed;
+    G.ai.life -= dmg;
+    log(`AI takes ${dmg} Bleed damage.`, 'bleed');
+    G.ai.bleed = 0;
+    if (checkWin()) return;
+  }
+
+  clearEotEffects('ai');
+  clearMana('ai');
+  G.ai.landPlayedThisTurn = false;
+
+  // Back to player
+  G.activePlayer = 'player';
+  document.getElementById('turn-info').textContent = 'TURN ' + G.turn;
+  setPhase('renew');
+  await delay(300);
+  renewPhase('player');
+  setPhase('draw');
+  await delay(200);
+  drawCard('player');
+  log('You draw a card.', '');
+  setPhase('prebattle');
+  updateUI();
+  showBanner('YOUR TURN');
+}
+
+function renewPhase(who) {
+  const s = G[who];
+  s.battlefield.forEach(inst => {
+    if (inst.exhaustState === 'overexhausted') inst.exhaustState = 'exhausted';
+    else if (inst.exhaustState === 'exhausted') inst.exhaustState = 'renewed';
+    inst.newlyTurned = false;
+    inst.attacking = false;
+    inst.blocking = false;
+    inst.blockTarget = null;
+  });
+  updateUI();
+}
+
+function aiPlayLand() {
+  const ai = G.ai;
+  if (ai.landPlayedThisTurn || ai.land.length === 0) return;
+  const id = ai.land.shift();
+  const inst = makeInst(id, 'ai');
+  if (!inst) return;
+  inst.exhaustState = 'renewed';
+  inst.newlyTurned = false;
+  ai.battlefield.push(inst);
+  ai.landPlayedThisTurn = true;
+  log(`AI plays ${inst.name}.`, '');
+  updateUI();
+}
+
+async function aiPlayCards() {
+  const ai = G.ai;
+
+  // Tap all renewable lands
+  ai.battlefield.filter(i => i.type==='Land' && i.exhaustState==='renewed').forEach(land => {
+    if (land.produces && land.produces.length === 1) {
+      addMana('ai', land.produces, 1);
+      land.exhaustState = 'exhausted';
+    } else {
+      // Dual/any: pick based on faction need
+      const color = aiFactionColor();
+      addMana('ai', color, 1);
+      land.exhaustState = 'exhausted';
+    }
+  });
+
+  updateUI();
+
+  // Play affordable creatures (cheapest first)
+  const playable = ai.hand.filter(inst =>
+    inst.type === 'Creature' && canPayCost('ai', inst.cost)
+  ).sort((a,b) => (a.cost||'').length - (b.cost||'').length);
+
+  for (const inst of playable.slice(0, 3)) {
+    if (!canPayCost('ai', inst.cost)) continue;
+    payCost('ai', inst.cost);
+    ai.hand = ai.hand.filter(i => i.instId !== inst.instId);
+    inst.newlyTurned = true;
+    ai.battlefield.push(inst);
+    log(`AI plays ${inst.name} (${inst.power} power).`, '');
+    await delay(350);
+    updateUI();
+  }
+}
+
+function aiFactionColor() {
+  const map = {Red:'R', White:'W', Black:'B', Purple:'P'};
+  return map[G.aiFaction] || 'G';
+}
+
+async function aiDeclareAttack() {
+  const ai = G.ai;
+  const attackCandidates = ai.battlefield.filter(inst =>
+    inst.type === 'Creature' &&
+    !inst.newlyTurned &&
+    inst.exhaustState === 'renewed' &&
+    !hasKeyword(inst,'wall')
+  );
+
+  if (attackCandidates.length === 0) return;
+
+  const playerCreatures = G.player.battlefield.filter(i => i.type==='Creature');
+  const totalPlayerBlock = playerCreatures.reduce((s,c) => s + (c.power||0), 0);
+
+  // AI attacks if it has power advantage or player life is low
+  const aiTotalPower = attackCandidates.reduce((s,c) => s + getEffectivePower(c), 0);
+  const shouldAttack = G.player.life <= 8 || aiTotalPower > totalPlayerBlock + 2 || attackCandidates.length >= 2;
+
+  if (!shouldAttack) return;
+
+  const myAttackers = attackCandidates.slice(0, Math.min(attackCandidates.length, 4));
+  myAttackers.forEach(inst => {
+    inst.attacking = true;
+    if (!hasKeyword(inst, 'tireless')) inst.exhaustState = 'exhausted';
+  });
+
+  log(`AI declares ${myAttackers.length} attacker(s): ${myAttackers.map(i=>i.name).join(', ')}`, 'important');
+  updateUI();
+  await delay(600);
+
+  // Player blocking (auto-block for AI opponent, player controls their own)
+  // For now: player must click to block manually if they wish
+  // AI's creatures don't block here (they're attacking) — the PLAYER's creatures block
+
+  // Simplified: give player a moment then resolve
+  await delay(400);
+
+  // Resolve combat
+  resolveCombat(myAttackers, {}, 'player');
+}
+
+// ── COMBAT SYSTEM ─────────────────────────────────────────────
+function declareAttack() {
+  if (G.phase !== 'battle' || G.activePlayer !== 'player') return;
+  combatPhase = 'declare';
+  attackers = [];
+  log('Select creatures to attack with, then click "Confirm Attack".', 'important');
+  document.getElementById('btn-attack').textContent = 'CONFIRM ATTACK';
+  document.getElementById('btn-attack').onclick = confirmAttack;
+  updateUI();
+}
+
+function toggleAttacker(inst) {
+  if (combatPhase !== 'declare') return;
+  if (inst.owner !== 'player') return;
+  if (inst.type !== 'Creature') return;
+  if (inst.newlyTurned && !hasKeyword(inst,'haste')) {
+    log(`${inst.name} is Newly Turned and cannot attack.`, '');
+    return;
+  }
+  if (inst.exhaustState !== 'renewed') {
+    log(`${inst.name} is exhausted.`, '');
+    return;
+  }
+  if (hasKeyword(inst,'wall')) {
+    log(`Walls cannot attack.`, '');
+    return;
+  }
+  const idx = attackers.indexOf(inst.instId);
+  if (idx >= 0) {
+    attackers.splice(idx, 1);
+    inst.attacking = false;
+  } else {
+    attackers.push(inst.instId);
+    inst.attacking = true;
+  }
+  updateUI();
+}
+
+function confirmAttack() {
+  if (attackers.length === 0) {
+    endCombatPhase();
+    return;
+  }
+  // Exhaust attackers (unless tireless)
+  attackers.forEach(id => {
+    const inst = G.player.battlefield.find(i => i.instId === id);
+    if (inst && !hasKeyword(inst,'tireless')) inst.exhaustState = 'exhausted';
+  });
+  combatPhase = 'block';
+  log(`You attack with ${attackers.length} creature(s). AI may block.`, 'important');
+  document.getElementById('btn-attack').style.display = 'none';
+
+  // Auto AI blocking
+  autoAIBlock();
+  updateUI();
+
+  setTimeout(() => {
+    resolvePlayerCombat();
+  }, 800);
+}
+
+function autoAIBlock() {
+  blockers = {};
+  const aiCreatures = G.ai.battlefield.filter(i =>
+    i.type === 'Creature' && i.exhaustState === 'renewed' && !i.attacking
+  );
+  const atkInsts = attackers.map(id => G.player.battlefield.find(i => i.instId===id)).filter(Boolean);
+
+  // Simple: block strongest attacker with strongest available blocker
+  const sortedAttackers = [...atkInsts].sort((a,b) => getEffectivePower(b)-getEffectivePower(a));
+  let availableBlockers = [...aiCreatures];
+
+  sortedAttackers.forEach(atk => {
+    if (availableBlockers.length === 0) return;
+    const blocker = availableBlockers.reduce((best, curr) =>
+      getEffectivePower(curr) <= getEffectivePower(atk) + 1 && getEffectivePower(curr) > (best ? getEffectivePower(best) : -1) ? curr : best
+    , null) || availableBlockers[0];
+
+    if (blocker) {
+      blockers[blocker.instId] = atk.instId;
+      blocker.blocking = true;
+      availableBlockers = availableBlockers.filter(b => b.instId !== blocker.instId);
+      log(`AI blocks ${atk.name} with ${blocker.name}.`, '');
+    }
+  });
+}
+
+function resolvePlayerCombat() {
+  const atkInsts = attackers.map(id => G.player.battlefield.find(i => i.instId===id)).filter(Boolean);
+
+  atkInsts.forEach(atk => {
+    const atkPower = getEffectivePower(atk);
+    const blockerId = Object.keys(blockers).find(bid => blockers[bid] === atk.instId);
+
+    if (blockerId) {
+      const blk = G.ai.battlefield.find(i => i.instId === parseInt(blockerId));
+      if (blk) {
+        const blkPower = getEffectivePower(blk);
+        combatResolution(atk, blk, 'ai');
+      }
+    } else {
+      // Unblocked hit
+      dealDamageToPlayer('ai', atkPower, atk);
+      log(`${atk.name} deals ${atkPower} to AI.`, 'damage');
+    }
+  });
+
+  attackers = [];
+  blockers = {};
+  combatPhase = null;
+
+  G.player.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
+  G.ai.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
+
+  document.getElementById('btn-attack').style.display = 'none';
+  updateUI();
+  checkWin();
+}
+
+function combatResolution(atk, blk, defendingSide) {
+  const atkP = getEffectivePower(atk);
+  const blkP = getEffectivePower(blk);
+  log(`${atk.name} (${atkP}) vs ${blk.name} (${blkP})`, '');
+
+  const attackingSide = defendingSide === 'ai' ? 'player' : 'ai';
+
+  if (atkP > blkP) {
+    destroyCreature(blk, defendingSide);
+    log(`${blk.name} destroyed.`, 'damage');
+    if (hasKeyword(atk,'breach')) {
+      const excess = atkP - blkP;
+      dealDamageToPlayer(defendingSide, excess, atk);
+      log(`Breach: ${excess} damage to ${defendingSide}.`, 'damage');
+    }
+  } else if (blkP > atkP) {
+    destroyCreature(atk, attackingSide);
+    log(`${atk.name} destroyed.`, 'damage');
+  } else {
+    destroyCreature(atk, attackingSide);
+    destroyCreature(blk, defendingSide);
+    log(`Both ${atk.name} and ${blk.name} destroyed.`, 'damage');
+  }
+}
+
+function resolveCombat(atkInsts, blkMap, defendingSide) {
+  atkInsts.forEach(atk => {
+    const atkPower = getEffectivePower(atk);
+    const blockerId = Object.keys(blkMap).find(bid => blkMap[bid] === atk.instId);
+    if (blockerId) {
+      const blk = G[defendingSide].battlefield.find(i => i.instId === parseInt(blockerId));
+      if (blk) combatResolution(atk, blk, defendingSide);
+    } else {
+      dealDamageToPlayer(defendingSide, atkPower, atk);
+      log(`${atk.name} deals ${atkPower} damage.`, 'damage');
+    }
+  });
+  atkInsts.forEach(inst => { inst.attacking = false; });
+  updateUI();
+  checkWin();
+}
+
+function dealDamageToPlayer(who, amount, source) {
+  G[who].life -= amount;
+  updateLifeDisplay(who);
+  const kw = parseKeywords(source.abilities);
+  if (kw.bleed) {
+    G[who].bleed += kw.bleed;
+    log(`+${kw.bleed} Bleed counters to ${who}.`, 'bleed');
+  }
+  if (kw.siphon) {
+    const src = source.owner;
+    G[src].life += amount;
+    log(`Siphon: ${source.owner} gains ${amount} life.`, 'heal');
+    updateLifeDisplay(src);
+  }
+}
+
+function destroyCreature(inst, owner) {
+  G[owner].battlefield = G[owner].battlefield.filter(i => i.instId !== inst.instId);
+  G[owner].discard.push(inst);
+  updateUI();
+}
+
+function endCombatPhase() {
+  attackers = [];
+  blockers = {};
+  combatPhase = null;
+  G.player.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
+  G.ai.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
+  document.getElementById('btn-attack').style.display = 'none';
+  document.getElementById('btn-end-combat').style.display = 'none';
+  setPhase('postbattle');
+  updateUI();
+}
+
+// ── PLAYING CARDS ─────────────────────────────────────────────
+function playSelectedLand() {
+  if (!selectedCardId) { log('Select a land card first.'); return; }
+  const player = G.player;
+  if (player.landPlayedThisTurn) { log('You can only play 1 land per turn.'); return; }
+  if (!['prebattle','postbattle'].includes(G.phase)) { log('Lands can only be played in Pre-Battle or Post-Battle.'); return; }
+  if (G.activePlayer !== 'player') return;
+
+  const inst = player.hand.find(i => i.instId === selectedCardId);
+  if (!inst || inst.type !== 'Land') { log('Selected card is not a land.'); return; }
+
+  player.hand = player.hand.filter(i => i.instId !== selectedCardId);
+  inst.exhaustState = 'renewed';
+  inst.newlyTurned = false;
+  player.battlefield.push(inst);
+  player.landPlayedThisTurn = true;
+  selectedCardId = null;
+  log(`You play ${inst.name}.`, 'important');
+  updateUI();
+}
+
+function playSelectedCard() {
+  if (!selectedCardId) { log('Select a card to play.'); return; }
+  if (G.activePlayer !== 'player') return;
+  if (!['prebattle','postbattle'].includes(G.phase) && G.phase !== 'battle') {
+    log('Cards can be played in Pre-Battle or Post-Battle phases.');
+    return;
+  }
+
+  const player = G.player;
+  const inst = player.hand.find(i => i.instId === selectedCardId);
+  if (!inst) { log('Card not found.'); return; }
+  if (inst.type === 'Land') { playSelectedLand(); return; }
+
+  // Tap available lands to pay cost automatically
+  autoTapForCost('player', inst.cost);
+
+  if (!canPayCost('player', inst.cost)) {
+    log(`Cannot afford ${inst.name} (Cost: ${inst.cost}). Tap lands manually first.`, '');
+    return;
+  }
+
+  payCost('player', inst.cost);
+  player.hand = player.hand.filter(i => i.instId !== selectedCardId);
+
+  if (inst.type === 'Creature') {
+    inst.newlyTurned = !hasKeyword(inst,'haste');
+    inst.exhaustState = 'renewed';
+    player.battlefield.push(inst);
+    log(`You play ${inst.name} (${inst.power} power).`, 'important');
+  } else if (inst.type === 'Relic') {
+    inst.newlyTurned = false;
+    inst.exhaustState = 'renewed';
+    player.battlefield.push(inst);
+    log(`You play ${inst.name} [Relic].`, 'important');
+  } else if (inst.type === 'Spell') {
+    resolveSpell(inst, 'player');
+    player.discard.push(inst);
+    log(`You cast ${inst.name}.`, 'important');
+  }
+
+  selectedCardId = null;
+  updateUI();
+}
+
+function autoTapForCost(who, costStr) {
+  const needed = parseCost(costStr);
+  const s = G[who];
+  const lands = s.battlefield.filter(i => i.type==='Land' && i.exhaustState==='renewed');
+
+  // Tap colored lands first
+  for (const color of ['R','W','B','P']) {
+    let n = needed[color] || 0;
+    lands.filter(l => l.produces===color).forEach(l => {
+      if (n <= 0 || l.exhaustState !== 'renewed') return;
+      l.exhaustState = 'exhausted';
+      addMana(who, color, 1);
+      n--;
+    });
+  }
+
+  // Tap gold lands
+  let gNeeded = (needed.G||0) + (needed.C||0);
+  lands.filter(l => l.produces==='G' && l.exhaustState==='renewed').forEach(l => {
+    if (gNeeded <= 0) return;
+    l.exhaustState = 'exhausted';
+    addMana(who, 'G', 1);
+    gNeeded--;
+  });
+}
+
+function resolveSpell(inst, caster) {
+  const txt = (inst.abilities || '').toLowerCase();
+
+  // Basic spell effects
+  if (txt.includes('destroy target overexhausted creature')) {
+    // Burnout / Curse of Fatigue
+    const targets = G[caster==='player'?'ai':'player'].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='overexhausted');
+    if (targets.length > 0) {
+      destroyCreature(targets[0], caster==='player'?'ai':'player');
+      log(`${inst.name}: Destroyed ${targets[0].name}.`, 'damage');
+    }
+  } else if (txt.includes('deal 1 damage to all creatures')) {
+    const opp = caster==='player'?'ai':'player';
+    const toDestroy = G[opp].battlefield.filter(i => i.type==='Creature' && (i.power||0) <= 1);
+    toDestroy.forEach(i => destroyCreature(i, opp));
+    log(`${inst.name}: 1 damage to all opponent creatures.`, 'damage');
+  } else if (txt.includes('target creature is destroyed')) {
+    const opp = caster==='player'?'ai':'player';
+    const targets = G[opp].battlefield.filter(i => i.type==='Creature');
+    if (targets.length > 0) {
+      const target = targets.reduce((a,b) => (a.power||0) > (b.power||0) ? a : b);
+      destroyCreature(target, opp);
+      log(`${inst.name}: Destroyed ${target.name}.`, 'damage');
+    }
+  } else if (txt.includes('target creature gets +2 power')) {
+    const ally = G[caster].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed');
+    if (ally.length > 0) {
+      ally[0].power = (ally[0].power||0) + 2;
+      log(`${inst.name}: ${ally[0].name} gains +2 power.`, 'heal');
+    }
+  } else if (txt.includes('gains +1 power and breach')) {
+    const ally = G[caster].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed');
+    if (ally.length > 0) {
+      ally[0].power = (ally[0].power||0) + 1;
+      ally[0].keywords.breach = true;
+      log(`${inst.name}: ${ally[0].name} gains +1 power and Breach.`, 'heal');
+    }
+  } else if (txt.includes('remove up to 3 bleed counters')) {
+    const removed = Math.min(3, G[caster].bleed);
+    G[caster].bleed -= removed;
+    G[caster].life += removed;
+    updateLifeDisplay(caster);
+    log(`${inst.name}: Removed ${removed} Bleed counters and gained ${removed} life.`, 'heal');
+  } else if (txt.includes('target player loses 1 life and you gain 1 life')) {
+    const opp = caster==='player'?'ai':'player';
+    G[opp].life -= 1;
+    G[caster].life += 1;
+    updateLifeDisplay(opp); updateLifeDisplay(caster);
+    log(`${inst.name}: Opponent loses 1 life, you gain 1 life.`, '');
+  } else if (txt.includes('target exhausted creature becomes overexhausted')) {
+    const opp = caster==='player'?'ai':'player';
+    const targets = G[opp].battlefield.filter(i => i.exhaustState==='exhausted');
+    if (targets.length > 0) {
+      targets[0].exhaustState = 'overexhausted';
+      log(`${inst.name}: ${targets[0].name} becomes overexhausted.`, '');
+    }
+  } else if (txt.includes('target creature card is returned to its owner')) {
+    const opp = caster==='player'?'ai':'player';
+    const targets = G[opp].battlefield.filter(i => i.type==='Creature');
+    if (targets.length > 0) {
+      const t = targets[0];
+      G[opp].battlefield = G[opp].battlefield.filter(i => i.instId !== t.instId);
+      G[opp].hand.push(t);
+      log(`${inst.name}: ${t.name} returned to owner's hand.`, '');
+    }
+  } else {
+    log(`${inst.name}: effect applied.`, '');
+  }
+  updateUI();
+}
+
+// ── LAND TAPPING (player) ─────────────────────────────────────
+function handleBattlefieldClick(inst) {
+  if (G.activePlayer !== 'player') return;
+
+  if (inst.owner === 'player') {
+    if (inst.type === 'Land') {
+      tapLandForMana(inst);
+      return;
+    }
+    if (combatPhase === 'declare') {
+      toggleAttacker(inst);
+      return;
+    }
+    // Could add ability activation here
+  }
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function hasKeyword(inst, kw) {
+  return !!(inst.keywords[kw] || inst.tempKeywords[kw]);
+}
+
+function getEffectivePower(inst) {
+  let p = inst.power || 0;
+  inst.powerMods.forEach(m => p += m.amount);
+  return Math.max(0, p);
+}
+
+function clearEotEffects(who) {
+  G[who].battlefield.forEach(inst => {
+    inst.powerMods = inst.powerMods.filter(m => m.until !== 'eot');
+    inst.tempKeywords = {};
+  });
+}
+
+function checkWin() {
+  if (G.player.life <= 0) {
+    showWinLoss(false, 'Your life reached 0.');
+    return true;
+  }
+  if (G.ai.life <= 0) {
+    showWinLoss(true, 'Opponent\'s life reached 0.');
+    return true;
+  }
+  return false;
+}
+
+function showWinLoss(playerWon, reason) {
+  showModal(
+    playerWon ? '⚡ VICTORY' : '💀 DEFEAT',
+    `${reason}\n\nYou ended with ${G.player.life} life. AI had ${G.ai.life} life.`,
+    [
+      { label: 'PLAY AGAIN', action: () => location.reload(), cls: 'btn-primary' },
+    ]
+  );
+}
+
+function doMulligan() {
+  if (G.turn > 1 || mulliganUsed.player) { log('Mulligan already used or unavailable.'); return; }
+  const player = G.player;
+  // Return hand to decks
+  player.hand.forEach(inst => {
+    if (inst.type === 'Land') player.land.unshift(inst.cardId);
+    else player.main.unshift(inst.cardId);
+  });
+  player.hand = [];
+  player.main = shuffle(player.main);
+  player.land = shuffle(player.land);
+  player.life -= 1;
+  mulliganUsed.player = true;
+  for (let i=0; i<7; i++) drawCard('player');
+  log('Vampiric Mulligan used. Drew 7 new cards, lost 1 life.', 'bleed');
+  document.getElementById('btn-mulligan').disabled = true;
+  updateLifeDisplay('player');
+  updateUI();
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── UI RENDERING ──────────────────────────────────────────────
+function updateUI() {
+  renderHand('player');
+  renderHand('ai');
+  renderBattlefield('player');
+  renderBattlefield('ai');
+  updateDeckCounts();
+  setPhase(G.phase);
+}
+
+function renderHand(who) {
+  const el = document.getElementById(`hand-${who}`);
+  el.innerHTML = '';
+  const hand = G[who].hand;
+
+  if (who === 'ai') {
+    hand.forEach(() => {
+      const back = document.createElement('div');
+      back.className = 'deck-back';
+      back.innerHTML = '<div style="font-size:18px">🦇</div><div>?</div>';
+      el.appendChild(back);
+    });
+    return;
+  }
+
+  hand.forEach(inst => {
+    const card = createCardElement(inst, true);
+    const affordable = canPayCost('player', inst.cost);
+    const isLand = inst.type === 'Land';
+    if (!affordable && !isLand) card.classList.add('unplayable');
+    else card.classList.add('playable');
+    if (inst.instId === selectedCardId) card.classList.add('selected');
+    card.onclick = () => {
+      selectedCardId = inst.instId === selectedCardId ? null : inst.instId;
+      updateUI();
+    };
+    el.appendChild(card);
+  });
+}
+
+function renderBattlefield(who) {
+  const el = document.getElementById(`bf-${who}`);
+  el.innerHTML = `<span class="bf-label">${who.toUpperCase()} BATTLEFIELD</span>`;
+
+  G[who].battlefield.forEach(inst => {
+    const card = createCardElement(inst, false);
+
+    if (who === 'player') {
+      if (combatPhase === 'declare' && inst.type==='Creature' && !inst.newlyTurned && inst.exhaustState==='renewed' && !hasKeyword(inst,'wall')) {
+        card.classList.add('attackable');
+      }
+    }
+
+    if (inst.attacking) card.classList.add('attacking');
+    if (inst.blocking) card.classList.add('blocking');
+    if (inst.exhaustState === 'exhausted') card.classList.add('exhausted');
+    if (inst.exhaustState === 'overexhausted') card.classList.add('overexhausted');
+    if (inst.newlyTurned) card.classList.add('newly-turned');
+
+    card.onclick = () => {
+      if (who === 'player') {
+        handleBattlefieldClick(inst);
+      }
+    };
+    card.onmouseenter = () => showCardDetail(inst);
+    card.onmouseleave = () => hideCardDetail();
+
+    el.appendChild(card);
+  });
+}
+
+function createCardElement(inst, isHand) {
+  const base = CARD_MAP[inst.cardId] || inst;
+  const card = document.createElement('div');
+  card.className = 'card' + (isHand ? ' hand-card' : '');
+
+  // Color bar
+  const bar = document.createElement('div');
+  bar.className = `color-bar ${inst.color}`;
+  card.appendChild(bar);
+
+  // Image
+  if (inst.image) {
+    const img = document.createElement('img');
+    img.className = 'card-img';
+    img.src = inst.image;
+    img.alt = inst.name;
+    img.onerror = () => {
+      img.style.display = 'none';
+      const ph = document.createElement('div');
+      ph.className = 'card-img-placeholder';
+      ph.textContent = inst.type==='Creature'?'⚔':'🔮';
+      card.insertBefore(ph, img.nextSibling);
+    };
+    card.appendChild(img);
+  } else {
+    const ph = document.createElement('div');
+    ph.className = 'card-img-placeholder';
+    ph.textContent = inst.type==='Creature'?'⚔':'🔮';
+    card.appendChild(ph);
+  }
+
+  // Keyword badges
+  const badges = document.createElement('div');
+  badges.className = 'kw-badges';
+  const kw = inst.keywords;
+  if (kw.haste) badges.innerHTML += '<span class="kw-badge kw-haste">H</span>';
+  if (kw.wall) badges.innerHTML += '<span class="kw-badge kw-wall">W</span>';
+  if (kw.breach) badges.innerHTML += '<span class="kw-badge kw-breach">BR</span>';
+  if (kw.tireless) badges.innerHTML += '<span class="kw-badge kw-tireless">TL</span>';
+  if (kw.siphon) badges.innerHTML += '<span class="kw-badge kw-siphon">S</span>';
+  if (badges.children.length > 0) card.appendChild(badges);
+
+  // Footer
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  const namePart = document.createElement('span');
+  namePart.className = 'card-name-mini';
+  namePart.textContent = inst.name;
+  footer.appendChild(namePart);
+  if (inst.type === 'Creature' && inst.power !== null) {
+    const pow = document.createElement('span');
+    pow.className = 'card-power';
+    pow.textContent = getEffectivePower(inst);
+    footer.appendChild(pow);
+  }
+  card.appendChild(footer);
+
+  return card;
+}
+
+function updateLifeDisplay(who) {
+  document.getElementById(`${who}-life`).textContent = G[who].life;
+  document.getElementById(`${who}-bleed`).textContent = G[who].bleed;
+}
+
+function updateDeckCounts() {
+  document.getElementById('player-deck-count').textContent = G.player.main.length;
+  document.getElementById('player-land-count').textContent = G.player.land.length;
+  document.getElementById('ai-deck-count').textContent = G.ai.main.length;
+  document.getElementById('ai-land-count').textContent = G.ai.land.length;
+}
+
+function updateManaDisplay(who) {
+  const el = document.getElementById(`${who}-mana-display`);
+  if (!el) return;
+  el.innerHTML = '';
+  const mana = G[who].mana;
+  for (const [color, amt] of Object.entries(mana)) {
+    if (amt <= 0) continue;
+    for (let i=0; i<amt; i++) {
+      const pip = document.createElement('span');
+      pip.className = `mana-pip mana-${color}`;
+      pip.textContent = color;
+      el.appendChild(pip);
+    }
+  }
+}
+
+// ── LOG ───────────────────────────────────────────────────────
+function log(msg, type='') {
+  const el = document.getElementById('log-entries');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry' + (type ? ` ${type}` : '');
+  entry.textContent = msg;
+  el.appendChild(entry);
+  el.scrollTop = el.scrollHeight;
+}
+
+function toggleLog() {
+  logOpen = !logOpen;
+  document.getElementById('log-panel').classList.toggle('open', logOpen);
+  document.getElementById('log-toggle').textContent = logOpen ? 'LOG ◀' : 'LOG ▶';
+}
+
+// ── CARD DETAIL ───────────────────────────────────────────────
+function showCardDetail(inst) {
+  const el = document.getElementById('card-detail');
+  const base = CARD_MAP[inst.cardId] || inst;
+  document.getElementById('cd-img').src = inst.image || '';
+  document.getElementById('cd-name').textContent = inst.name;
+  document.getElementById('cd-type').textContent = `${inst.color} ${inst.type}${inst.subtype ? ' — '+inst.subtype : ''}`;
+  document.getElementById('cd-cost').textContent = inst.cost ? `Cost: ${inst.cost}` : '';
+  document.getElementById('cd-power').textContent = inst.type==='Creature' ? `Power: ${getEffectivePower(inst)}` : '';
+  document.getElementById('cd-abilities').textContent = inst.abilities || '';
+  document.getElementById('cd-flavor').textContent = base.flavor || '';
+  el.classList.add('visible');
+}
+
+function hideCardDetail() {
+  document.getElementById('card-detail').classList.remove('visible');
+}
+
+// ── MODAL ─────────────────────────────────────────────────────
+function showModal(title, body, actions) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent = body;
+  const actEl = document.getElementById('modal-actions');
+  actEl.innerHTML = '';
+  actions.forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = `btn ${a.cls||'btn-secondary'}`;
+    btn.textContent = a.label;
+    btn.onclick = () => { closeModal(); a.action(); };
+    actEl.appendChild(btn);
+  });
+  document.getElementById('modal-overlay').classList.add('visible');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('visible');
+}
+
+function showManaChoice(inst, colors) {
+  const choices = colors || ['R','W','B','P','G','C'];
+  showModal(
+    'Choose Mana',
+    `${inst.name} can produce which color?`,
+    choices.map(c => ({
+      label: c,
+      cls: 'btn-muted',
+      action: () => {
+        addMana(inst.owner, c, 1);
+        exhaustCard(inst);
+        log(`${inst.name} → +1 ${c}`, '');
+      }
+    }))
+  );
+}
+
+// ── TURN BANNER ───────────────────────────────────────────────
+function showBanner(text) {
+  const el = document.getElementById('turn-banner');
+  el.textContent = text;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 1500);
+}
+
+// ── KEYBOARD SHORTCUTS ────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (!G) return;
+  if (e.key === 'n' || e.key === 'N') nextPhase();
+  if (e.key === 'l' || e.key === 'L') toggleLog();
+  if (e.key === 'Escape') { selectedCardId = null; closeModal(); updateUI(); }
+});
+
+</script>
+</body>
+</html>
