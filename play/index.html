@@ -775,15 +775,85 @@ function startGame(faction) {
     endOfTurnEffects: [],
   };
 
-  // Draw starting hands
-  for (let i=0; i<7; i++) { drawCard('player'); drawCard('ai'); }
+  // AI draws 7 automatically (smart: ~3 lands, 4 main)
+  for (let i=0; i<3; i++) drawFromDeck('ai','land');
+  for (let i=0; i<4; i++) drawFromDeck('ai','main');
 
-  // Player goes first – no draw on first turn
+  // Player draws opening hand interactively
   setPhase('prebattle');
   updateUI();
   log('⚔ New Game: ' + faction + ' vs ' + aiFaction, 'phase');
-  log('Your opening hand — play a land to start generating resources.', 'important');
-  showBanner('YOUR TURN');
+  showOpeningDraw();
+}
+
+function showOpeningDraw() {
+  let drawn = 0;
+  const total = 7;
+
+  function promptNext() {
+    if (drawn >= total) {
+      // Done — check mulligan offer
+      updateUI();
+      log('Opening hand drawn. You may Mulligan once (costs 1 life) or proceed.', 'important');
+      showBanner('YOUR TURN');
+      return;
+    }
+
+    const remaining = total - drawn;
+    const mainCount = G.player.main.length;
+    const landCount = G.player.land.length;
+
+    // If one deck is empty, auto-draw from the other
+    if (mainCount === 0 && landCount === 0) {
+      updateUI();
+      showBanner('YOUR TURN');
+      return;
+    }
+    if (mainCount === 0) {
+      drawFromDeck('player','land');
+      drawn++;
+      updateUI();
+      promptNext();
+      return;
+    }
+    if (landCount === 0) {
+      drawFromDeck('player','main');
+      drawn++;
+      updateUI();
+      promptNext();
+      return;
+    }
+
+    // Show the current hand as context before the modal
+    updateUI();
+
+    showModal(
+      `OPENING HAND — CARD ${drawn + 1} OF ${total}`,
+      `Choose which deck to draw from.\nMain Deck: ${mainCount} cards  |  Land Deck: ${landCount} cards\n\nTip: A good opening hand has 3–4 lands.`,
+      [
+        {
+          label: `MAIN DECK (${mainCount})`,
+          cls: 'btn-primary',
+          action: () => {
+            drawFromDeck('player','main');
+            drawn++;
+            promptNext();
+          }
+        },
+        {
+          label: `LAND DECK (${landCount})`,
+          cls: 'btn-secondary',
+          action: () => {
+            drawFromDeck('player','land');
+            drawn++;
+            promptNext();
+          }
+        }
+      ]
+    );
+  }
+
+  promptNext();
 }
 
 function drawCard(who) {
@@ -909,8 +979,10 @@ function nextPhase() {
       return;
     }
     if (next === 'draw') {
-      drawCard('player');
-      log('You drew a card.', '');
+      setPhase('draw');
+      updateUI();
+      promptDrawChoice();
+      return;
     }
     setPhase(next);
     updateUI();
@@ -952,10 +1024,14 @@ async function runAITurn() {
   await delay(300);
   renewPhase('ai');
 
-  // Phase 2: Draw
+  // Phase 2: Draw — AI picks land if low on lands, else main deck
   await delay(300);
-  drawCard('ai');
-  log('AI draws a card.', '');
+  const aiLandsInHand = G.ai.hand.filter(i => i.type === 'Land').length;
+  const aiLandsOnField = G.ai.battlefield.filter(i => i.type === 'Land').length;
+  const aiPreferLand = (aiLandsInHand + aiLandsOnField < 4) && G.ai.land.length > 0;
+  const aiDrawDeck = aiPreferLand ? 'land' : (G.ai.main.length > 0 ? 'main' : 'land');
+  drawFromDeck('ai', aiDrawDeck);
+  log(`AI draws from ${aiDrawDeck === 'main' ? 'Main' : 'Land'} Deck.`, '');
 
   // Phase 3: Pre-Battle — play land + cards
   await delay(400);
@@ -992,12 +1068,10 @@ async function runAITurn() {
   await delay(300);
   renewPhase('player');
   setPhase('draw');
-  await delay(200);
-  drawCard('player');
-  log('You draw a card.', '');
-  setPhase('prebattle');
   updateUI();
   showBanner('YOUR TURN');
+  await delay(600);
+  promptDrawChoice();
 }
 
 function renewPhase(who) {
@@ -1010,6 +1084,74 @@ function renewPhase(who) {
     inst.blocking = false;
     inst.blockTarget = null;
   });
+  updateUI();
+}
+
+function promptDrawChoice() {
+  const player = G.player;
+  const mainEmpty = player.main.length === 0;
+  const landEmpty = player.land.length === 0;
+
+  if (mainEmpty && landEmpty) {
+    log('Both decks are empty — no draw this turn.', '');
+    setPhase('prebattle');
+    updateUI();
+    return;
+  }
+
+  if (mainEmpty) {
+    drawFromDeck('player', 'land');
+    setPhase('prebattle');
+    updateUI();
+    return;
+  }
+
+  if (landEmpty) {
+    drawFromDeck('player', 'main');
+    setPhase('prebattle');
+    updateUI();
+    return;
+  }
+
+  // Both available — show choice
+  showModal(
+    'DRAW PHASE',
+    `Choose which deck to draw from.\nMain Deck: ${player.main.length} cards remaining\nLand Deck: ${player.land.length} cards remaining`,
+    [
+      {
+        label: `MAIN DECK (${player.main.length})`,
+        cls: 'btn-primary',
+        action: () => {
+          drawFromDeck('player', 'main');
+          setPhase('prebattle');
+          updateUI();
+        }
+      },
+      {
+        label: `LAND DECK (${player.land.length})`,
+        cls: 'btn-secondary',
+        action: () => {
+          drawFromDeck('player', 'land');
+          setPhase('prebattle');
+          updateUI();
+        }
+      }
+    ]
+  );
+}
+
+function drawFromDeck(who, deckType) {
+  const s = G[who];
+  if (s[deckType].length === 0) {
+    log(`${deckType === 'main' ? 'Main' : 'Land'} deck is empty — no draw.`, '');
+    return;
+  }
+  const id = s[deckType].shift();
+  const inst = makeInst(id, who);
+  if (inst) {
+    s.hand.push(inst);
+    log(`You drew ${inst.name} from your ${deckType === 'main' ? 'Main' : 'Land'} Deck.`, 'important');
+  }
   updateUI();
 }
 
@@ -1535,11 +1677,10 @@ function doMulligan() {
   player.land = shuffle(player.land);
   player.life -= 1;
   mulliganUsed.player = true;
-  for (let i=0; i<7; i++) drawCard('player');
-  log('Vampiric Mulligan used. Drew 7 new cards, lost 1 life.', 'bleed');
   document.getElementById('btn-mulligan').disabled = true;
   updateLifeDisplay('player');
-  updateUI();
+  log('Vampiric Mulligan used. Lost 1 life. Draw your new 7-card hand.', 'bleed');
+  showOpeningDraw();
 }
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
