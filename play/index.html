@@ -1823,50 +1823,9 @@ function confirmAttack() {
   setTimeout(() => {
     log('── Damage resolves ──', 'phase');
 
-    // Work on a snapshot — destroyCreature mutates battlefield so we snapshot first
-    const blkSnap = { ...blockers };
-
-    atkInsts.forEach(atk => {
-      if (!atk) return;
-      const pow = getEffectivePower(atk);
-      const blkEntry = Object.entries(blkSnap).find(([,aid]) => aid === atk.instId);
-
-      if (blkEntry) {
-        const blkId = parseInt(blkEntry[0]);
-        const blk = G.ai.battlefield.find(i => i.instId === blkId);
-        if (blk) {
-          const bp = getEffectivePower(blk);
-          log(`${atk.name}[${pow}] vs ${blk.name}[${bp}]`, '');
-          if (pow > bp) {
-            removeFromBattlefield(blk, 'ai');
-            log(`→ ${blk.name} destroyed.`, 'damage');
-            if (hasKeyword(atk,'breach')) {
-              const ex = pow - bp;
-              G.ai.life -= ex; updateLifeDisplay('ai');
-              log(`→ Breach! ${ex} damage to AI. AI life: ${G.ai.life}`, 'damage');
-            }
-          } else if (bp > pow) {
-            removeFromBattlefield(atk, 'player');
-            log(`→ ${atk.name} destroyed.`, 'damage');
-          } else {
-            removeFromBattlefield(atk, 'player');
-            removeFromBattlefield(blk, 'ai');
-            log(`→ Both destroyed.`, 'damage');
-          }
-        } else {
-          // Blocker already gone — hit directly
-          G.ai.life -= pow; updateLifeDisplay('ai');
-          log(`${atk.name}[${pow}] hits AI directly → AI life: ${G.ai.life}`, 'damage');
-        }
-      } else {
-        // Unblocked
-        G.ai.life -= pow; updateLifeDisplay('ai');
-        if (atk.keywords.bleed) { G.ai.bleed += atk.keywords.bleed; }
-        if (atk.keywords.siphon) { G.player.life += pow; updateLifeDisplay('player'); }
-        sfx('damage');
-        log(`${atk.name}[${pow}] hits AI unblocked → AI life: ${G.ai.life}`, 'damage');
-      }
-    });
+    // Use resolveCombat — handles multi-blockers, noCombatDamage, Breach,
+    // Bleed, Siphon, trigger abilities (Elowen etc.) all correctly
+    resolveCombat(atkInsts, blockers, 'ai');
 
     // Cleanup
     attackers = [];
@@ -1896,51 +1855,196 @@ function removeFromBattlefield(inst, owner) {
   }
 }
 
-function combatResolution(atk, blk, defendingSide) {
-  const atkP = getEffectivePower(atk);
-  const blkP = getEffectivePower(blk);
+// ── TRIGGER ABILITY CHECKER ───────────────────────────────────
+// Called BEFORE damage so all creatures still exist for checks
+// Attacker-overexhaust triggers are deferred to run AFTER damage via returned callbacks
+function fireCombatTriggers(atkInsts, blkMap, defendingSide) {
   const attackingSide = defendingSide === 'ai' ? 'player' : 'ai';
-  log(`${atk.name}[${atkP}] vs ${blk.name}[${blkP}]`, '');
-  if (atkP > blkP) {
-    removeFromBattlefield(blk, defendingSide);
-    sfx('destroy');
-    log(`→ ${blk.name} destroyed.`, 'damage');
-    if (hasKeyword(atk,'breach')) {
-      const ex = atkP - blkP;
-      G[defendingSide].life -= ex;
-      sfx('damage');
-      log(`→ Breach: ${ex} damage to ${defendingSide}.`, 'damage');
+
+  atkInsts.forEach(atk => {
+    if (!atk) return;
+    const atkTxt = (atk.abilities || '').toLowerCase();
+
+    // Find all blocker instances for this attacker
+    const myBlockerIds = Object.entries(blkMap)
+      .filter(([,aid]) => aid === atk.instId)
+      .map(([bid]) => parseInt(bid));
+
+    myBlockerIds.forEach(blkId => {
+      // Blockers live on the DEFENDING side
+      const blk = G[defendingSide].battlefield.find(i => i.instId === blkId);
+      if (!blk) return;
+      const blkTxt = (blk.abilities || '').toLowerCase();
+
+      // ── PRE-DAMAGE power boosts ────────────────────────────────
+
+      // "+1 power when blocked" on attacker
+      if (atkTxt.includes('+1 power when blocked') || atkTxt.includes('+1 power if blocked')) {
+        atk.power = (atk.power || 0) + 1;
+        log(`${atk.name}: +1 power (being blocked).`, '');
+      }
+
+      // "+1 power when blocking" on blocker (e.g. Snowfleece Elder)
+      if (blkTxt.includes('+1 power when blocking') || blkTxt.includes('gains +1 power when blocking')) {
+        blk.power = (blk.power || 0) + 1;
+        log(`${blk.name}: +1 power (blocking).`, '');
+      }
+
+      // Ironmaw Butcher: "+1 power when blocked by creature with power 2 or less"
+      if (atkTxt.includes('+1 power') && atkTxt.includes('blocked by') && atkTxt.includes('or less')) {
+        const threshold = parseInt(atkTxt.match(/power of? (\d+) or less/)?.[1] || '2');
+        if (getEffectivePower(blk) <= threshold) {
+          atk.power = (atk.power || 0) + 1;
+          log(`${atk.name}: +1 power (blocked by ${blk.name} ≤${threshold}).`, '');
+        }
+      }
+
+      // ── POST-DAMAGE triggers (deferred — attacker overexhaust) ─
+      // Elowen Thornveil: "If blocked, the blocking creature becomes overexhausted after the battle phase ends"
+      // We apply this now — the attacker triggered it, the blocker gets overexhausted
+      if (atkTxt.includes('if blocked') && atkTxt.includes('blocking creature') && atkTxt.includes('overexhausted')) {
+        // Schedule after combatResolutionMulti runs (so blocker may be destroyed first)
+        setTimeout(() => {
+          const stillAlive = G[defendingSide].battlefield.find(i => i.instId === blk.instId);
+          if (stillAlive) {
+            stillAlive.exhaustState = 'overexhausted';
+            log(`${atk.name}: ${blk.name} becomes overexhausted (if blocked trigger).`, '');
+            updateUI();
+          }
+        }, 50);
+      }
+
+      // "If this creature blocks, the attacking creature becomes overexhausted after battle"
+      // (blocker has this ability, e.g. a hypothetical card)
+      if (blkTxt.includes('if blocked') && blkTxt.includes('attacking') && blkTxt.includes('overexhausted')) {
+        setTimeout(() => {
+          const stillAlive = G[attackingSide].battlefield.find(i => i.instId === atk.instId);
+          if (stillAlive) {
+            stillAlive.exhaustState = 'overexhausted';
+            log(`${blk.name}: ${atk.name} becomes overexhausted.`, '');
+            updateUI();
+          }
+        }, 50);
+      }
+    });
+  });
+}
+
+// Combat resolution for a single attacker vs one or more blockers
+// blkMap: blockerInstId → attackerInstId (may have multiple blockers per attacker)
+function combatResolutionMulti(atk, blockerInsts, defendingSide) {
+  const attackingSide = defendingSide === 'ai' ? 'player' : 'ai';
+  const atkP = getEffectivePower(atk);
+  const atkDealsNoDamage = !!atk.noCombatDamage;
+
+  // Total blocker power vs attacker
+  const totalBlkP = blockerInsts.reduce((s, b) => s + getEffectivePower(b), 0);
+
+  log(`${atk.name}[${atkP}${atkDealsNoDamage?',no dmg':''}] vs ${blockerInsts.map(b=>b.name+'['+getEffectivePower(b)+']').join(' + ')} (total blocker: ${totalBlkP})`, '');
+
+  // ── Blocker damage to attacker ─────────────────────────────────
+  // Attacker is destroyed if combined blocker power >= attacker power
+  const atkDestroyed = totalBlkP >= atkP;
+
+  // ── Attacker damage to blockers (distributed in declaration order) ──
+  // Attacker deals 0 damage if noCombatDamage, otherwise distributes atkP
+  let atkDmgRemaining = atkDealsNoDamage ? 0 : atkP;
+  const destroyedBlockers = [];
+
+  blockerInsts.forEach(blk => {
+    const blkP = getEffectivePower(blk);
+    if (atkDmgRemaining >= blkP) {
+      destroyedBlockers.push(blk);
+      atkDmgRemaining -= blkP;
+      log(`→ ${blk.name}[${blkP}] destroyed.`, 'damage');
+    } else if (atkDmgRemaining > 0) {
+      log(`→ ${blk.name}[${blkP}] survives (took ${atkDmgRemaining} damage).`, '');
+      atkDmgRemaining = 0;
+    } else {
+      log(`→ ${blk.name}[${blkP}] takes no damage (attacker damage spent).`, '');
     }
-  } else if (blkP > atkP) {
-    removeFromBattlefield(atk, attackingSide);
-    sfx('destroy');
-    log(`→ ${atk.name} destroyed.`, 'damage');
-  } else {
-    removeFromBattlefield(atk, attackingSide);
-    removeFromBattlefield(blk, defendingSide);
-    sfx('destroy');
-    log(`→ Both destroyed.`, 'damage');
+  });
+
+  // Remove destroyed blockers
+  destroyedBlockers.forEach(b => removeFromBattlefield(b, defendingSide));
+  if (destroyedBlockers.length > 0) sfx('destroy');
+
+  // Breach: excess attacker damage beyond killing all blockers hits defending player
+  if (!atkDealsNoDamage && hasKeyword(atk, 'breach') && atkDmgRemaining > 0) {
+    G[defendingSide].life -= atkDmgRemaining;
+    sfx('damage');
+    log(`→ Breach: ${atkDmgRemaining} excess to ${defendingSide}.`, 'damage');
+    updateLifeDisplay(defendingSide);
   }
+
+  // Attacker destroyed by combined blocker power (even if it deals no damage)
+  if (atkDestroyed) {
+    const stillAlive = G[attackingSide].battlefield.find(i => i.instId === atk.instId);
+    if (stillAlive) {
+      removeFromBattlefield(atk, attackingSide);
+      sfx('destroy');
+      log(`→ ${atk.name} destroyed by blocker(s).`, 'damage');
+    }
+  }
+}
+
+// Legacy single-blocker resolution (used by player attack path for AI blockers)
+function combatResolution(atk, blk, defendingSide) {
+  combatResolutionMulti(atk, [blk], defendingSide);
 }
 
 function resolveCombat(atkInsts, blkMap, defendingSide) {
   const blkSnap = { ...blkMap };
+  const attackingSide = defendingSide === 'ai' ? 'player' : 'ai';
+
   atkInsts.forEach(atk => {
-    const pow = getEffectivePower(atk);
-    const blkEntry = Object.entries(blkSnap).find(([,aid]) => aid === atk.instId);
-    if (blkEntry) {
-      const blk = G[defendingSide].battlefield.find(i => i.instId === parseInt(blkEntry[0]));
-      if (blk) combatResolution(atk, blk, defendingSide);
-      else { G[defendingSide].life -= pow; updateLifeDisplay(defendingSide); }
+    if (!atk) return;
+
+    // ── Collect all blockers for this attacker ─────────────────
+    const blockerEntries = Object.entries(blkSnap).filter(([,aid]) => aid === atk.instId);
+    const blockerInsts = blockerEntries
+      .map(([bid]) => G[defendingSide].battlefield.find(i => i.instId === parseInt(bid)))
+      .filter(Boolean);
+
+    // ── Fire PRE-DAMAGE triggers (creatures still alive) ────────
+    fireCombatTriggers([atk], blkSnap, defendingSide);
+
+    // ── noCombatDamage check ────────────────────────────────────
+    if (atk.noCombatDamage) {
+      log(`${atk.name} deals no combat damage this turn.`, '');
+      atk.noCombatDamage = false;
+      atk.attacking = false;
+      return; // attacker deals no damage — but still takes blocker damage below
+    }
+
+    // ── Resolve damage ──────────────────────────────────────────
+    if (blockerInsts.length > 0) {
+      combatResolutionMulti(atk, blockerInsts, defendingSide);
     } else {
+      // Unblocked — deal damage directly to defending player
+      const pow = getEffectivePower(atk);
       G[defendingSide].life -= pow;
       sfx('damage');
       log(`${atk.name}[${pow}] hits ${defendingSide} directly.`, 'damage');
+      if (atk.keywords && atk.keywords.bleed) {
+        G[defendingSide].bleed += atk.keywords.bleed;
+        log(`+${atk.keywords.bleed} Bleed on ${defendingSide}.`, 'bleed');
+      }
+      if (atk.keywords && atk.keywords.siphon) {
+        G[attackingSide].life += pow;
+        log(`Siphon: ${attackingSide} gains ${pow} life.`, 'heal');
+        updateLifeDisplay(attackingSide);
+      }
+      updateLifeDisplay(defendingSide);
     }
+
     atk.attacking = false;
+    atk.noCombatDamage = false;
   });
+
   updateUI();
   updateLifeDisplay(defendingSide);
+  updateLifeDisplay(attackingSide);
   checkWin();
 }
 
