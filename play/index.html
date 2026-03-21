@@ -67,8 +67,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   display: flex; align-items: flex-end; justify-content: center;
   gap: 6px; padding: 4px 8px; overflow-x: auto; overflow-y: visible;
   min-height: 128px; max-height: 148px;
-  background: rgba(0,0,0,0.15);
+  background: rgba(0,0,0,0.55);
   scrollbar-width: thin; position: relative; z-index: 10;
+  border-top: 1px solid rgba(255,255,255,0.06);
 }
 #hand-ai { filter: brightness(0.4); cursor: default; align-items: flex-start; }
 
@@ -77,8 +78,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   display: flex; align-items: center; justify-content: space-between;
   padding: 3px 12px; flex-shrink: 0;
 }
-#ai-info-strip { background: rgba(96,48,192,0.08); border-bottom: 1px solid var(--border-dim); }
-#player-info-strip { background: rgba(224,48,48,0.06); border-top: 1px solid var(--border-dim); }
+#ai-info-strip { background: rgba(20,10,50,0.75); border-bottom: 1px solid var(--border-dim); backdrop-filter: blur(2px); }
+#player-info-strip { background: rgba(30,10,10,0.75); border-top: 1px solid var(--border-dim); backdrop-filter: blur(2px); }
 
 .player-stats { display: flex; align-items: center; gap: 14px; }
 .stat-block { display: flex; align-items: center; gap: 5px; font-size: 12px; }
@@ -89,14 +90,31 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .deck-val { color: var(--text-mid); }
 
 /* ── BATTLEFIELD WRAPPER ── */
-#bf-wrapper { flex:1; display:flex; flex-direction:column; overflow:hidden; min-height:0; }
+#bf-wrapper {
+  flex:1; display:flex; flex-direction:column; overflow:hidden; min-height:0;
+  position: relative;
+  background-image: url('https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/playmat.png?raw=true');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+/* Dark overlay so cards stay readable over the playmat art */
+#bf-wrapper::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.52);
+  pointer-events: none;
+  z-index: 0;
+}
+/* Ensure all children sit above the overlay */
+#bf-wrapper > * { position: relative; z-index: 1; }
 
 .side-zone {
   flex:1; display:flex; flex-direction:column;
   min-height:0; overflow:hidden; padding:2px 6px;
 }
-#side-ai     { border-bottom:2px solid var(--border-dim); background:rgba(96,48,192,0.03); }
-#side-player { background:rgba(224,48,48,0.03); }
+#side-ai     { border-bottom:2px solid rgba(96,48,192,0.4); background: transparent; }
+#side-player { background: transparent; }
 
 /* Two rows per side: main (creatures + relics together) and lands */
 .bf-row {
@@ -225,7 +243,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   min-height: 154px; max-height: 172px;
   background: rgba(0,0,0,0.15); scrollbar-width: thin; position: relative; z-index: 10;
 }
-#hand-ai { filter:brightness(0.4); cursor:default; align-items:flex-start; min-height:96px; max-height:108px; }
+#hand-ai { filter: brightness(0.75); cursor: default; align-items: flex-start; min-height: 112px; max-height: 120px; }
 
 .hand-card { width:98px; height:138px; }
 .hand-card:hover { transform:translateY(-26px) scale(1.14); z-index:50; }
@@ -406,12 +424,19 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 /* ── DECK CARD BACKS ── */
 .deck-back {
-  width: 54px; height: 76px; border-radius: 4px;
-  background: linear-gradient(135deg, #1a0030, #0d0515);
+  width: 72px; height: 100px;
+  border-radius: 6px;
   border: 1px solid var(--border-bright);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; color: var(--text-dim); cursor: pointer;
-  flex-direction: column; gap: 3px;
+  cursor: default;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #0d0515;
+}
+.deck-back img {
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: center;
+  display: block;
+  opacity: 0.85;
 }
 
 /* ── SCROLLBARS ── */
@@ -2202,7 +2227,11 @@ function renderHand(who) {
     hand.forEach(() => {
       const back = document.createElement('div');
       back.className = 'deck-back';
-      back.innerHTML = '<div style="font-size:16px">🦇</div><div style="font-size:8px">?</div>';
+      const img = document.createElement('img');
+      img.src = 'https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/card_back.png?raw=true';
+      img.alt = 'card back';
+      img.onerror = () => { img.style.display='none'; back.style.background='linear-gradient(135deg,#1a0030,#0d0515)'; };
+      back.appendChild(img);
       el.appendChild(back);
     });
     return;
