@@ -417,6 +417,54 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 @keyframes damage-flash { 0%,100%{background:transparent} 50%{background:rgba(255,32,48,0.3)} }
 @keyframes heal-flash { 0%,100%{background:transparent} 50%{background:rgba(48,200,80,0.3)} }
 
+/* ── COMBAT ANIMATIONS ── */
+/* Card played from hand */
+@keyframes card-arrive {
+  0%   { opacity:0; transform:translateY(32px) scale(0.88); }
+  70%  { opacity:1; transform:translateY(-6px) scale(1.04); }
+  100% { opacity:1; transform:translateY(0) scale(1); }
+}
+.card-arrive { animation: card-arrive 0.25s ease-out forwards; }
+
+/* Player attacker lunges UP toward AI */
+@keyframes lunge-up {
+  0%   { transform: translateY(0) scale(1); }
+  40%  { transform: translateY(-72px) scale(1.12); filter: drop-shadow(0 0 12px rgba(224,48,48,0.9)); }
+  100% { transform: translateY(0) scale(1); filter: none; }
+}
+/* AI attacker lunges DOWN toward player */
+@keyframes lunge-down {
+  0%   { transform: translateY(0) scale(1); }
+  40%  { transform: translateY(72px) scale(1.12); filter: drop-shadow(0 0 12px rgba(224,48,48,0.9)); }
+  100% { transform: translateY(0) scale(1); filter: none; }
+}
+.card-lunge-up   { animation: lunge-up   0.55s cubic-bezier(0.25,0,0.3,1) forwards; }
+.card-lunge-down { animation: lunge-down 0.55s cubic-bezier(0.25,0,0.3,1) forwards; }
+
+/* Blockers slide to center and lift */
+@keyframes blocker-rally {
+  0%   { transform: translateY(0) scale(1); }
+  30%  { transform: translateY(-18px) scale(1.07); filter: drop-shadow(0 0 8px rgba(48,160,224,0.8)); }
+  100% { transform: translateY(0) scale(1); filter: none; }
+}
+.card-blocker-rally { animation: blocker-rally 0.45s ease-out forwards; }
+
+/* Life total impact flash */
+@keyframes life-impact {
+  0%   { transform: scale(1);    color: inherit; }
+  20%  { transform: scale(1.5);  color: #ff2030; }
+  60%  { transform: scale(1.25); color: #ff6060; }
+  100% { transform: scale(1);    color: inherit; }
+}
+.life-impact { animation: life-impact 0.3s ease-out forwards; }
+
+/* Side-zone red flash when taking damage */
+@keyframes zone-hit {
+  0%,100% { background: transparent; }
+  30%     { background: rgba(224,32,32,0.22); }
+}
+.zone-hit { animation: zone-hit 0.35s ease-out forwards; }
+
 .damage-flash { animation: damage-flash 0.4s ease; }
 .heal-flash { animation: heal-flash 0.4s ease; }
 
@@ -1708,6 +1756,10 @@ async function aiDeclareAttack() {
   combatPhase = 'resolving';
   hideActionOverlay();
   log('── AI combat resolves ──', 'phase');
+
+  // Run lunge animation first, then resolve damage
+  await runCombatAnimation(myAttackers, playerBlockers, 'down', 'player');
+
   resolveCombat(myAttackers, playerBlockers, 'player');
   myAttackers.forEach(i => { i.attacking = false; });
   G.player.battlefield.forEach(i => { i.blocking = false; });
@@ -1909,11 +1961,9 @@ function confirmAttack() {
 
   updateUI();
 
-  setTimeout(() => {
+  // Run lunge animation THEN resolve damage
+  runCombatAnimation(atkInsts, blockers, 'up', 'ai').then(() => {
     log('── Damage resolves ──', 'phase');
-
-    // Use resolveCombat — handles multi-blockers, noCombatDamage, Breach,
-    // Bleed, Siphon, trigger abilities (Elowen etc.) all correctly
     resolveCombat(atkInsts, blockers, 'ai');
 
     // Cleanup
@@ -1932,7 +1982,7 @@ function confirmAttack() {
     updateLifeDisplay('ai');
     updateLifeDisplay('player');
     checkWin();
-  }, 900);
+  });
 }
 
 // Remove from battlefield without calling updateUI (batch updates)
@@ -2221,6 +2271,11 @@ function playCard(inst) {
     sfx('card_play');
     log(`You play ${inst.name} (${inst.power} power).`, 'important');
     updateUI();
+    // Card-arrive animation — find the freshly rendered element
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-inst="${inst.instId}"]`);
+      if (el) el.classList.add('card-arrive');
+    });
   } else if (inst.type === 'Relic') {
     inst.newlyTurned = false;
     inst.exhaustState = 'renewed';
@@ -2228,6 +2283,10 @@ function playCard(inst) {
     sfx('card_play');
     log(`You play ${inst.name} [Relic].`, 'important');
     updateUI();
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-inst="${inst.instId}"]`);
+      if (el) el.classList.add('card-arrive');
+    });
   } else if (inst.type === 'Spell') {
     sfx('card_play');
     log(`You cast ${inst.name}.`, 'important');
@@ -2997,7 +3056,96 @@ function doMulligan() {
   showOpeningDraw();
 }
 
-function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+// ── COMBAT ANIMATIONS ─────────────────────────────────────────
+
+// Plays the full lunge → impact → snap-back sequence.
+// atkInsts: array of attacking creature instances
+// blkMap:   blocker map (same format as resolveCombat)
+// direction: 'up' (player attacking) | 'down' (AI attacking)
+// defendingSide: 'ai' | 'player'
+// Returns a Promise that resolves after animation completes (~600ms)
+function runCombatAnimation(atkInsts, blkMap, direction, defendingSide) {
+  return new Promise(resolve => {
+
+    // ── Step 1: Rally blockers (immediate) ──────────────────────
+    // Find blocker elements and add rally animation
+    const blockerIds = Object.keys(blkMap).map(Number);
+    blockerIds.forEach(bid => {
+      const el = document.querySelector(`[data-inst="${bid}"]`);
+      if (el) {
+        el.classList.remove('card-blocker-rally');
+        void el.offsetWidth; // force reflow to restart animation
+        el.classList.add('card-blocker-rally');
+      }
+    });
+
+    // ── Step 2: Lunge attackers after 80ms ──────────────────────
+    setTimeout(() => {
+      const lungeClass = direction === 'up' ? 'card-lunge-up' : 'card-lunge-down';
+      atkInsts.forEach(atk => {
+        const el = document.querySelector(`[data-inst="${atk.instId}"]`);
+        if (el) {
+          el.classList.remove('card-lunge-up', 'card-lunge-down');
+          void el.offsetWidth;
+          el.classList.add(lungeClass);
+        }
+      });
+
+      // ── Step 3: Impact flash at 40% through lunge (~220ms) ────
+      setTimeout(() => {
+        // Flash the defending side zone
+        const zoneEl = document.getElementById(`side-${defendingSide}`);
+        if (zoneEl) {
+          zoneEl.classList.remove('zone-hit');
+          void zoneEl.offsetWidth;
+          zoneEl.classList.add('zone-hit');
+          setTimeout(() => zoneEl.classList.remove('zone-hit'), 400);
+        }
+
+        // Flash the life total
+        const lifeEl = document.getElementById(`${defendingSide}-life`);
+        if (lifeEl) {
+          lifeEl.classList.remove('life-impact');
+          void lifeEl.offsetWidth;
+          lifeEl.classList.add('life-impact');
+          setTimeout(() => lifeEl.classList.remove('life-impact'), 350);
+        }
+
+        sfx('damage', 0.7);
+
+        // ── Step 4: Resolve after animation completes (~350ms) ──
+        setTimeout(() => {
+          // Clean up animation classes
+          atkInsts.forEach(atk => {
+            const el = document.querySelector(`[data-inst="${atk.instId}"]`);
+            if (el) el.classList.remove('card-lunge-up', 'card-lunge-down');
+          });
+          blockerIds.forEach(bid => {
+            const el = document.querySelector(`[data-inst="${bid}"]`);
+            if (el) el.classList.remove('card-blocker-rally');
+          });
+          resolve();
+        }, 280);
+
+      }, 220); // impact fires at lunge peak
+    }, 80);
+  });
+}
+
+// Flash life total green (for healing)
+function flashLifeHeal(who) {
+  const el = document.getElementById(`${who}-life`);
+  if (!el) return;
+  el.style.color = '#40e080';
+  el.style.transform = 'scale(1.3)';
+  el.style.transition = 'all 0.2s ease';
+  setTimeout(() => {
+    el.style.color = '';
+    el.style.transform = '';
+  }, 300);
+}
+
+
 
 // ── UI RENDERING ──────────────────────────────────────────────
 function updateUI() {
