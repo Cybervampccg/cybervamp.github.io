@@ -78,8 +78,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   display: flex; align-items: center; justify-content: space-between;
   padding: 3px 12px; flex-shrink: 0;
 }
-#ai-info-strip { background: rgba(20,10,50,0.75); border-bottom: 1px solid var(--border-dim); backdrop-filter: blur(2px); }
-#player-info-strip { background: rgba(30,10,10,0.75); border-top: 1px solid var(--border-dim); backdrop-filter: blur(2px); }
+#ai-info-strip { background: rgba(20,10,50,0.82); border-bottom: 1px solid var(--border-dim); }
+#player-info-strip { background: rgba(30,10,10,0.82); border-top: 1px solid var(--border-dim); }
 
 .player-stats { display: flex; align-items: center; gap: 14px; }
 .stat-block { display: flex; align-items: center; gap: 5px; font-size: 12px; }
@@ -98,23 +98,22 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   background-position: center;
   background-repeat: no-repeat;
 }
-/* Dark overlay so cards stay readable over the playmat art */
-#bf-wrapper::before {
-  content: '';
+
+/* Dark overlay — use a child div, NOT ::before, to avoid stacking context issues */
+#bf-overlay {
   position: absolute; inset: 0;
   background: rgba(0,0,0,0.52);
   pointer-events: none;
   z-index: 0;
 }
-/* Ensure all children sit above the overlay */
-#bf-wrapper > * { position: relative; z-index: 1; }
 
 .side-zone {
   flex:1; display:flex; flex-direction:column;
   min-height:0; overflow:hidden; padding:2px 6px;
+  position: relative; z-index: 1;
 }
-#side-ai     { border-bottom:2px solid rgba(96,48,192,0.4); background: transparent; }
-#side-player { background: transparent; }
+#side-ai     { border-bottom:2px solid rgba(96,48,192,0.4); }
+#side-player { }
 
 /* Two rows per side: main (creatures + relics together) and lands */
 .bf-row {
@@ -529,6 +528,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
     <!-- BATTLEFIELD WRAPPER -->
     <div id="bf-wrapper">
+      <div id="bf-overlay"></div>
 
       <!-- AI SIDE -->
       <div class="side-zone" id="side-ai">
