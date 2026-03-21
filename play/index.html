@@ -2336,20 +2336,20 @@ function resolveTarget(inst, owner) {
 
 // ── UNIFIED CARD CLICK HANDLER ────────────────────────────────
 function handleCardClick(inst, who) {
-  // Targeting mode takes priority
+  // Targeting mode takes priority over everything
   if (targetingState.active) {
     if (isValidTarget(inst, who)) resolveTarget(inst, who);
-    else log('Not a valid target.', '');
+    else log('Not a valid target — click a highlighted card.', '');
     return;
   }
 
-  // Blocking window — route all clicks to blocking handler
+  // Blocking window
   if (combatPhase === 'player-block') {
     handleBlockingClick(inst, who);
     return;
   }
 
-  // Hand card — select or instant-play
+  // Hand card — select or instant-play on second click
   const inHand = who === 'player' && G.player.hand.some(i => i.instId === inst.instId);
   if (inHand) {
     if (selectedCardId === inst.instId) playCard(inst);
@@ -2357,185 +2357,199 @@ function handleCardClick(inst, who) {
     return;
   }
 
-  // Battlefield — player's own cards
+  // Battlefield — player's own cards only during player's turn
   if (who === 'player' && G.activePlayer === 'player') {
-    if (inst.type === 'Land') { tapLandForMana(inst); return; }
-    if (G.phase === 'battle' && combatPhase === 'declare' && inst.type === 'Creature') {
-      toggleAttacker(inst); return;
+    // Lands — always tap for mana regardless of phase
+    if (inst.type === 'Land') {
+      tapLandForMana(inst); return;
     }
-    if (['prebattle','postbattle'].includes(G.phase)) tryActivateAbility(inst);
-  }
-}
 
-// ── HAND RENDERING ────────────────────────────────────────────
-function renderHand(who) {
-  const el = document.getElementById(`hand-${who}`);
-  el.innerHTML = '';
-  const hand = G[who].hand;
+    // Battle phase + declaring attackers: creatures ONLY toggle as attackers
+    if (G.phase === 'battle' && combatPhase === 'declare') {
+      if (inst.type === 'Creature') { toggleAttacker(inst); return; }
+      // Relics can still activate during battle phase
+      if (inst.type === 'Relic') { tryActivateAbility(inst); return; }
+      return;
+    }
 
-  if (who === 'ai') {
-    hand.forEach(() => {
-      const back = document.createElement('div');
-      back.className = 'deck-back';
-      const img = document.createElement('img');
-      img.src = 'https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/card_back.png?raw=true';
-      img.alt = 'card back';
-      img.onerror = () => { img.style.display='none'; back.style.background='linear-gradient(135deg,#1a0030,#0d0515)'; };
-      back.appendChild(img);
-      el.appendChild(back);
-    });
-    return;
-  }
+    // Pre-battle and post-battle: creatures + relics activate abilities
+    if (['prebattle', 'postbattle'].includes(G.phase)) {
+      if (inst.type === 'Creature' || inst.type === 'Relic') {
+        tryActivateAbility(inst);
+      }
+      return;
+    }
 
-  hand.forEach(inst => {
-    const card = createCardElement(inst, true);
-    const affordable = canPayCost('player', inst.cost);
-    const isLand = inst.type === 'Land';
-    if (!affordable && !isLand) card.classList.add('unplayable');
-    else card.classList.add('playable');
-    if (inst.instId === selectedCardId) card.classList.add('selected');
-    card.onclick = (e) => {
-      e.stopPropagation();
-      handleCardClick(inst, who);
-    };
-    card.onmouseenter = () => showCardDetail(inst, card);
-    card.onmouseleave = () => hideCardDetail();
-    el.appendChild(card);
-  });
-}
-
-// ── DISCARD PILE DISPLAY ──────────────────────────────────────
-function updateDiscardPiles() {
-  for (const who of ['player','ai']) {
-    const pile = G[who].discard;
-    const countEl = document.getElementById(`discard-${who}-count`);
-    const topEl   = document.getElementById(`discard-${who}-top`);
-    if (!countEl) continue;
-    countEl.textContent = pile.length;
-    topEl.innerHTML = '';
-    if (pile.length > 0) {
-      const top = pile[pile.length-1];
-      if (top.image) {
-        const img = document.createElement('img');
-        img.src = top.image;
-        img.onerror = () => { img.style.display='none'; };
-        topEl.appendChild(img);
+    // Battle phase not declaring: abilities allowed (spells etc.)
+    if (G.phase === 'battle') {
+      if (inst.type === 'Creature' || inst.type === 'Relic') {
+        tryActivateAbility(inst);
       }
     }
   }
 }
 
-function showDiscardPile(who) {
-  const pile = G[who].discard;
-  if (pile.length === 0) { log(`${who === 'player' ? 'Your' : 'AI'} discard pile is empty.`, ''); return; }
-  const names = pile.slice().reverse().map(i => `• ${i.name} (${i.type})`).join('\n');
-  showModal(
-    `${who === 'player' ? 'YOUR' : 'AI'} DISCARD PILE (${pile.length})`,
-    names,
-    [{ label: 'CLOSE', cls: 'btn-muted', action: () => {} }]
-  );
-}
-
-// Basic ability activation — exhausts card and applies stated effect
 function tryActivateAbility(inst) {
-  // Newly Turned creatures cannot activate abilities (unless Haste)
-  if (inst.newlyTurned && !hasKeyword(inst, 'haste')) {
-    log(`${inst.name} is Newly Turned — cannot activate abilities this turn.`, '');
-    return;
+  // Newly Turned creatures cannot use abilities (unless Haste)
+  if (inst.type === 'Creature' && inst.newlyTurned && !hasKeyword(inst, 'haste')) {
+    log(`${inst.name} is Newly Turned — cannot activate this turn.`, ''); return;
+  }
+
+  // Must be renewed to activate — but show a helpful message
+  if (inst.exhaustState !== 'renewed') {
+    log(`${inst.name} is ${inst.exhaustState} — must be renewed to activate abilities.`, ''); return;
   }
 
   const txt = (inst.abilities || '').toLowerCase();
   if (!txt.includes('{exhaust}') && !txt.includes('{overexhaust}')) {
-    log(`${inst.name} has no activated abilities.`, '');
+    // For creatures with no activated abilities, tell the player what they can do
+    if (inst.type === 'Creature') {
+      log(`${inst.name} has no activated abilities. Use DECLARE ATTACK in Battle phase to attack.`, '');
+    } else {
+      log(`${inst.name} has no activated abilities.`, '');
+    }
     return;
   }
 
   const hasExhaust     = txt.includes('{exhaust}');
   const hasOverExhaust = txt.includes('{overexhaust}');
-
-  // Parse what each mode actually does so we can label the buttons meaningfully
   const exhaustDesc     = hasExhaust     ? parseAbilityDescription(txt, 'exhaust')     : null;
   const overExhaustDesc = hasOverExhaust ? parseAbilityDescription(txt, 'overexhaust') : null;
 
   if (hasExhaust && hasOverExhaust) {
-    showModal(
-      inst.name,
-      inst.abilities,
-      [
-        { label: `EXHAUST${exhaustDesc ? ': ' + exhaustDesc : ''}`,          cls: 'btn-secondary', action: () => activateAbility(inst, 'exhaust') },
-        { label: `OVEREXHAUST${overExhaustDesc ? ': ' + overExhaustDesc : ''}`, cls: 'btn-danger',    action: () => activateAbility(inst, 'overexhaust') },
-        { label: 'CANCEL', cls: 'btn-muted', action: () => {} },
-      ]
-    );
+    showModal(inst.name, inst.abilities, [
+      { label: `EXHAUST${exhaustDesc ? ': '+exhaustDesc : ''}`,             cls:'btn-secondary', action:()=>activateAbility(inst,'exhaust') },
+      { label: `OVEREXHAUST${overExhaustDesc ? ': '+overExhaustDesc : ''}`, cls:'btn-danger',    action:()=>activateAbility(inst,'overexhaust') },
+      { label: 'CANCEL', cls:'btn-muted', action:()=>{} },
+    ]);
   } else if (hasExhaust) {
     activateAbility(inst, 'exhaust');
-  } else if (hasOverExhaust) {
+  } else {
     activateAbility(inst, 'overexhaust');
   }
 }
 
-// Produce a short human-readable description of what the ability does
+// Short label for ability modal buttons
 function parseAbilityDescription(txt, mode) {
-  const segment = mode === 'overexhaust'
-    ? txt.split('{overexhaust}')[1] || txt
-    : txt.split('{exhaust}')[0] ? txt.split('{exhaust}')[1] || txt : txt;
-
-  if (segment.includes('gain') && segment.includes('life'))    return 'Gain life';
-  if (segment.includes('remove') && segment.includes('bleed')) return 'Remove bleed';
-  if (segment.includes('add {b}') || segment.includes('add b'))return '+Black mana';
-  if (segment.includes('add {g}') || segment.includes('add g'))return '+Gold';
-  if (segment.includes('create') && segment.includes('token')) return 'Create token';
-  if (segment.includes('draw'))                                  return 'Draw card';
-  if (segment.includes('exhaust target'))                        return 'Exhaust creature';
-  if (segment.includes('+1 power') || segment.includes('+2 power')) return 'Boost power';
-  if (segment.includes('glimpse'))                               return 'Glimpse';
+  const seg = mode === 'overexhaust'
+    ? (txt.split('{overexhaust}')[1] || txt)
+    : (txt.split('{exhaust}')[1] || txt);
+  if (seg.includes('gain') && seg.includes('life'))    return 'Gain life';
+  if (seg.includes('remove') && seg.includes('bleed')) return 'Remove bleed';
+  if (seg.includes('add {b}'))                          return '+Black mana';
+  if (seg.includes('add {g}'))                          return '+Gold';
+  if (seg.includes('create') && seg.includes('token')) return 'Create token';
+  if (seg.includes('draw'))                             return 'Draw card';
+  if (seg.includes('exhaust target'))                   return 'Exhaust creature';
+  if (seg.includes('+1 power') || seg.includes('+2 power')) return 'Boost power';
+  if (seg.includes('glimpse'))                          return 'Glimpse';
+  if (seg.includes('siphon'))                           return 'Grant Siphon';
   return '';
 }
 
+// ── ABILITY HELPERS ───────────────────────────────────────────
+
+// Get the effect text that comes AFTER the exhaust/overexhaust tag
+function getEffectSeg(txt, mode) {
+  const lower = txt.toLowerCase();
+  const tag   = mode === 'overexhaust' ? '{overexhaust}' : '{exhaust}';
+  const idx   = lower.indexOf(tag);
+  return idx === -1 ? lower : lower.substring(idx + tag.length);
+}
+
+// Extract any mana cost that appears BEFORE the exhaust tag
+// e.g. "{W}{Exhaust}: ..." → "W"   |   "{G}{R}{Exhaust}: ..." → "GR"
+function parseActivationCost(txt, mode) {
+  const lower = txt.toLowerCase();
+  const tag   = mode === 'overexhaust' ? '{overexhaust}' : '{exhaust}';
+  const tagIdx = lower.indexOf(tag);
+  if (tagIdx === -1) return '';
+  const before = lower.substring(0, tagIdx);
+  // Match single-char mana symbols {r},{g},{b},{p},{w},{c} (lowercase since txt is lowercased)
+  const matches = before.match(/\{([rgbpwc])\}/g) || [];
+  return matches.map(m => m.replace(/[{}]/g,'').toUpperCase()).join('');
+}
+
+function abilityNeedsTarget(txt, mode) {
+  const seg = getEffectSeg(txt, mode);
+  return seg.includes('target creature') || seg.includes('target player') ||
+         seg.includes('target token')    || seg.includes('target attacking') ||
+         seg.includes('target blocking') || seg.includes('target wolf') ||
+         seg.includes('target relic');
+}
+
+function getAbilityTargetMode(txt, mode, caster) {
+  const seg = getEffectSeg(txt, mode);
+  // Negative → opponent
+  if (seg.includes('exhaust target') || seg.includes('overexhaust target') ||
+      (seg.includes('damage') && seg.includes('target')) ||
+      seg.includes('destroy') || seg.includes('-1 power')) return 'opponent-creature';
+  // Token-specific → own side
+  if (seg.includes('target wolf') || seg.includes('target bat') ||
+      seg.includes('target token'))                         return 'own-creature';
+  // Positive buffs → own side
+  if (seg.includes('+1 power') || seg.includes('+2 power') ||
+      seg.includes('gains ')   || seg.includes('tireless') ||
+      seg.includes('siphon')   || seg.includes('breach'))  return 'own-creature';
+  return 'any-creature';
+}
+
 function activateAbility(inst, mode) {
-  // Newly Turned check (redundant safety)
-  if (inst.newlyTurned && !hasKeyword(inst, 'haste')) {
-    log(`${inst.name} is Newly Turned.`, ''); return;
+  if (inst.type === 'Creature' && inst.newlyTurned && !hasKeyword(inst,'haste')) {
+    log(`${inst.name} is Newly Turned — cannot activate this turn.`,''); return;
   }
-  if (mode === 'exhaust') {
-    if (inst.exhaustState !== 'renewed') { log(`${inst.name} must be renewed to exhaust.`, ''); return; }
-  } else {
-    if (inst.exhaustState !== 'renewed') { log(`${inst.name} must be renewed to overexhaust.`, ''); return; }
+  if (inst.exhaustState !== 'renewed') {
+    log(`${inst.name} must be renewed to activate.`,''); return;
   }
 
-  // Check if ability needs a target — if so, enter targeting mode BEFORE exhausting
   const txt = (inst.abilities || '').toLowerCase();
+
+  // Pay any mana activation cost prefixed before {exhaust}
+  const actCost = parseActivationCost(txt, mode);
+  if (actCost) {
+    autoTapForCost('player', actCost);
+    if (!canPayCost('player', actCost)) {
+      log(`${inst.name}: Needs ${actCost} mana to activate. Tap lands first.`, ''); return;
+    }
+    payCost('player', actCost);
+    log(`Paid ${actCost} to activate ${inst.name}.`, '');
+  }
+
   const needsTarget = abilityNeedsTarget(txt, mode);
 
   if (needsTarget) {
     const targetMode = getAbilityTargetMode(txt, mode, 'player');
-    const opp = 'ai';
 
-    // Build valid target pool
     const allCreatures = [
-      ...G.player.battlefield.filter(i => i.type === 'Creature').map(i => ({ inst: i, owner: 'player' })),
-      ...G.ai.battlefield.filter(i => i.type === 'Creature').map(i => ({ inst: i, owner: 'ai' })),
+      ...G.player.battlefield.filter(i => i.type==='Creature').map(i => ({inst:i, owner:'player'})),
+      ...G.ai.battlefield.filter(i    => i.type==='Creature').map(i => ({inst:i, owner:'ai'})),
     ];
-    const valid = allCreatures.filter(({ inst: t, owner }) => {
-      if (targetMode === 'opponent-creature') return owner === opp;
+    const valid = allCreatures.filter(({inst:t, owner}) => {
+      if (targetMode === 'opponent-creature') return owner === 'ai';
       if (targetMode === 'own-creature')      return owner === 'player';
-      if (targetMode === 'any-creature')      return true;
       return true;
     });
 
     if (valid.length === 0) {
       log(`${inst.name}: No valid targets.`, '');
+      // Refund mana if we already paid
+      if (actCost) {
+        for (const ch of actCost) {
+          if (G.player.mana[ch] !== undefined) G.player.mana[ch]++;
+        }
+        updateManaDisplay('player');
+      }
       return;
     }
 
-    // Auto-select if only one target
+    // Only one valid target — auto-resolve
     if (valid.length === 1) {
       applyExhaustForAbility(inst, mode);
       resolveAbilityEffect(inst, mode, 'player', valid[0].inst, valid[0].owner);
       return;
     }
 
-    // Enter targeting mode — exhaust happens AFTER target chosen
+    // Multiple targets — enter targeting mode
     log(`${inst.name}: Choose a target.`, 'important');
     beginTargeting(
       { name: inst.name, abilities: inst.abilities },
@@ -2549,7 +2563,7 @@ function activateAbility(inst, mode) {
     return;
   }
 
-  // No target needed — exhaust immediately and resolve
+  // No target needed — exhaust and resolve immediately
   applyExhaustForAbility(inst, mode);
   resolveAbilityEffect(inst, mode, 'player', null, null);
 }
@@ -2559,38 +2573,13 @@ function applyExhaustForAbility(inst, mode) {
   updateUI();
 }
 
-function abilityNeedsTarget(txt, mode) {
-  // Extract the relevant segment for this mode
-  const seg = mode === 'overexhaust'
-    ? (txt.includes('{overexhaust}') ? txt.split('{overexhaust}')[1] : txt)
-    : (txt.includes('{exhaust}')     ? txt.split('{exhaust}')[1]     : txt);
-  return seg.includes('target creature') || seg.includes('target player') ||
-         seg.includes('target token') || seg.includes('target attacking') ||
-         seg.includes('target blocking');
-}
-
-function getAbilityTargetMode(txt, mode, caster) {
-  const seg = mode === 'overexhaust'
-    ? (txt.includes('{overexhaust}') ? txt.split('{overexhaust}')[1] : txt)
-    : (txt.includes('{exhaust}')     ? txt.split('{exhaust}')[1]     : txt);
-  const opp = caster === 'player' ? 'ai' : 'player';
-  // Negative effects → opponent
-  if (seg.includes('exhaust target') || seg.includes('damage') ||
-      seg.includes('destroy') || seg.includes('-1 power'))  return 'opponent-creature';
-  // Positive effects → own
-  if (seg.includes('+1 power') || seg.includes('+2 power') ||
-      seg.includes('gains') || seg.includes('siphon'))      return 'own-creature';
-  return 'any-creature';
-}
 
 function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
   const txt = (inst.abilities || '').toLowerCase();
   const opp = who === 'player' ? 'ai' : 'player';
 
-  // Extract segment relevant to this mode
-  const seg = mode === 'overexhaust'
-    ? (txt.includes('{overexhaust}') ? txt.split('{overexhaust}')[1] : txt)
-    : (txt.includes('{exhaust}')     ? txt.split('{exhaust}')[1]     : txt);
+  // Use getEffectSeg to correctly extract the effect after the tag
+  const seg = getEffectSeg(txt, mode);
 
   // ── TARGET-BASED EFFECTS ────────────────────────────────────
   if (target) {
