@@ -89,105 +89,114 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .deck-val { color: var(--text-mid); }
 
 /* ── BATTLEFIELD WRAPPER ── */
-#bf-wrapper {
-  flex: 1; display: flex; flex-direction: column;
-  overflow: hidden; min-height: 0;
-}
+#bf-wrapper { flex:1; display:flex; flex-direction:column; overflow:hidden; min-height:0; }
 
 .side-zone {
-  flex: 1; display: flex; flex-direction: column;
-  min-height: 0; overflow: hidden; padding: 2px 8px;
+  flex:1; display:flex; flex-direction:column;
+  min-height:0; overflow:hidden; padding:2px 6px;
 }
-#side-ai   { border-bottom: 2px solid var(--border-dim); background: rgba(96,48,192,0.03); }
-#side-player { background: rgba(224,48,48,0.03); }
+#side-ai     { border-bottom:2px solid var(--border-dim); background:rgba(96,48,192,0.03); }
+#side-player { background:rgba(224,48,48,0.03); }
 
-/* AI layout: creatures (top) → relics → lands (nearest center) */
-#side-ai .creatures-row { order:1; }
-#side-ai .relics-row    { order:2; }
-#side-ai .lands-row     { order:3; }
-/* Player layout: creatures (nearest center) → relics → lands (bottom) */
-#side-player .creatures-row { order:1; }
-#side-player .relics-row    { order:2; }
-#side-player .lands-row     { order:3; }
-
+/* Two rows per side: main (creatures + relics together) and lands */
 .bf-row {
-  display: flex; flex-direction: row; align-items: center;
-  gap: 8px; padding: 4px 0; overflow-x: auto; overflow-y: visible;
-  scrollbar-width: thin; flex-shrink: 0; position: relative;
+  display:flex; flex-direction:row; align-items:center;
+  gap:8px; padding:4px 0; overflow-x:auto; overflow-y:visible;
+  scrollbar-width:thin; position:relative;
 }
-.bf-row.creatures-row { min-height: 164px; }
-.bf-row.relics-row    { min-height: 130px; }
-.bf-row.lands-row     { min-height: 80px;  }
+.bf-row.main-row  { flex:1; min-height:0; align-items:center; overflow-y:visible; }
+.bf-row.lands-row { min-height:88px; flex-shrink:0; }
+
+/* Creatures group — centered, fills available width */
+.creatures-group {
+  display:flex; flex-direction:row; align-items:center;
+  gap:14px; justify-content:center; flex:1;
+  padding:6px 8px; overflow:visible; flex-wrap:wrap;
+}
+
+/* Separator between creatures and relics */
+.group-sep {
+  width:1px; background:var(--border-dim); align-self:stretch;
+  flex-shrink:0; margin:8px 4px;
+}
+.group-sep:empty-siblings { display:none; }
+
+/* Relics group — right side, collapses when empty */
+.relics-group {
+  display:flex; flex-direction:row; align-items:center;
+  gap:10px; justify-content:flex-start; flex-shrink:0;
+  padding:6px 4px; flex-wrap:wrap;
+  min-width:0;
+}
+.relics-group:not(:has(.card)) { display:none; }
+.relics-group:not(:has(.card)) + .group-sep { display:none; }
 
 .row-label {
-  font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--text-dim); flex-shrink: 0; padding: 0 4px; min-width: 52px;
+  font-size:8px; letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--text-dim); flex-shrink:0; padding:0 4px; min-width:48px;
+}
+.group-label {
+  font-size:8px; letter-spacing:1px; text-transform:uppercase;
+  color:var(--text-dim); flex-shrink:0; writing-mode:vertical-rl;
+  transform:rotate(180deg); padding:2px 0;
 }
 
-/* Discard pile */
-.discard-pile { margin-left: auto; display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; padding-right: 4px; }
-.discard-stack {
-  width: 68px; height: 96px; border-radius: 5px;
-  background: rgba(0,0,0,0.4); border: 1px dashed var(--border-dim);
-  display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 2px; cursor: pointer; position: relative; transition: border-color 0.15s;
+/* Discard pile — far right of main row */
+.discard-pile {
+  display:flex; flex-direction:column; align-items:center;
+  gap:2px; flex-shrink:0; padding:0 4px; align-self:center; margin-left:auto;
 }
-.discard-stack:hover { border-color: var(--border-bright); }
+.discard-stack {
+  width:72px; height:100px; border-radius:5px;
+  background:rgba(0,0,0,0.4); border:1px dashed var(--border-dim);
+  display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:2px; cursor:pointer; position:relative; transition:border-color 0.15s;
+}
+.discard-stack:hover { border-color:var(--border-bright); }
 .discard-stack .ds-count { font-family:'Share Tech Mono',monospace; font-size:15px; font-weight:700; color:var(--text-mid); }
 .discard-stack .ds-label { font-size:7px; letter-spacing:1px; text-transform:uppercase; color:var(--text-dim); }
 .discard-stack .ds-top { position:absolute; inset:0; border-radius:5px; overflow:hidden; opacity:0.5; }
 .discard-stack .ds-top img { width:100%; height:100%; object-fit:cover; object-position:top; }
 
-/* ── CARD BASE ── */
+/* ── CARD BASE (creature size — fills the main row) ── */
 .card {
-  border-radius: 6px; border: 1px solid var(--border-dim);
-  background: var(--bg-card); cursor: pointer;
-  position: relative; overflow: hidden;
-  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-  flex-shrink: 0; display: flex; flex-direction: column;
-  width: 104px; height: 146px;
+  border-radius:6px; border:1px solid var(--border-dim);
+  background:var(--bg-card); cursor:pointer;
+  position:relative; overflow:hidden;
+  transition:transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  flex-shrink:0; display:flex; flex-direction:column;
+  width:110px; height:154px;
 }
-.card:hover { transform: translateY(-10px) scale(1.07); z-index: 50; }
+.card:hover { transform:translateY(-10px) scale(1.07); z-index:50; }
 .card.selected { border-color:var(--gold)!important; box-shadow:0 0 14px var(--gold-glow)!important; transform:translateY(-14px) scale(1.12)!important; z-index:60; }
 .card.attackable { border-color:var(--red); box-shadow:0 0 10px var(--red-glow); animation:pulse-red 1.2s infinite; }
 .card.blockable  { border-color:#30a0e0; box-shadow:0 0 8px rgba(48,160,224,0.3); animation:pulse-blue 1.2s infinite; }
 
-/* Full 90° rotation for exhausted */
-.card.exhausted {
-  opacity: 0.78;
-  transform: rotate(90deg);
-  margin: 28px 10px;
-}
-.card.exhausted:hover { transform: rotate(90deg) scale(1.07); z-index:50; }
+/* 90° exhausted */
+.card.exhausted { opacity:0.78; transform:rotate(90deg); margin:28px 10px; }
+.card.exhausted:hover { transform:rotate(90deg) scale(1.07); z-index:50; }
+/* 180° overexhausted */
+.card.overexhausted { opacity:0.45; transform:rotate(180deg); margin:0 8px; }
+.card.overexhausted:hover { transform:rotate(180deg) scale(1.07); z-index:50; }
 
-/* Full 180° for overexhausted */
-.card.overexhausted {
-  opacity: 0.45;
-  transform: rotate(180deg);
-  margin: 0 8px;
-}
-.card.overexhausted:hover { transform: rotate(180deg) scale(1.07); z-index:50; }
+.card.newly-turned { outline:2px solid rgba(255,200,0,0.55); }
+.card.attacking { outline:3px solid var(--red)!important; animation:pulse-red 0.7s infinite; }
+.card.blocking  { outline:3px solid #30a0e0!important; }
+.card.tap-hint  { box-shadow:0 0 9px rgba(212,160,32,0.65); }
 
-.card.newly-turned { outline: 2px solid rgba(255,200,0,0.55); }
-.card.attacking { outline: 3px solid var(--red)!important; animation:pulse-red 0.7s infinite; }
-.card.blocking  { outline: 3px solid #30a0e0!important; }
-.card.tap-hint  { box-shadow: 0 0 9px rgba(212,160,32,0.65); }
+/* Relics — smaller than creatures, sit on same row */
+.relics-group .card { width:90px; height:126px; }
+.relics-group .card.exhausted { margin:22px 9px; }
 
-/* Land cards — show full art now */
-.lands-row .card { width:72px; height:72px; }
+/* Land cards — full art, taller */
+.lands-row .card { width:78px; height:82px; }
 .lands-row .card .card-img { display:block; object-position:center; }
-.lands-row .card .card-img-placeholder { font-size:18px; }
-.lands-row .card .card-name-mini { font-size:7px; max-width:60px; }
+.lands-row .card .card-img-placeholder { font-size:20px; }
+.lands-row .card .card-name-mini { font-size:7px; max-width:64px; }
 .lands-row .card .card-power { display:none; }
 .lands-row .kw-badges { display:none; }
-.lands-row .card.exhausted { transform:rotate(90deg); margin:16px 6px; }
+.lands-row .card.exhausted { transform:rotate(90deg); margin:18px 8px; opacity:0.72; }
 .lands-row .card.exhausted:hover { transform:rotate(90deg) scale(1.08); }
-
-/* Relic cards */
-.relics-row .card { width:90px; height:126px; }
-.relics-row .card.exhausted { margin: 26px 10px; }
-
-.card-img { width:100%; flex:1; object-fit:cover; object-position:top; background:var(--bg-panel); min-height:0; }
 .card-img-placeholder { width:100%; flex:1; display:flex; align-items:center; justify-content:center; background:var(--bg-panel); font-size:26px; min-height:0; }
 .card-footer { display:flex; align-items:center; justify-content:space-between; padding:3px 4px; background:rgba(0,0,0,0.82); font-size:9px; font-weight:600; letter-spacing:0.5px; flex-shrink:0; }
 .card-name-mini { color:var(--text-bright); max-width:62px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
@@ -497,11 +506,10 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
       <!-- AI SIDE -->
       <div class="side-zone" id="side-ai">
-        <div class="bf-row creatures-row" id="bf-ai-creatures">
-          <span class="row-label">CREATURES</span>
-        </div>
-        <div class="bf-row relics-row" id="bf-ai-relics">
-          <span class="row-label">RELICS</span>
+        <div class="bf-row main-row" id="bf-ai-main">
+          <div class="creatures-group" id="bf-ai-creatures"></div>
+          <div class="group-sep" id="sep-ai"></div>
+          <div class="relics-group" id="bf-ai-relics"></div>
           <div class="discard-pile" id="discard-ai-wrap">
             <div class="discard-stack" onclick="showDiscardPile('ai')" title="AI Discard Pile">
               <div class="ds-top" id="discard-ai-top"></div>
@@ -517,11 +525,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
       <!-- PLAYER SIDE -->
       <div class="side-zone" id="side-player">
-        <div class="bf-row creatures-row" id="bf-player-creatures">
-          <span class="row-label">CREATURES</span>
+        <div class="bf-row lands-row" id="bf-player-lands">
+          <span class="row-label">LANDS</span>
         </div>
-        <div class="bf-row relics-row" id="bf-player-relics">
-          <span class="row-label">RELICS</span>
+        <div class="bf-row main-row" id="bf-player-main">
+          <div class="creatures-group" id="bf-player-creatures"></div>
+          <div class="group-sep" id="sep-player"></div>
+          <div class="relics-group" id="bf-player-relics"></div>
           <div class="discard-pile" id="discard-player-wrap">
             <div class="discard-stack" onclick="showDiscardPile('player')" title="Your Discard Pile">
               <div class="ds-top" id="discard-player-top"></div>
@@ -529,9 +539,6 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
               <span class="ds-label">DISCARD</span>
             </div>
           </div>
-        </div>
-        <div class="bf-row lands-row" id="bf-player-lands">
-          <span class="row-label">LANDS</span>
         </div>
       </div>
 
@@ -2175,17 +2182,25 @@ function renderSide(who) {
   const relics   = bf.filter(i => i.type === 'Relic');
   const creatures = bf.filter(i => i.type === 'Creature');
 
-  const landRow    = document.getElementById(`bf-${who}-lands`);
-  const relicRow   = document.getElementById(`bf-${who}-relics`);
-  const creatRow   = document.getElementById(`bf-${who}-creatures`);
+  const landRow     = document.getElementById(`bf-${who}-lands`);
+  const creatGroup  = document.getElementById(`bf-${who}-creatures`);
+  const relicGroup  = document.getElementById(`bf-${who}-relics`);
+  const sep         = document.getElementById(`sep-${who}`);
 
-  // Keep labels, re-render cards
+  // Clear groups (preserve structure elements)
+  creatGroup.innerHTML = '';
+  relicGroup.innerHTML = '';
   clearRow(landRow);
-  clearRow(relicRow);
-  clearRow(creatRow);
 
+  // Show/hide separator based on whether there are relics
+  if (sep) sep.style.display = relics.length > 0 ? 'block' : 'none';
+
+  // Lands — with exhaust classes applied
   lands.forEach(inst => {
     const card = createCardElement(inst, false);
+    // Apply exhaust states to lands too
+    if (inst.exhaustState === 'exhausted') card.classList.add('exhausted');
+    if (inst.exhaustState === 'overexhausted') card.classList.add('overexhausted');
     if (who === 'player' && inst.exhaustState === 'renewed' && G.activePlayer === 'player') {
       card.classList.add('tap-hint');
       card.title = 'Click to tap for mana';
@@ -2194,38 +2209,38 @@ function renderSide(who) {
     landRow.appendChild(card);
   });
 
+  // Relics
   relics.forEach(inst => {
     const card = createCardElement(inst, false);
     applyExhaustClasses(card, inst);
+    if (targetingState.active && isValidTarget(inst, who)) card.classList.add('blockable');
     addCardHandlers(card, inst, who);
-    relicRow.appendChild(card);
+    relicGroup.appendChild(card);
   });
 
+  // Creatures
   creatures.forEach(inst => {
     const card = createCardElement(inst, false);
     applyExhaustClasses(card, inst);
     if (inst.newlyTurned) card.classList.add('newly-turned');
     if (inst.attacking) card.classList.add('attacking');
     if (inst.blocking) card.classList.add('blocking');
-    // Attackable highlight
     if (who === 'player' && combatPhase === 'declare' &&
         !inst.newlyTurned && inst.exhaustState === 'renewed' && !hasKeyword(inst,'wall')) {
       card.classList.add('attackable');
     }
-    // Targetable by spell
-    if (targetingState.active) {
-      const validTarget = isValidTarget(inst, who);
-      if (validTarget) card.classList.add('blockable');
-    }
+    if (targetingState.active && isValidTarget(inst, who)) card.classList.add('blockable');
     addCardHandlers(card, inst, who);
-    creatRow.appendChild(card);
+    creatGroup.appendChild(card);
   });
 }
 
 function clearRow(rowEl) {
-  // Remove all children except the row-label span
+  // Remove card children, keep .row-label and .discard-pile
   Array.from(rowEl.children).forEach(ch => {
-    if (!ch.classList.contains('row-label') && !ch.classList.contains('discard-pile')) {
+    if (!ch.classList.contains('row-label') && !ch.classList.contains('discard-pile') &&
+        !ch.classList.contains('creatures-group') && !ch.classList.contains('relics-group') &&
+        !ch.classList.contains('group-sep') && ch.id !== 'sep-ai' && ch.id !== 'sep-player') {
       rowEl.removeChild(ch);
     }
   });
