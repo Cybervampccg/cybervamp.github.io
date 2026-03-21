@@ -482,6 +482,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
       <div class="phase-pip" data-phase="postbattle">POST-BATTLE</div>
     </div>
     <div id="turn-info">TURN 1</div>
+    <button id="btn-mute" onclick="toggleMute()" style="background:transparent;border:1px solid var(--border-dim);color:var(--text-mid);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:14px;" title="Toggle sound">🔊</button>
   </div>
 
   <!-- ARENA -->
@@ -757,7 +758,52 @@ const FACTION_DECKS = {
 const FACTION_OPPOSITES = { Red:'Black', Black:'Red', White:'Purple', Purple:'White' };
 
 // ── HELPERS ───────────────────────────────────────────────────
-function shuffle(arr) {
+// ── AUDIO SYSTEM ──────────────────────────────────────────────
+const BASE_AUDIO = 'https://github.com/Cybervampccg/cybervamp.github.io/blob/main/play/audio/';
+const SOUNDS = {
+  card_play:    BASE_AUDIO + 'card_play.mp3?raw=true',
+  land:         BASE_AUDIO + 'land.mp3?raw=true',
+  damage:       BASE_AUDIO + 'damage.mp3?raw=true',
+  destroy:      BASE_AUDIO + 'destroy.mp3?raw=true',
+  bleed:        BASE_AUDIO + 'bleed.mp3?raw=true',
+  phase_change: BASE_AUDIO + 'phase_change.mp3?raw=true',
+  turn_end:     BASE_AUDIO + 'turn_end.mp3?raw=true',
+};
+
+// Pre-load audio objects so first play has no delay
+const _audioCache = {};
+function _getAudio(key) {
+  if (!_audioCache[key]) {
+    _audioCache[key] = new Audio(SOUNDS[key]);
+    _audioCache[key].preload = 'auto';
+  }
+  return _audioCache[key];
+}
+
+let sfxMuted = false;
+
+function sfx(key, volumeOverride) {
+  if (sfxMuted || !SOUNDS[key]) return;
+  try {
+    // Clone so the same sound can overlap itself
+    const a = _getAudio(key).cloneNode();
+    a.volume = volumeOverride !== undefined ? volumeOverride : 0.65;
+    a.play().catch(() => {}); // swallow autoplay errors gracefully
+  } catch(e) {}
+}
+
+function toggleMute() {
+  sfxMuted = !sfxMuted;
+  const btn = document.getElementById('btn-mute');
+  if (btn) btn.textContent = sfxMuted ? '🔇' : '🔊';
+}
+
+// Preload all sounds as soon as the page loads
+window.addEventListener('load', () => {
+  Object.keys(SOUNDS).forEach(k => _getAudio(k));
+});
+
+
   const a = [...arr];
   for (let i = a.length-1; i>0; i--) {
     const j = Math.floor(Math.random()*(i+1));
@@ -957,7 +1003,10 @@ function drawCard(who) {
 }
 
 function setPhase(phase) {
+  const prev = G ? G.phase : null;
   G.phase = phase;
+  // Play phase change sound when moving to a new phase (not on init)
+  if (prev && prev !== phase) sfx('phase_change', 0.4);
   document.querySelectorAll('.phase-pip').forEach(el => {
     el.classList.remove('active','done');
   });
@@ -1000,6 +1049,7 @@ function setPhase(phase) {
 // ── MANA SYSTEM ──────────────────────────────────────────────
 function tapLandForMana(inst) {
   if (inst.exhaustState !== 'renewed') { log('Land is already exhausted.'); return; }
+  sfx('land');
   const prod = inst.produces;
   if (!prod || prod === 'any') {
     // Prompt for color
@@ -1127,6 +1177,7 @@ function endPlayerTurn() {
   if (G.player.bleed > 0) {
     const dmg = G.player.bleed;
     G.player.life -= dmg;
+    sfx('bleed');
     log(`Bleed resolves: you take ${dmg} damage from ${dmg} Bleed counters.`, 'bleed');
     G.player.bleed = 0;
     updateLifeDisplay('player');
@@ -1139,6 +1190,7 @@ function endPlayerTurn() {
   // Clear mana
   clearMana('player');
   G.player.landPlayedThisTurn = false;
+  sfx('turn_end', 0.5);
 
   G.turn++;
   G.activePlayer = 'ai';
@@ -1185,6 +1237,7 @@ async function runAITurn() {
   if (G.ai.bleed > 0) {
     const dmg = G.ai.bleed;
     G.ai.life -= dmg;
+    sfx('bleed');
     log(`AI takes ${dmg} Bleed damage.`, 'bleed');
     G.ai.bleed = 0;
     if (checkWin()) return;
@@ -1333,6 +1386,7 @@ async function aiPlayCards() {
     ai.hand = ai.hand.filter(i => i.instId !== inst.instId);
     inst.newlyTurned = true;
     ai.battlefield.push(inst);
+    sfx('card_play', 0.4);
     log(`AI plays ${inst.name} (${inst.power} power).`, '');
     await delay(350);
     updateUI();
@@ -1634,6 +1688,7 @@ function confirmAttack() {
         G.ai.life -= pow; updateLifeDisplay('ai');
         if (atk.keywords.bleed) { G.ai.bleed += atk.keywords.bleed; }
         if (atk.keywords.siphon) { G.player.life += pow; updateLifeDisplay('player'); }
+        sfx('damage');
         log(`${atk.name}[${pow}] hits AI unblocked → AI life: ${G.ai.life}`, 'damage');
       }
     });
@@ -1673,18 +1728,22 @@ function combatResolution(atk, blk, defendingSide) {
   log(`${atk.name}[${atkP}] vs ${blk.name}[${blkP}]`, '');
   if (atkP > blkP) {
     removeFromBattlefield(blk, defendingSide);
+    sfx('destroy');
     log(`→ ${blk.name} destroyed.`, 'damage');
     if (hasKeyword(atk,'breach')) {
       const ex = atkP - blkP;
       G[defendingSide].life -= ex;
+      sfx('damage');
       log(`→ Breach: ${ex} damage to ${defendingSide}.`, 'damage');
     }
   } else if (blkP > atkP) {
     removeFromBattlefield(atk, attackingSide);
+    sfx('destroy');
     log(`→ ${atk.name} destroyed.`, 'damage');
   } else {
     removeFromBattlefield(atk, attackingSide);
     removeFromBattlefield(blk, defendingSide);
+    sfx('destroy');
     log(`→ Both destroyed.`, 'damage');
   }
 }
@@ -1700,6 +1759,7 @@ function resolveCombat(atkInsts, blkMap, defendingSide) {
       else { G[defendingSide].life -= pow; updateLifeDisplay(defendingSide); }
     } else {
       G[defendingSide].life -= pow;
+      sfx('damage');
       log(`${atk.name}[${pow}] hits ${defendingSide} directly.`, 'damage');
     }
     atk.attacking = false;
@@ -1712,6 +1772,7 @@ function resolveCombat(atkInsts, blkMap, defendingSide) {
 function dealDamageToPlayer(who, amount, source) {
   if (amount <= 0) return;
   G[who].life -= amount;
+  sfx('damage', 0.5);
   updateLifeDisplay(who);
   const kw = parseKeywords(source.abilities || '');
   if (kw.bleed) { G[who].bleed += kw.bleed; updateLifeDisplay(who); log(`+${kw.bleed} Bleed on ${who}.`, 'bleed'); }
@@ -1720,6 +1781,7 @@ function dealDamageToPlayer(who, amount, source) {
 
 function destroyCreature(inst, owner) {
   removeFromBattlefield(inst, owner);
+  sfx('destroy', 0.5);
   updateUI();
 }
 
@@ -1767,6 +1829,7 @@ function playCard(inst) {
     G.player.battlefield.push(inst);
     G.player.landPlayedThisTurn = true;
     selectedCardId = null;
+    sfx('land');
     log(`You play ${inst.name}.`, 'important');
     updateUI(); return;
   }
@@ -1787,15 +1850,18 @@ function playCard(inst) {
     inst.newlyTurned = !hasKeyword(inst,'haste');
     inst.exhaustState = 'renewed';
     G.player.battlefield.push(inst);
+    sfx('card_play');
     log(`You play ${inst.name} (${inst.power} power).`, 'important');
     updateUI();
   } else if (inst.type === 'Relic') {
     inst.newlyTurned = false;
     inst.exhaustState = 'renewed';
     G.player.battlefield.push(inst);
+    sfx('card_play');
     log(`You play ${inst.name} [Relic].`, 'important');
     updateUI();
   } else if (inst.type === 'Spell') {
+    sfx('card_play');
     log(`You cast ${inst.name}.`, 'important');
     castSpellWithTargeting(inst, 'player', () => {
       G.player.discard.push(inst);
