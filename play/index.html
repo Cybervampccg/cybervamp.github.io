@@ -94,143 +94,134 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   overflow: hidden; min-height: 0;
 }
 
-/* Each side = half the battlefield */
 .side-zone {
   flex: 1; display: flex; flex-direction: column;
-  min-height: 0; overflow: hidden; padding: 2px 6px;
-  position: relative;
+  min-height: 0; overflow: hidden; padding: 2px 8px;
 }
-#side-ai { border-bottom: 2px solid var(--border-dim); background: rgba(96,48,192,0.03); justify-content: flex-end; }
-#side-player { background: rgba(224,48,48,0.03); justify-content: flex-start; }
+#side-ai   { border-bottom: 2px solid var(--border-dim); background: rgba(96,48,192,0.03); }
+#side-player { background: rgba(224,48,48,0.03); }
 
-/* ── CARD ROWS WITHIN A SIDE ── */
+/* AI layout: creatures (top) → relics → lands (nearest center) */
+#side-ai .creatures-row { order:1; }
+#side-ai .relics-row    { order:2; }
+#side-ai .lands-row     { order:3; }
+/* Player layout: creatures (nearest center) → relics → lands (bottom) */
+#side-player .creatures-row { order:1; }
+#side-player .relics-row    { order:2; }
+#side-player .lands-row     { order:3; }
+
 .bf-row {
   display: flex; flex-direction: row; align-items: center;
-  gap: 4px; padding: 2px 0; overflow-x: auto; overflow-y: visible;
-  scrollbar-width: thin; min-height: 50px; flex-shrink: 0;
-  position: relative;
+  gap: 8px; padding: 4px 0; overflow-x: auto; overflow-y: visible;
+  scrollbar-width: thin; flex-shrink: 0; position: relative;
 }
-.bf-row.lands-row { min-height: 44px; }
-.bf-row.relics-row { min-height: 50px; }
-.bf-row.creatures-row { min-height: 90px; flex: 1; }
+.bf-row.creatures-row { min-height: 140px; }
+.bf-row.relics-row    { min-height: 106px; }
+.bf-row.lands-row     { min-height: 62px;  }
 
-/* Row labels */
 .row-label {
   font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--text-dim); writing-mode: vertical-rl; 
-  transform: rotate(180deg); align-self: center;
-  flex-shrink: 0; padding: 2px; min-width: 14px;
+  color: var(--text-dim); flex-shrink: 0; padding: 0 4px; min-width: 52px;
 }
 
 /* Discard pile */
-.discard-pile {
-  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  z-index: 5;
-}
+.discard-pile { margin-left: auto; display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; padding-right: 4px; }
 .discard-stack {
-  width: 46px; height: 64px; border-radius: 4px;
+  width: 60px; height: 84px; border-radius: 5px;
   background: rgba(0,0,0,0.4); border: 1px dashed var(--border-dim);
   display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 2px; cursor: pointer; position: relative;
-  transition: border-color 0.15s;
+  flex-direction: column; gap: 2px; cursor: pointer; position: relative; transition: border-color 0.15s;
 }
 .discard-stack:hover { border-color: var(--border-bright); }
-.discard-stack .ds-count {
-  font-family: 'Share Tech Mono', monospace; font-size: 13px;
-  font-weight: 700; color: var(--text-mid);
-}
-.discard-stack .ds-label {
-  font-size: 7px; letter-spacing: 1px; text-transform: uppercase;
-  color: var(--text-dim);
-}
-.discard-stack .ds-top {
-  position: absolute; inset: 0; border-radius: 4px;
-  overflow: hidden; opacity: 0.5;
-}
-.discard-stack .ds-top img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.discard-stack .ds-count { font-family:'Share Tech Mono',monospace; font-size:15px; font-weight:700; color:var(--text-mid); }
+.discard-stack .ds-label { font-size:7px; letter-spacing:1px; text-transform:uppercase; color:var(--text-dim); }
+.discard-stack .ds-top { position:absolute; inset:0; border-radius:5px; overflow:hidden; opacity:0.5; }
+.discard-stack .ds-top img { width:100%; height:100%; object-fit:cover; object-position:top; }
 
-/* ── CARD COMPONENT ── */
+/* ── CARD BASE ── */
 .card {
-  border-radius: 4px; border: 1px solid var(--border-dim);
+  border-radius: 6px; border: 1px solid var(--border-dim);
   background: var(--bg-card); cursor: pointer;
   position: relative; overflow: hidden;
-  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   flex-shrink: 0; display: flex; flex-direction: column;
-  width: 64px; height: 90px;
+  width: 90px; height: 126px;
 }
-.card:hover { transform: translateY(-6px) scale(1.06); z-index: 50; }
-.card.selected { border-color: var(--gold) !important; box-shadow: 0 0 10px var(--gold-glow) !important; transform: translateY(-10px) scale(1.1) !important; z-index: 60; }
-.card.attackable { border-color: var(--red); box-shadow: 0 0 8px var(--red-glow); animation: pulse-red 1.2s infinite; }
-.card.blockable { border-color: #30a0e0; box-shadow: 0 0 6px rgba(48,160,224,0.3); animation: pulse-blue 1.2s infinite; }
-.card.exhausted { opacity: 0.65; transform: rotate(5deg) translateX(4px); }
-.card.exhausted:hover { transform: rotate(5deg) translateX(4px) translateY(-6px) scale(1.05); }
-.card.overexhausted { opacity: 0.4; transform: rotate(10deg) translateX(8px); }
-.card.overexhausted:hover { transform: rotate(10deg) translateX(8px) translateY(-6px) scale(1.05); }
-.card.newly-turned { outline: 2px solid rgba(255,200,0,0.5); }
-.card.attacking { outline: 2px solid var(--red) !important; animation: pulse-red 0.8s infinite; }
-.card.blocking { outline: 2px solid #30a0e0 !important; }
-.card.tap-hint { box-shadow: 0 0 6px rgba(212,160,32,0.5); }
+.card:hover { transform: translateY(-10px) scale(1.08); z-index: 50; }
+.card.selected { border-color:var(--gold)!important; box-shadow:0 0 14px var(--gold-glow)!important; transform:translateY(-14px) scale(1.12)!important; z-index:60; }
+.card.attackable { border-color:var(--red); box-shadow:0 0 10px var(--red-glow); animation:pulse-red 1.2s infinite; }
+.card.blockable  { border-color:#30a0e0; box-shadow:0 0 8px rgba(48,160,224,0.3); animation:pulse-blue 1.2s infinite; }
 
-/* Land cards smaller */
-.lands-row .card { width: 46px; height: 52px; }
-.lands-row .card .card-img { display: none; }
-.lands-row .card .card-img-placeholder { font-size: 14px; }
-.lands-row .card .card-footer { padding: 1px 3px; }
-.lands-row .card .card-name-mini { font-size: 7px; max-width: 38px; }
-.lands-row .kw-badges { display: none; }
-
-/* Relic cards medium */
-.relics-row .card { width: 54px; height: 76px; }
-
-.card-img {
-  width: 100%; flex: 1; object-fit: cover; object-position: top;
-  background: var(--bg-panel);
+/* Full 90° rotation for exhausted */
+.card.exhausted {
+  opacity: 0.78;
+  transform: rotate(90deg);
+  margin: 22px 8px;
 }
-.card-img-placeholder {
-  width: 100%; flex: 1; display: flex; align-items: center; justify-content: center;
-  background: var(--bg-panel); font-size: 20px;
-}
+.card.exhausted:hover { transform: rotate(90deg) scale(1.08); z-index:50; }
 
-.card-footer {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 2px 3px; background: rgba(0,0,0,0.75);
-  font-size: 8px; font-weight: 600; letter-spacing: 0.5px; flex-shrink: 0;
+/* Full 180° for overexhausted */
+.card.overexhausted {
+  opacity: 0.45;
+  transform: rotate(180deg);
+  margin: 0 6px;
 }
-.card-name-mini { color: var(--text-bright); max-width: 44px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.card-power { color: var(--gold); font-family: 'Share Tech Mono', monospace; font-size: 10px; }
+.card.overexhausted:hover { transform: rotate(180deg) scale(1.08); z-index:50; }
 
-/* Keyword badges */
-.kw-badges {
-  position: absolute; top: 2px; left: 2px;
-  display: flex; flex-direction: column; gap: 1px;
+.card.newly-turned { outline: 2px solid rgba(255,200,0,0.55); }
+.card.attacking { outline: 3px solid var(--red)!important; animation:pulse-red 0.7s infinite; }
+.card.blocking  { outline: 3px solid #30a0e0!important; }
+.card.tap-hint  { box-shadow: 0 0 9px rgba(212,160,32,0.65); }
+
+/* Land cards — compact strip */
+.lands-row .card { width:58px; height:46px; margin:0 2px; }
+.lands-row .card.exhausted { transform:rotate(90deg); margin:18px 6px; }
+.lands-row .card .card-img { display:none; }
+.lands-row .card .card-img-placeholder { font-size:13px; }
+.lands-row .card .card-name-mini { font-size:7px; }
+.lands-row .kw-badges { display:none; }
+
+/* Relic cards — medium */
+.relics-row .card { width:74px; height:104px; }
+.relics-row .card.exhausted { margin: 20px 6px; }
+
+.card-img { width:100%; flex:1; object-fit:cover; object-position:top; background:var(--bg-panel); min-height:0; }
+.card-img-placeholder { width:100%; flex:1; display:flex; align-items:center; justify-content:center; background:var(--bg-panel); font-size:26px; min-height:0; }
+.card-footer { display:flex; align-items:center; justify-content:space-between; padding:3px 4px; background:rgba(0,0,0,0.82); font-size:9px; font-weight:600; letter-spacing:0.5px; flex-shrink:0; }
+.card-name-mini { color:var(--text-bright); max-width:62px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.card-power { color:var(--gold); font-family:'Share Tech Mono',monospace; font-size:11px; font-weight:700; }
+
+.kw-badges { position:absolute; top:3px; left:3px; display:flex; flex-direction:column; gap:1px; z-index:2; }
+.kw-badge { font-size:7px; padding:1px 3px; border-radius:2px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; }
+.kw-haste    { background:rgba(224,80,0,0.9);  color:#fff; }
+.kw-wall     { background:rgba(80,120,200,0.9); color:#fff; }
+.kw-breach   { background:rgba(200,60,0,0.9);   color:#fff; }
+.kw-tireless { background:rgba(0,160,80,0.9);   color:#fff; }
+.kw-siphon   { background:rgba(120,0,200,0.9);  color:#fff; }
+
+.color-bar { height:4px; width:100%; flex-shrink:0; }
+.color-bar.Red      { background:var(--red); }
+.color-bar.White    { background:var(--white-c); }
+.color-bar.Black    { background:var(--black-c); }
+.color-bar.Purple   { background:var(--purple); }
+.color-bar.Colorless{ background:var(--colorless); }
+.color-bar.Land     { background:var(--gold); }
+
+/* ── HAND ── */
+.hand-zone {
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 8px; padding: 6px 12px; overflow-x: auto; overflow-y: visible;
+  min-height: 154px; max-height: 172px;
+  background: rgba(0,0,0,0.15); scrollbar-width: thin; position: relative; z-index: 10;
 }
-.kw-badge {
-  font-size: 6px; padding: 1px 2px; border-radius: 2px;
-  font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
-}
-.kw-haste { background: rgba(224,80,0,0.9); color: #fff; }
-.kw-wall { background: rgba(80,120,200,0.9); color: #fff; }
-.kw-breach { background: rgba(200,60,0,0.9); color: #fff; }
-.kw-tireless { background: rgba(0,160,80,0.9); color: #fff; }
-.kw-siphon { background: rgba(120,0,200,0.9); color: #fff; }
+#hand-ai { filter:brightness(0.4); cursor:default; align-items:flex-start; min-height:96px; max-height:108px; }
 
-.color-bar { height: 3px; width: 100%; flex-shrink: 0; }
-.color-bar.Red { background: var(--red); }
-.color-bar.White { background: var(--white-c); }
-.color-bar.Black { background: var(--black-c); }
-.color-bar.Purple { background: var(--purple); }
-.color-bar.Colorless { background: var(--colorless); }
-.color-bar.Land { background: var(--gold); }
-
-/* ── HAND CARDS ── */
-.hand-card { width: 76px; height: 108px; }
-.hand-card:hover { transform: translateY(-18px) scale(1.12); z-index: 50; }
-.hand-card.selected { transform: translateY(-22px) scale(1.15) !important; border-color: var(--gold) !important; box-shadow: 0 0 14px var(--gold-glow) !important; }
-.hand-card.playable { border-color: rgba(212,160,32,0.5); }
-.hand-card.unplayable { opacity: 0.4; }
-.hand-card.targeting { border-color: #30e0ff !important; box-shadow: 0 0 12px rgba(48,224,255,0.4) !important; animation: pulse-blue 0.8s infinite; }
-/* keep simple: lands shown in battlefield via type */
+.hand-card { width:98px; height:138px; }
+.hand-card:hover { transform:translateY(-26px) scale(1.14); z-index:50; }
+.hand-card.selected { transform:translateY(-30px) scale(1.18)!important; border-color:var(--gold)!important; box-shadow:0 0 18px var(--gold-glow)!important; }
+.hand-card.playable   { border-color:rgba(212,160,32,0.55); }
+.hand-card.unplayable { opacity:0.35; }
+.hand-card.targeting  { border-color:#30e0ff!important; box-shadow:0 0 14px rgba(48,224,255,0.5)!important; }
 
 /* ── ACTION BAR ── */
 #action-bar {
@@ -274,25 +265,21 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .log-entry.bleed { color: var(--bleed-red); }
 .log-entry.phase { color: var(--gold); letter-spacing: 1px; font-weight: 600; }
 
-/* ── CARD PREVIEW (large) ── */
+/* ── CARD PREVIEW ── */
 #card-preview {
-  position: fixed; bottom: 54px; left: 8px;
-  width: 220px;
+  position: fixed;
+  width: 230px;
   background: var(--bg-panel);
   border: 1px solid var(--border-bright);
   border-radius: 8px;
   overflow: hidden;
-  z-index: 300;
+  z-index: 9999;
   pointer-events: none;
   opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 0.15s ease, transform 0.15s ease;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  transition: opacity 0.12s ease;
+  box-shadow: 0 8px 36px rgba(0,0,0,0.7);
 }
-#card-preview.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
+#card-preview.visible { opacity: 1; }
 #card-preview .cp-color-bar {
   height: 4px; width: 100%;
 }
@@ -528,8 +515,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
       <!-- PLAYER SIDE -->
       <div class="side-zone" id="side-player">
-        <div class="bf-row lands-row" id="bf-player-lands">
-          <span class="row-label">LANDS</span>
+        <div class="bf-row creatures-row" id="bf-player-creatures">
+          <span class="row-label">CREATURES</span>
         </div>
         <div class="bf-row relics-row" id="bf-player-relics">
           <span class="row-label">RELICS</span>
@@ -541,8 +528,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
             </div>
           </div>
         </div>
-        <div class="bf-row creatures-row" id="bf-player-creatures">
-          <span class="row-label">CREATURES</span>
+        <div class="bf-row lands-row" id="bf-player-lands">
+          <span class="row-label">LANDS</span>
         </div>
       </div>
 
@@ -568,7 +555,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   <div id="action-bar">
     <button class="btn btn-muted" id="btn-mulligan" onclick="doMulligan()">MULLIGAN</button>
     <button class="btn btn-primary" id="btn-play-card" onclick="playSelectedCard()">PLAY CARD</button>
-    <button class="btn btn-danger" id="btn-attack" onclick="declareAttack()" style="display:none">DECLARE ATTACK</button>
+    <button class="btn btn-danger" id="btn-attack" style="display:none">DECLARE ATTACK</button>
     <button class="btn btn-muted" id="btn-end-combat" onclick="endCombatPhase()" style="display:none">END COMBAT</button>
     <div id="targeting-hint" style="display:none;font-size:11px;color:#30e0ff;letter-spacing:1px;padding:0 8px;">
       ⊕ SELECT TARGET — click a card or ESC to cancel
@@ -971,11 +958,28 @@ function setPhase(phase) {
   // Update action bar visibility
   const attackBtn = document.getElementById('btn-attack');
   const endCombatBtn = document.getElementById('btn-end-combat');
-  attackBtn.style.display = (phase === 'battle' && combatPhase === null) ? 'block' : 'none';
-  endCombatBtn.style.display = (phase === 'battle') ? 'block' : 'none';
+  const isPlayerBattle = phase === 'battle' && G && G.activePlayer === 'player';
+
+  if (!isPlayerBattle) {
+    attackBtn.style.display = 'none';
+    endCombatBtn.style.display = 'none';
+  } else if (combatPhase === null) {
+    attackBtn.textContent = 'DECLARE ATTACK';
+    attackBtn.onclick = declareAttack;
+    attackBtn.style.display = 'block';
+    endCombatBtn.style.display = 'block';
+  } else if (combatPhase === 'declare') {
+    attackBtn.textContent = 'CONFIRM ATTACK';
+    attackBtn.onclick = confirmAttack;
+    attackBtn.style.display = 'block';
+    endCombatBtn.style.display = 'block';
+  } else {
+    attackBtn.style.display = 'none';
+    endCombatBtn.style.display = 'block';
+  }
 
   const mulliganBtn = document.getElementById('btn-mulligan');
-  mulliganBtn.disabled = (G.turn > 1 || mulliganUsed.player);
+  if (mulliganBtn) mulliganBtn.disabled = (!G || G.turn > 1 || mulliganUsed.player);
 }
 
 // ── MANA SYSTEM ──────────────────────────────────────────────
@@ -1337,191 +1341,203 @@ async function aiDeclareAttack() {
 }
 
 // ── COMBAT SYSTEM ─────────────────────────────────────────────
+
 function declareAttack() {
-  if (G.phase !== 'battle' || G.activePlayer !== 'player') return;
+  if (G.phase !== 'battle') { log('Not in battle phase.',''); return; }
+  if (G.activePlayer !== 'player') { log('Not your turn.',''); return; }
+  if (combatPhase === 'resolving') return;
+
   combatPhase = 'declare';
   attackers = [];
-  // Reset any stale attack flags
   G.player.battlefield.forEach(i => { i.attacking = false; });
-  log('⚔ Click your creatures to declare attackers. Click CONFIRM ATTACK when ready.', 'important');
-  const btn = document.getElementById('btn-attack');
-  btn.textContent = 'CONFIRM ATTACK';
-  btn.onclick = confirmAttack;
-  updateUI();
+  log('⚔ Click your creatures to attack, then hit CONFIRM ATTACK.', 'important');
+  updateUI(); // setPhase inside updateUI will set button to CONFIRM ATTACK
 }
 
 function toggleAttacker(inst) {
   if (combatPhase !== 'declare') return;
-  if (inst.owner !== 'player') return;
   if (inst.type !== 'Creature') return;
-  if (inst.newlyTurned && !hasKeyword(inst,'haste')) {
-    log(`${inst.name} is Newly Turned and cannot attack.`, '');
-    return;
-  }
-  if (inst.exhaustState !== 'renewed') {
-    log(`${inst.name} is exhausted.`, '');
-    return;
-  }
-  if (hasKeyword(inst,'wall')) {
-    log(`Walls cannot attack.`, '');
-    return;
-  }
+  if (inst.newlyTurned && !hasKeyword(inst,'haste')) { log(`${inst.name} is Newly Turned.`,''); return; }
+  if (inst.exhaustState !== 'renewed') { log(`${inst.name} is exhausted.`,''); return; }
+  if (hasKeyword(inst,'wall')) { log('Walls cannot attack.',''); return; }
+
   const idx = attackers.indexOf(inst.instId);
   if (idx >= 0) {
     attackers.splice(idx, 1);
     inst.attacking = false;
+    log(`${inst.name} removed from attack.`, '');
   } else {
     attackers.push(inst.instId);
     inst.attacking = true;
+    log(`${inst.name} → attacking!`, 'important');
   }
-  updateUI();
+  updateUI(); // must call full updateUI so setPhase keeps button as CONFIRM ATTACK
 }
 
 function confirmAttack() {
-  if (attackers.length === 0) {
-    endCombatPhase();
-    return;
-  }
-  // Exhaust attackers (unless tireless)
-  attackers.forEach(id => {
-    const inst = G.player.battlefield.find(i => i.instId === id);
-    if (inst && !hasKeyword(inst,'tireless')) inst.exhaustState = 'exhausted';
+  const atkInsts = attackers
+    .map(id => G.player.battlefield.find(i => i.instId === id))
+    .filter(Boolean);
+
+  if (atkInsts.length === 0) { endCombatPhase(); return; }
+
+  // Exhaust non-Tireless attackers
+  atkInsts.forEach(inst => {
+    if (!hasKeyword(inst,'tireless')) inst.exhaustState = 'exhausted';
   });
-  combatPhase = 'block';
-  log(`You attack with ${attackers.length} creature(s). AI may block.`, 'important');
+
+  combatPhase = 'resolving';
   document.getElementById('btn-attack').style.display = 'none';
 
-  // Auto AI blocking
-  autoAIBlock();
+  log(`⚔ ATTACKING: ${atkInsts.map(i => i.name+'['+getEffectivePower(i)+']').join(', ')}`, 'phase');
+
+  // AI decides blocks
+  blockers = {};
+  const aiAvail = G.ai.battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed' && !i.attacking);
+  const sortedAtk = [...atkInsts].sort((a,b) => getEffectivePower(b)-getEffectivePower(a));
+  let remaining = [...aiAvail];
+
+  sortedAtk.forEach(atk => {
+    if (!remaining.length) return;
+    const blk = remaining.find(b => getEffectivePower(b) >= getEffectivePower(atk)) || remaining[0];
+    if (!blk) return;
+    blockers[blk.instId] = atk.instId;
+    blk.blocking = true;
+    remaining = remaining.filter(b => b.instId !== blk.instId);
+    log(`AI blocks ${atk.name} with ${blk.name}[${getEffectivePower(blk)}].`, '');
+  });
+
   updateUI();
 
   setTimeout(() => {
-    resolvePlayerCombat();
-  }, 800);
-}
+    log('── Damage resolves ──', 'phase');
 
-function autoAIBlock() {
-  blockers = {};
-  const aiCreatures = G.ai.battlefield.filter(i =>
-    i.type === 'Creature' && i.exhaustState === 'renewed' && !i.attacking
-  );
-  const atkInsts = attackers.map(id => G.player.battlefield.find(i => i.instId===id)).filter(Boolean);
+    // Work on a snapshot — destroyCreature mutates battlefield so we snapshot first
+    const blkSnap = { ...blockers };
 
-  // Simple: block strongest attacker with strongest available blocker
-  const sortedAttackers = [...atkInsts].sort((a,b) => getEffectivePower(b)-getEffectivePower(a));
-  let availableBlockers = [...aiCreatures];
+    atkInsts.forEach(atk => {
+      if (!atk) return;
+      const pow = getEffectivePower(atk);
+      const blkEntry = Object.entries(blkSnap).find(([,aid]) => aid === atk.instId);
 
-  sortedAttackers.forEach(atk => {
-    if (availableBlockers.length === 0) return;
-    const blocker = availableBlockers.reduce((best, curr) =>
-      getEffectivePower(curr) <= getEffectivePower(atk) + 1 && getEffectivePower(curr) > (best ? getEffectivePower(best) : -1) ? curr : best
-    , null) || availableBlockers[0];
-
-    if (blocker) {
-      blockers[blocker.instId] = atk.instId;
-      blocker.blocking = true;
-      availableBlockers = availableBlockers.filter(b => b.instId !== blocker.instId);
-      log(`AI blocks ${atk.name} with ${blocker.name}.`, '');
-    }
-  });
-}
-
-function resolvePlayerCombat() {
-  const atkInsts = attackers.map(id => G.player.battlefield.find(i => i.instId===id)).filter(Boolean);
-
-  atkInsts.forEach(atk => {
-    const atkPower = getEffectivePower(atk);
-    const blockerId = Object.keys(blockers).find(bid => blockers[bid] === atk.instId);
-
-    if (blockerId) {
-      const blk = G.ai.battlefield.find(i => i.instId === parseInt(blockerId));
-      if (blk) {
-        const blkPower = getEffectivePower(blk);
-        combatResolution(atk, blk, 'ai');
+      if (blkEntry) {
+        const blkId = parseInt(blkEntry[0]);
+        const blk = G.ai.battlefield.find(i => i.instId === blkId);
+        if (blk) {
+          const bp = getEffectivePower(blk);
+          log(`${atk.name}[${pow}] vs ${blk.name}[${bp}]`, '');
+          if (pow > bp) {
+            removeFromBattlefield(blk, 'ai');
+            log(`→ ${blk.name} destroyed.`, 'damage');
+            if (hasKeyword(atk,'breach')) {
+              const ex = pow - bp;
+              G.ai.life -= ex; updateLifeDisplay('ai');
+              log(`→ Breach! ${ex} damage to AI. AI life: ${G.ai.life}`, 'damage');
+            }
+          } else if (bp > pow) {
+            removeFromBattlefield(atk, 'player');
+            log(`→ ${atk.name} destroyed.`, 'damage');
+          } else {
+            removeFromBattlefield(atk, 'player');
+            removeFromBattlefield(blk, 'ai');
+            log(`→ Both destroyed.`, 'damage');
+          }
+        } else {
+          // Blocker already gone — hit directly
+          G.ai.life -= pow; updateLifeDisplay('ai');
+          log(`${atk.name}[${pow}] hits AI directly → AI life: ${G.ai.life}`, 'damage');
+        }
+      } else {
+        // Unblocked
+        G.ai.life -= pow; updateLifeDisplay('ai');
+        if (atk.keywords.bleed) { G.ai.bleed += atk.keywords.bleed; }
+        if (atk.keywords.siphon) { G.player.life += pow; updateLifeDisplay('player'); }
+        log(`${atk.name}[${pow}] hits AI unblocked → AI life: ${G.ai.life}`, 'damage');
       }
-    } else {
-      // Unblocked hit
-      dealDamageToPlayer('ai', atkPower, atk);
-      log(`${atk.name} deals ${atkPower} to AI.`, 'damage');
-    }
-  });
+    });
 
-  attackers = [];
-  blockers = {};
-  combatPhase = null;
+    // Cleanup
+    attackers = [];
+    blockers = {};
+    combatPhase = null;
+    G.player.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
+    G.ai.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
 
-  G.player.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
-  G.ai.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
+    const btn = document.getElementById('btn-attack');
+    btn.textContent = 'DECLARE ATTACK';
+    btn.onclick = declareAttack;
+    btn.style.display = 'none';
 
-  const attackBtn = document.getElementById('btn-attack');
-  attackBtn.textContent = 'DECLARE ATTACK';
-  attackBtn.onclick = declareAttack;
-  attackBtn.style.display = 'none';
-  updateUI();
-  checkWin();
+    updateUI();
+    updateLifeDisplay('ai');
+    updateLifeDisplay('player');
+    checkWin();
+  }, 900);
+}
+
+// Remove from battlefield without calling updateUI (batch updates)
+function removeFromBattlefield(inst, owner) {
+  const idx = G[owner].battlefield.findIndex(i => i.instId === inst.instId);
+  if (idx !== -1) {
+    G[owner].battlefield.splice(idx, 1);
+    G[owner].discard.push(inst);
+  }
 }
 
 function combatResolution(atk, blk, defendingSide) {
   const atkP = getEffectivePower(atk);
   const blkP = getEffectivePower(blk);
-  log(`${atk.name} (${atkP}) vs ${blk.name} (${blkP})`, '');
-
   const attackingSide = defendingSide === 'ai' ? 'player' : 'ai';
-
+  log(`${atk.name}[${atkP}] vs ${blk.name}[${blkP}]`, '');
   if (atkP > blkP) {
-    destroyCreature(blk, defendingSide);
-    log(`${blk.name} destroyed.`, 'damage');
+    removeFromBattlefield(blk, defendingSide);
+    log(`→ ${blk.name} destroyed.`, 'damage');
     if (hasKeyword(atk,'breach')) {
-      const excess = atkP - blkP;
-      dealDamageToPlayer(defendingSide, excess, atk);
-      log(`Breach: ${excess} damage to ${defendingSide}.`, 'damage');
+      const ex = atkP - blkP;
+      G[defendingSide].life -= ex;
+      log(`→ Breach: ${ex} damage to ${defendingSide}.`, 'damage');
     }
   } else if (blkP > atkP) {
-    destroyCreature(atk, attackingSide);
-    log(`${atk.name} destroyed.`, 'damage');
+    removeFromBattlefield(atk, attackingSide);
+    log(`→ ${atk.name} destroyed.`, 'damage');
   } else {
-    destroyCreature(atk, attackingSide);
-    destroyCreature(blk, defendingSide);
-    log(`Both ${atk.name} and ${blk.name} destroyed.`, 'damage');
+    removeFromBattlefield(atk, attackingSide);
+    removeFromBattlefield(blk, defendingSide);
+    log(`→ Both destroyed.`, 'damage');
   }
 }
 
 function resolveCombat(atkInsts, blkMap, defendingSide) {
+  const blkSnap = { ...blkMap };
   atkInsts.forEach(atk => {
-    const atkPower = getEffectivePower(atk);
-    const blockerId = Object.keys(blkMap).find(bid => blkMap[bid] === atk.instId);
-    if (blockerId) {
-      const blk = G[defendingSide].battlefield.find(i => i.instId === parseInt(blockerId));
+    const pow = getEffectivePower(atk);
+    const blkEntry = Object.entries(blkSnap).find(([,aid]) => aid === atk.instId);
+    if (blkEntry) {
+      const blk = G[defendingSide].battlefield.find(i => i.instId === parseInt(blkEntry[0]));
       if (blk) combatResolution(atk, blk, defendingSide);
+      else { G[defendingSide].life -= pow; updateLifeDisplay(defendingSide); }
     } else {
-      dealDamageToPlayer(defendingSide, atkPower, atk);
-      log(`${atk.name} deals ${atkPower} damage.`, 'damage');
+      G[defendingSide].life -= pow;
+      log(`${atk.name}[${pow}] hits ${defendingSide} directly.`, 'damage');
     }
+    atk.attacking = false;
   });
-  atkInsts.forEach(inst => { inst.attacking = false; });
   updateUI();
+  updateLifeDisplay(defendingSide);
   checkWin();
 }
 
 function dealDamageToPlayer(who, amount, source) {
+  if (amount <= 0) return;
   G[who].life -= amount;
   updateLifeDisplay(who);
-  const kw = parseKeywords(source.abilities);
-  if (kw.bleed) {
-    G[who].bleed += kw.bleed;
-    log(`+${kw.bleed} Bleed counters to ${who}.`, 'bleed');
-  }
-  if (kw.siphon) {
-    const src = source.owner;
-    G[src].life += amount;
-    log(`Siphon: ${source.owner} gains ${amount} life.`, 'heal');
-    updateLifeDisplay(src);
-  }
+  const kw = parseKeywords(source.abilities || '');
+  if (kw.bleed) { G[who].bleed += kw.bleed; updateLifeDisplay(who); log(`+${kw.bleed} Bleed on ${who}.`, 'bleed'); }
+  if (kw.siphon) { G[source.owner].life += amount; updateLifeDisplay(source.owner); log(`Siphon: +${amount} life.`, 'heal'); }
 }
 
 function destroyCreature(inst, owner) {
-  G[owner].battlefield = G[owner].battlefield.filter(i => i.instId !== inst.instId);
-  G[owner].discard.push(inst);
+  removeFromBattlefield(inst, owner);
   updateUI();
 }
 
@@ -1531,13 +1547,16 @@ function endCombatPhase() {
   combatPhase = null;
   G.player.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
   G.ai.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
-  document.getElementById('btn-attack').style.display = 'none';
+  const btn = document.getElementById('btn-attack');
+  btn.textContent = 'DECLARE ATTACK';
+  btn.onclick = declareAttack;
+  btn.style.display = 'none';
   document.getElementById('btn-end-combat').style.display = 'none';
   setPhase('postbattle');
   updateUI();
 }
 
-// ── PLAYING CARDS ─────────────────────────────────────────────
+
 function playSelectedCard() {
   if (!selectedCardId) { log('Select a card from your hand first.'); return; }
   const inst = G.player.hand.find(i => i.instId === selectedCardId);
@@ -1814,10 +1833,11 @@ function handleCardClick(inst, who) {
     return;
   }
 
-  // Hand card click — select/deselect or instant-play if already selected
-  if (who === 'player' && G.player.hand.find(i => i.instId === inst.instId)) {
+  // Is this card in the player's HAND?
+  const inHand = who === 'player' && G.player.hand.some(i => i.instId === inst.instId);
+
+  if (inHand) {
     if (selectedCardId === inst.instId) {
-      // Second click = play it
       playCard(inst);
     } else {
       selectedCardId = inst.instId;
@@ -1826,7 +1846,7 @@ function handleCardClick(inst, who) {
     return;
   }
 
-  // Battlefield clicks
+  // Battlefield card
   if (who === 'player' && G.activePlayer === 'player') {
     if (inst.type === 'Land') {
       tapLandForMana(inst);
@@ -1869,7 +1889,7 @@ function renderHand(who) {
       e.stopPropagation();
       handleCardClick(inst, who);
     };
-    card.onmouseenter = () => showCardDetail(inst);
+    card.onmouseenter = () => showCardDetail(inst, card);
     card.onmouseleave = () => hideCardDetail();
     el.appendChild(card);
   });
@@ -2143,11 +2163,8 @@ function applyExhaustClasses(card, inst) {
 }
 
 function addCardHandlers(card, inst, who) {
-  card.onclick = (e) => {
-    e.stopPropagation();
-    handleCardClick(inst, who);
-  };
-  card.onmouseenter = () => showCardDetail(inst);
+  card.onclick = (e) => { e.stopPropagation(); handleCardClick(inst, who); };
+  card.onmouseenter = () => showCardDetail(inst, card);
   card.onmouseleave = () => hideCardDetail();
 }
 
@@ -2269,7 +2286,7 @@ const KW_STYLES = {
   bleed:   { label:'Bleed',     bg:'rgba(220,30,50,0.85)',  color:'#fff' },
 };
 
-function showCardDetail(inst) {
+function showCardDetail(inst, triggerEl) {
   const el = document.getElementById('card-preview');
   const base = CARD_MAP[inst.cardId] || inst;
   const color = COLOR_HEX[inst.color] || '#888';
@@ -2284,14 +2301,12 @@ function showCardDetail(inst) {
   const powerEl = document.getElementById('cp-power-line');
   if (inst.type === 'Creature' && inst.power !== null) {
     const eff = getEffectivePower(inst);
-    const base = inst.power;
-    powerEl.textContent = eff !== base ? `Power: ${eff} (base ${base})` : `Power: ${eff}`;
+    powerEl.textContent = eff !== inst.power ? `Power: ${eff} (base ${inst.power})` : `Power: ${eff}`;
     powerEl.style.display = 'block';
   } else {
     powerEl.style.display = 'none';
   }
 
-  // Keyword badges
   const kwEl = document.getElementById('cp-keywords');
   kwEl.innerHTML = '';
   const kw = inst.keywords || {};
@@ -2307,8 +2322,24 @@ function showCardDetail(inst) {
   });
 
   document.getElementById('cp-abilities').textContent = inst.abilities || '—';
-  document.getElementById('cp-flavor').textContent = base.flavor || '';
-  document.getElementById('cp-flavor').style.display = base.flavor ? 'block' : 'none';
+  const flavorEl = document.getElementById('cp-flavor');
+  flavorEl.textContent = base.flavor || '';
+  flavorEl.style.display = base.flavor ? 'block' : 'none';
+
+  // Position above the trigger element
+  if (triggerEl) {
+    const rect = triggerEl.getBoundingClientRect();
+    const previewH = 420; // approximate
+    const previewW = 230;
+    let top = rect.top - previewH - 8;
+    let left = rect.left + (rect.width / 2) - (previewW / 2);
+    // Keep within viewport
+    if (top < 8) top = rect.bottom + 8;
+    if (left < 8) left = 8;
+    if (left + previewW > window.innerWidth - 8) left = window.innerWidth - previewW - 8;
+    el.style.top = top + 'px';
+    el.style.left = left + 'px';
+  }
 
   el.classList.add('visible');
 }
