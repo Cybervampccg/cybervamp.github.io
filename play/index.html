@@ -480,24 +480,49 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 #faction-chooser {
   position: fixed; inset: 0; background: var(--bg-deep);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 32px; z-index: 1000;
+  gap: 28px; z-index: 1000;
 }
 .chooser-title { font-family: 'Cinzel Decorative', serif; font-size: 32px; color: var(--red); letter-spacing: 4px; }
 .chooser-subtitle { font-size: 14px; color: var(--text-mid); letter-spacing: 2px; }
-.faction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.faction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+/* Banner-style faction button */
 .faction-btn {
-  padding: 24px 40px; border-radius: 6px; cursor: pointer;
-  font-family: 'Cinzel Decorative', serif; font-size: 18px; font-weight: 700;
-  border: 2px solid; transition: all 0.2s ease; text-align: center; min-width: 180px;
+  position: relative; width: 200px; height: 120px;
+  border-radius: 8px; overflow: hidden; cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
-.faction-btn.red { border-color: var(--red); color: var(--red); background: var(--red-glow); }
-.faction-btn.red:hover { background: rgba(224,48,48,0.35); box-shadow: 0 0 20px var(--red-glow); }
-.faction-btn.white { border-color: var(--white-c); color: var(--white-c); background: var(--white-glow); }
-.faction-btn.white:hover { background: rgba(200,192,240,0.35); box-shadow: 0 0 20px var(--white-glow); }
-.faction-btn.black { border-color: var(--black-c); color: var(--black-c); background: var(--black-glow); }
-.faction-btn.black:hover { background: rgba(96,48,192,0.35); box-shadow: 0 0 20px var(--black-glow); }
-.faction-btn.purple { border-color: var(--purple); color: var(--purple); background: var(--purple-glow); }
-.faction-btn.purple:hover { background: rgba(160,32,240,0.35); box-shadow: 0 0 20px var(--purple-glow); }
+.faction-btn img.fb-banner {
+  width: 100%; height: 100%; object-fit: cover; object-position: center;
+  display: block;
+}
+.faction-btn .fb-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+  transition: background 0.18s ease;
+}
+.faction-btn .fb-name {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 20px; font-weight: 700; color: #fff;
+  letter-spacing: 2px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+}
+.faction-btn .fb-sub {
+  font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+  color: rgba(255,255,255,0.65);
+}
+.faction-btn.red   { border-color: rgba(224,48,48,0.5); }
+.faction-btn.white { border-color: rgba(200,192,240,0.5); }
+.faction-btn.black { border-color: rgba(96,48,192,0.5); }
+.faction-btn.purple{ border-color: rgba(160,32,240,0.5); }
+.faction-btn.red:hover    { transform: scale(1.06); box-shadow: 0 0 28px rgba(224,48,48,0.6);    border-color: var(--red); }
+.faction-btn.white:hover  { transform: scale(1.06); box-shadow: 0 0 28px rgba(200,192,240,0.6);  border-color: var(--white-c); }
+.faction-btn.black:hover  { transform: scale(1.06); box-shadow: 0 0 28px rgba(96,48,192,0.6);    border-color: var(--black-c); }
+.faction-btn.purple:hover { transform: scale(1.06); box-shadow: 0 0 28px rgba(160,32,240,0.6);   border-color: var(--purple); }
+.faction-btn:hover .fb-overlay { background: rgba(0,0,0,0.25); }
 
 /* toggles */
 #log-toggle {
@@ -512,16 +537,28 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 <!-- FACTION CHOOSER SCREEN -->
 <div id="faction-chooser">
-  <div class="chooser-title">CYBERVAMP</div>
+  <div class="chooser-title">CYBERVAMP CCG</div>
   <div class="chooser-subtitle">CHOOSE YOUR FACTION</div>
   <div class="faction-grid">
-    <div class="faction-btn red" onclick="startGame('Red')">⚡ RED</div>
-    <div class="faction-btn white" onclick="startGame('White')">🏛 WHITE</div>
-    <div class="faction-btn black" onclick="startGame('Black')">🐺 BLACK</div>
-    <div class="faction-btn purple" onclick="startGame('Purple')">🔮 PURPLE</div>
+    <div class="faction-btn red" onclick="startGame('Red')">
+      <img class="fb-banner" src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/red_banner.png?raw=true" alt="Red">
+      <div class="fb-overlay"><span class="fb-name">RED</span><span class="fb-sub">Aggression &amp; Bleed</span></div>
+    </div>
+    <div class="faction-btn white" onclick="startGame('White')">
+      <img class="fb-banner" src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/white_banner.png?raw=true" alt="White">
+      <div class="fb-overlay"><span class="fb-name">WHITE</span><span class="fb-sub">Relics &amp; Defense</span></div>
+    </div>
+    <div class="faction-btn black" onclick="startGame('Black')">
+      <img class="fb-banner" src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/black_banner.png?raw=true" alt="Black">
+      <div class="fb-overlay"><span class="fb-name">BLACK</span><span class="fb-sub">Tokens &amp; Swarm</span></div>
+    </div>
+    <div class="faction-btn purple" onclick="startGame('Purple')">
+      <img class="fb-banner" src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/purple_banner.png?raw=true" alt="Purple">
+      <div class="fb-overlay"><span class="fb-name">PURPLE</span><span class="fb-sub">Control &amp; Glimpse</span></div>
+    </div>
   </div>
-  <div style="font-size:11px;color:var(--text-dim);text-align:center;max-width:400px;line-height:1.6;">
-    You play against the AI. Use pre-built decks to learn the system.<br>Deckbuilder coming in a future update.
+  <div style="font-size:11px;color:var(--text-dim);text-align:center;max-width:440px;line-height:1.6;">
+    Solo vs AI — deckbuilder coming soon
   </div>
 </div>
 
@@ -637,7 +674,6 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
   <!-- ACTION BAR -->
   <div id="action-bar">
-    <button class="btn btn-muted" id="btn-mulligan" onclick="doMulligan()">MULLIGAN</button>
     <button class="btn btn-primary" id="btn-play-card" onclick="playSelectedCard()">PLAY CARD</button>
     <button class="btn btn-danger" id="btn-attack" style="display:none">DECLARE ATTACK</button>
     <button class="btn btn-muted" id="btn-end-combat" onclick="endCombatPhase()" style="display:none">END COMBAT</button>
@@ -902,7 +938,7 @@ function bgmPlay() {
   if (sfxMuted) return;
   _initBGM();
   if (_bgm.paused) {
-    _bgm.play().catch(() => {}); // autoplay policy — silently fail until user interacts
+    _bgm.play().catch(() => {});
   }
 }
 
@@ -914,21 +950,30 @@ function bgmFadeIn(duration = 2000) {
   if (sfxMuted) return;
   _initBGM();
   _bgm.volume = 0;
-  _bgm.play().catch(() => {});
-  const step = 0.35 / (duration / 50);
-  const fade = setInterval(() => {
-    if (_bgm.volume < 0.35) {
-      _bgm.volume = Math.min(0.35, _bgm.volume + step);
-    } else {
-      clearInterval(fade);
-    }
-  }, 50);
+  const playPromise = _bgm.play();
+  if (playPromise) {
+    playPromise.then(() => {
+      // Successfully started — fade in
+      const step = 0.35 / (duration / 50);
+      const fade = setInterval(() => {
+        if (!_bgm) { clearInterval(fade); return; }
+        if (_bgm.volume < 0.35) {
+          _bgm.volume = Math.min(0.35, _bgm.volume + step);
+        } else {
+          clearInterval(fade);
+        }
+      }, 50);
+    }).catch(() => {
+      // Autoplay blocked — will start on next user interaction
+      _bgmStarted = false;
+    });
+  }
 }
 
 // Preload all sounds as soon as the page loads
 window.addEventListener('load', () => {
   Object.keys(SOUNDS).forEach(k => _getAudio(k));
-  _initBGM(); // preload BGM too
+  _initBGM();
 });
 
 function shuffle(arr) {
@@ -1082,87 +1127,69 @@ function startGame(faction) {
   for (let i=0; i<3; i++) drawFromDeck('ai','land');
   for (let i=0; i<4; i++) drawFromDeck('ai','main');
 
-  // Set faction banners
+  // Set faction banners on info strips
   setBanners(faction, aiFaction);
 
-  // Start background music (fade in — faction click = valid user gesture)
+  // Start background music — faction click is a valid user gesture
   bgmFadeIn(3000);
 
-  // Player draws opening hand interactively
+  // Draw player's opening 7 cards, then offer mulligan
   setPhase('prebattle');
-  updateUI();
   log('⚔ New Game: ' + faction + ' vs ' + aiFaction, 'phase');
   showOpeningDraw();
 }
 
 function showOpeningDraw() {
-  let drawn = 0;
-  const total = 7;
-
-  function promptNext() {
-    if (drawn >= total) {
-      // Done — check mulligan offer
-      updateUI();
-      log('Opening hand drawn. You may Mulligan once (costs 1 life) or proceed.', 'important');
-      showBanner('YOUR TURN');
-      return;
+  // Auto-draw all 7 cards, choosing smartly from either deck
+  // ~3 lands first then main (mirroring AI logic for a balanced hand)
+  const player = G.player;
+  let landsDrawn = 0;
+  for (let i = 0; i < 7; i++) {
+    const wantLand = landsDrawn < 3 && player.land.length > 0;
+    if (wantLand) {
+      drawFromDeck('player', 'land');
+      landsDrawn++;
+    } else if (player.main.length > 0) {
+      drawFromDeck('player', 'main');
+    } else if (player.land.length > 0) {
+      drawFromDeck('player', 'land');
+      landsDrawn++;
     }
-
-    const remaining = total - drawn;
-    const mainCount = G.player.main.length;
-    const landCount = G.player.land.length;
-
-    // If one deck is empty, auto-draw from the other
-    if (mainCount === 0 && landCount === 0) {
-      updateUI();
-      showBanner('YOUR TURN');
-      return;
-    }
-    if (mainCount === 0) {
-      drawFromDeck('player','land');
-      drawn++;
-      updateUI();
-      promptNext();
-      return;
-    }
-    if (landCount === 0) {
-      drawFromDeck('player','main');
-      drawn++;
-      updateUI();
-      promptNext();
-      return;
-    }
-
-    // Show the current hand as context before the modal
-    updateUI();
-
-    showModal(
-      `OPENING HAND — CARD ${drawn + 1} OF ${total}`,
-      `Choose which deck to draw from.\nMain Deck: ${mainCount} cards  |  Land Deck: ${landCount} cards\n\nTip: A good opening hand has 3–4 lands.`,
-      [
-        {
-          label: `MAIN DECK (${mainCount})`,
-          cls: 'btn-primary',
-          action: () => {
-            drawFromDeck('player','main');
-            drawn++;
-            promptNext();
-          }
-        },
-        {
-          label: `LAND DECK (${landCount})`,
-          cls: 'btn-secondary',
-          action: () => {
-            drawFromDeck('player','land');
-            drawn++;
-            promptNext();
-          }
-        }
-      ]
-    );
   }
 
-  promptNext();
+  updateUI();
+
+  // Show the hand then offer keep / mulligan
+  offerMulligan();
+}
+
+function offerMulligan() {
+  const player = G.player;
+  const landCount = player.hand.filter(i => i.type === 'Land').length;
+  const handNames = player.hand.map(i => `• ${i.name}`).join('\n');
+
+  showModal(
+    'OPENING HAND',
+    `Your 7-card opening hand:\n${handNames}\n\nLands: ${landCount} / 7\n\nKeep this hand or take a Vampiric Mulligan?\n(Mulligan costs 1 life, shuffles back, draws 7 new cards)`,
+    [
+      {
+        label: 'KEEP HAND',
+        cls: 'btn-primary',
+        action: () => {
+          log('Opening hand kept.', 'important');
+          showBanner('YOUR TURN');
+        }
+      },
+      {
+        label: mulliganUsed.player ? 'MULLIGAN USED' : 'VAMPIRIC MULLIGAN (−1 life)',
+        cls: mulliganUsed.player ? 'btn-muted' : 'btn-danger',
+        action: () => {
+          if (mulliganUsed.player) { log('Mulligan already used.', ''); return; }
+          doMulligan();
+        }
+      }
+    ]
+  );
 }
 
 function drawCard(who) {
@@ -2890,9 +2917,9 @@ function showWinLoss(playerWon, reason) {
 }
 
 function doMulligan() {
-  if (G.turn > 1 || mulliganUsed.player) { log('Mulligan already used or unavailable.'); return; }
+  if (G.turn > 1 || mulliganUsed.player) { log('Mulligan already used.'); return; }
   const player = G.player;
-  // Return hand to decks
+  // Return hand cards to their decks
   player.hand.forEach(inst => {
     if (inst.type === 'Land') player.land.unshift(inst.cardId);
     else player.main.unshift(inst.cardId);
@@ -2902,9 +2929,9 @@ function doMulligan() {
   player.land = shuffle(player.land);
   player.life -= 1;
   mulliganUsed.player = true;
-  document.getElementById('btn-mulligan').disabled = true;
   updateLifeDisplay('player');
-  log('Vampiric Mulligan used. Lost 1 life. Draw your new 7-card hand.', 'bleed');
+  log('Vampiric Mulligan — lost 1 life. Drawing new hand…', 'bleed');
+  // Draw a fresh 7 and offer keep/mulligan again (no second mulligan available)
   showOpeningDraw();
 }
 
