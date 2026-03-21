@@ -572,6 +572,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
     <button class="btn btn-primary" id="btn-next-phase" onclick="nextPhase()">NEXT PHASE →</button>
   </div>
 
+  <!-- ACTION OVERLAY — shown during AI combat blocking & response windows -->
+  <div id="action-overlay" style="display:none;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:7px 16px;background:rgba(0,80,140,0.18);border-top:1px solid rgba(48,160,224,0.4);flex-shrink:0;"></div>
+
 </div>
 
 <!-- PANELS & OVERLAYS -->
@@ -1310,48 +1313,182 @@ function aiFactionColor() {
   return map[G.aiFaction] || 'G';
 }
 
+// Player blocker assignments during AI attack
+let playerBlockers  = {};   // blockerInstId → attackerInstId
+let playerBlockTarget = null; // attackerInstId currently waiting for a blocker
+let _blockResolve   = null;
+let _responseResolve = null;
+
 async function aiDeclareAttack() {
   const ai = G.ai;
   const attackCandidates = ai.battlefield.filter(inst =>
-    inst.type === 'Creature' &&
-    !inst.newlyTurned &&
-    inst.exhaustState === 'renewed' &&
-    !hasKeyword(inst,'wall')
+    inst.type === 'Creature' && !inst.newlyTurned &&
+    inst.exhaustState === 'renewed' && !hasKeyword(inst,'wall')
   );
-
   if (attackCandidates.length === 0) return;
 
-  const playerCreatures = G.player.battlefield.filter(i => i.type==='Creature');
-  const totalPlayerBlock = playerCreatures.reduce((s,c) => s + (c.power||0), 0);
-
-  // AI attacks if it has power advantage or player life is low
-  const aiTotalPower = attackCandidates.reduce((s,c) => s + getEffectivePower(c), 0);
-  const shouldAttack = G.player.life <= 8 || aiTotalPower > totalPlayerBlock + 2 || attackCandidates.length >= 2;
-
+  const playerPower = G.player.battlefield.filter(i=>i.type==='Creature').reduce((s,c)=>s+getEffectivePower(c),0);
+  const aiPower    = attackCandidates.reduce((s,c)=>s+getEffectivePower(c),0);
+  const shouldAttack = G.player.life <= 10 || aiPower > playerPower + 1 || attackCandidates.length >= 2;
   if (!shouldAttack) return;
 
-  const myAttackers = attackCandidates.slice(0, Math.min(attackCandidates.length, 4));
+  const myAttackers = attackCandidates.slice(0, Math.min(attackCandidates.length, 5));
   myAttackers.forEach(inst => {
     inst.attacking = true;
-    if (!hasKeyword(inst, 'tireless')) inst.exhaustState = 'exhausted';
+    if (!hasKeyword(inst,'tireless')) inst.exhaustState = 'exhausted';
   });
+  log(`⚔ AI attacks with: ${myAttackers.map(i=>i.name+'['+getEffectivePower(i)+']').join(', ')}`, 'important');
+  log('Assign blockers by clicking an AI attacker then your creature. Cast spells freely.', 'important');
 
-  log(`AI declares ${myAttackers.length} attacker(s): ${myAttackers.map(i=>i.name).join(', ')}`, 'important');
+  // ── BLOCKING WINDOW ──────────────────────────────────────────
+  combatPhase = 'player-block';
+  playerBlockers = {};
+  playerBlockTarget = null;
+  showActionOverlay('block');
   updateUI();
-  await delay(600);
+  await new Promise(resolve => { _blockResolve = resolve; });
 
-  // Player blocking (auto-block for AI opponent, player controls their own)
-  // For now: player must click to block manually if they wish
-  // AI's creatures don't block here (they're attacking) — the PLAYER's creatures block
+  // ── RESPONSE WINDOW ──────────────────────────────────────────
+  combatPhase = 'response';
+  log('⚡ Response window — cast spells before damage or click RESOLVE COMBAT.', 'important');
+  showActionOverlay('response');
+  updateUI();
+  await new Promise(resolve => { _responseResolve = resolve; });
 
-  // Simplified: give player a moment then resolve
-  await delay(400);
-
-  // Resolve combat
-  resolveCombat(myAttackers, {}, 'player');
+  // ── RESOLVE ──────────────────────────────────────────────────
+  combatPhase = 'resolving';
+  hideActionOverlay();
+  log('── AI combat resolves ──', 'phase');
+  resolveCombat(myAttackers, playerBlockers, 'player');
+  myAttackers.forEach(i => { i.attacking = false; });
+  G.player.battlefield.forEach(i => { i.blocking = false; });
+  playerBlockers = {};
+  playerBlockTarget = null;
+  combatPhase = null;
+  updateUI();
 }
 
-// ── COMBAT SYSTEM ─────────────────────────────────────────────
+// ── ACTION OVERLAY (blocking / response windows) ──────────────
+function showActionOverlay(mode) {
+  const el = document.getElementById('action-overlay');
+  if (mode === 'block') {
+    el.innerHTML = `
+      <span style="font-size:11px;color:#30e0ff;letter-spacing:1px;">
+        Click AI attacker → your creature to block. Cast spells freely.
+      </span>
+      <button class="btn btn-secondary" onclick="confirmBlocking()">DONE BLOCKING</button>
+      <button class="btn btn-muted" onclick="openSpellCaster()">CAST SPELL</button>
+    `;
+  } else {
+    el.innerHTML = `
+      <span style="font-size:11px;color:var(--gold);letter-spacing:1px;">
+        ⚡ Response — cast spells before damage resolves.
+      </span>
+      <button class="btn btn-primary" onclick="confirmResponse()">RESOLVE COMBAT</button>
+      <button class="btn btn-muted" onclick="openSpellCaster()">CAST SPELL</button>
+    `;
+  }
+  el.style.display = 'flex';
+}
+
+function hideActionOverlay() {
+  const el = document.getElementById('action-overlay');
+  el.innerHTML = '';
+  el.style.display = 'none';
+}
+
+function confirmBlocking() {
+  // Log block summary
+  const entries = Object.entries(playerBlockers);
+  if (entries.length > 0) {
+    entries.forEach(([blkId, atkId]) => {
+      const blk = G.player.battlefield.find(i => i.instId === parseInt(blkId));
+      const atk = G.ai.battlefield.find(i => i.instId === atkId);
+      if (blk && atk) log(`  ${blk.name} blocks ${atk.name}.`, '');
+    });
+  } else {
+    log('No blocks declared.', '');
+  }
+  playerBlockTarget = null;
+  if (_blockResolve) { _blockResolve(); _blockResolve = null; }
+}
+
+function confirmResponse() {
+  if (_responseResolve) { _responseResolve(); _responseResolve = null; }
+}
+
+function openSpellCaster() {
+  const spells = G.player.hand.filter(i => i.type === 'Spell');
+  if (spells.length === 0) { log('No spells in hand.', ''); return; }
+  showModal(
+    'CAST SPELL',
+    'Choose a spell:',
+    [
+      ...spells.map(sp => ({
+        label: `${sp.name} (${sp.cost || 'free'})`,
+        cls: 'btn-secondary',
+        action: () => {
+          autoTapForCost('player', sp.cost);
+          if (!canPayCost('player', sp.cost)) { log(`Not enough mana for ${sp.name}.`, ''); return; }
+          payCost('player', sp.cost);
+          G.player.hand = G.player.hand.filter(i => i.instId !== sp.instId);
+          castSpellWithTargeting(sp, 'player', () => {
+            G.player.discard.push(sp);
+            log(`You cast ${sp.name}.`, 'important');
+          });
+        }
+      })),
+      { label: 'CANCEL', cls: 'btn-muted', action: () => {} }
+    ]
+  );
+}
+
+// ── BLOCKING CLICK HANDLER ────────────────────────────────────
+function handleBlockingClick(inst, who) {
+  if (combatPhase !== 'player-block') return;
+
+  // Click an AI attacker → mark it as block target
+  if (who === 'ai' && inst.attacking) {
+    playerBlockTarget = inst.instId;
+    log(`Select a blocker for ${inst.name}[${getEffectivePower(inst)}].`, 'important');
+    updateUI();
+    return;
+  }
+
+  // Click own creature → assign as blocker for selected attacker
+  if (who === 'player' && inst.type === 'Creature' && playerBlockTarget !== null) {
+    if (inst.exhaustState !== 'renewed') { log(`${inst.name} is exhausted.`, ''); return; }
+    if (inst.attacking) { log(`${inst.name} is attacking.`, ''); return; }
+
+    // Toggle off if already blocking this attacker
+    if (playerBlockers[inst.instId] === playerBlockTarget) {
+      delete playerBlockers[inst.instId];
+      inst.blocking = false;
+      log(`${inst.name} unassigned.`, '');
+      playerBlockTarget = null;
+      updateUI();
+      return;
+    }
+
+    playerBlockers[inst.instId] = playerBlockTarget;
+    inst.blocking = true;
+    const atk = G.ai.battlefield.find(i => i.instId === playerBlockTarget);
+    log(`${inst.name}[${getEffectivePower(inst)}] → blocks ${atk?.name||'?'}[${atk?getEffectivePower(atk):'?'}].`, 'important');
+    playerBlockTarget = null;
+    updateUI();
+    return;
+  }
+
+  // Click own creature with no target selected → un-block it
+  if (who === 'player' && inst.type === 'Creature' && playerBlockers[inst.instId]) {
+    delete playerBlockers[inst.instId];
+    inst.blocking = false;
+    log(`${inst.name} removed from blocks.`, '');
+    updateUI();
+  }
+}
+
+
 
 function declareAttack() {
   if (G.phase !== 'battle') { log('Not in battle phase.',''); return; }
@@ -1904,42 +2041,34 @@ function resolveTarget(inst, owner) {
 
 // ── UNIFIED CARD CLICK HANDLER ────────────────────────────────
 function handleCardClick(inst, who) {
-  // If targeting mode: resolve target
+  // Targeting mode takes priority
   if (targetingState.active) {
-    if (isValidTarget(inst, who)) {
-      resolveTarget(inst, who);
-    } else {
-      log('Not a valid target.', '');
-    }
+    if (isValidTarget(inst, who)) resolveTarget(inst, who);
+    else log('Not a valid target.', '');
     return;
   }
 
-  // Is this card in the player's HAND?
+  // Blocking window — route all clicks to blocking handler
+  if (combatPhase === 'player-block') {
+    handleBlockingClick(inst, who);
+    return;
+  }
+
+  // Hand card — select or instant-play
   const inHand = who === 'player' && G.player.hand.some(i => i.instId === inst.instId);
-
   if (inHand) {
-    if (selectedCardId === inst.instId) {
-      playCard(inst);
-    } else {
-      selectedCardId = inst.instId;
-      updateUI();
-    }
+    if (selectedCardId === inst.instId) playCard(inst);
+    else { selectedCardId = inst.instId; updateUI(); }
     return;
   }
 
-  // Battlefield card
+  // Battlefield — player's own cards
   if (who === 'player' && G.activePlayer === 'player') {
-    if (inst.type === 'Land') {
-      tapLandForMana(inst);
-      return;
-    }
+    if (inst.type === 'Land') { tapLandForMana(inst); return; }
     if (G.phase === 'battle' && combatPhase === 'declare' && inst.type === 'Creature') {
-      toggleAttacker(inst);
-      return;
+      toggleAttacker(inst); return;
     }
-    if (['prebattle','postbattle'].includes(G.phase)) {
-      tryActivateAbility(inst);
-    }
+    if (['prebattle','postbattle'].includes(G.phase)) tryActivateAbility(inst);
   }
 }
 
@@ -2425,11 +2554,28 @@ function renderSide(who) {
     if (inst.newlyTurned) card.classList.add('newly-turned');
     if (inst.attacking) card.classList.add('attacking');
     if (inst.blocking) card.classList.add('blocking');
+
+    // Player's attack declaration highlight
     if (who === 'player' && combatPhase === 'declare' &&
         !inst.newlyTurned && inst.exhaustState === 'renewed' && !hasKeyword(inst,'wall')) {
       card.classList.add('attackable');
     }
+
+    // During player-block phase:
+    // AI attackers glow red (clickable to select as block target)
+    if (combatPhase === 'player-block' && who === 'ai' && inst.attacking) {
+      card.classList.add('attackable');
+      if (playerBlockTarget === inst.instId) card.classList.add('selected');
+    }
+    // Player creatures that can block glow blue
+    if (combatPhase === 'player-block' && who === 'player' &&
+        inst.type === 'Creature' && inst.exhaustState === 'renewed' && !inst.attacking) {
+      card.classList.add('blockable');
+    }
+
+    // Spell targeting highlight
     if (targetingState.active && isValidTarget(inst, who)) card.classList.add('blockable');
+
     addCardHandlers(card, inst, who);
     creatGroup.appendChild(card);
   });
