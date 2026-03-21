@@ -58,92 +58,130 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 /* ── MAIN ARENA ── */
 #arena {
-  display: grid;
-  grid-template-rows: 1fr auto auto auto auto 1fr;
-  grid-template-columns: 64px 1fr 64px;
+  display: flex; flex-direction: column;
   flex: 1; overflow: hidden; gap: 0;
-  padding: 4px;
 }
 
 /* ── HAND AREAS ── */
 .hand-zone {
-  display: flex; align-items: center; justify-content: center;
-  gap: 4px; padding: 6px; overflow-x: auto; overflow-y: hidden;
-  min-height: 130px; max-height: 150px;
-  background: rgba(0,0,0,0.2);
-  border-radius: 6px; scrollbar-width: thin;
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 6px; padding: 4px 8px; overflow-x: auto; overflow-y: visible;
+  min-height: 128px; max-height: 148px;
+  background: rgba(0,0,0,0.15);
+  scrollbar-width: thin; position: relative; z-index: 10;
 }
-#hand-ai { grid-row: 1; grid-column: 1 / 4; filter: brightness(0.4); cursor: default; }
-#hand-player { grid-row: 6; grid-column: 1 / 4; }
+#hand-ai { filter: brightness(0.4); cursor: default; align-items: flex-start; }
 
-/* AI info strip */
-#ai-info-strip {
-  grid-row: 2; grid-column: 1 / 4; 
+/* Player info strips */
+#ai-info-strip, #player-info-strip {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 4px 12px; background: rgba(96,48,192,0.08);
-  border-top: 1px solid var(--border-dim); border-bottom: 1px solid var(--border-dim);
+  padding: 3px 12px; flex-shrink: 0;
 }
-#player-info-strip {
-  grid-row: 5; grid-column: 1 / 4;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 4px 12px; background: rgba(224,48,48,0.06);
-  border-top: 1px solid var(--border-dim); border-bottom: 1px solid var(--border-dim);
-}
+#ai-info-strip { background: rgba(96,48,192,0.08); border-bottom: 1px solid var(--border-dim); }
+#player-info-strip { background: rgba(224,48,48,0.06); border-top: 1px solid var(--border-dim); }
 
-.player-stats { display: flex; align-items: center; gap: 16px; }
-.stat-block { display: flex; align-items: center; gap: 6px; font-size: 13px; }
-.stat-icon { font-size: 16px; }
-.stat-val { font-family: 'Share Tech Mono', monospace; font-size: 15px; font-weight: 600; }
+.player-stats { display: flex; align-items: center; gap: 14px; }
+.stat-block { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+.stat-icon { font-size: 14px; }
+.stat-val { font-family: 'Share Tech Mono', monospace; font-size: 14px; font-weight: 600; }
 .life-val { color: var(--life-green); }
 .bleed-val { color: var(--bleed-red); }
 .deck-val { color: var(--text-mid); }
 
-/* ── BATTLEFIELD ZONES ── */
-.bf-zone {
-  display: flex; flex-direction: column;
-  gap: 4px; padding: 6px; min-height: 120px;
-  border-radius: 4px;
-  overflow-y: auto; scrollbar-width: thin;
-}
-#bf-ai { 
-  grid-row: 3; grid-column: 1 / 4; 
-  background: rgba(96,48,192,0.04);
-  border-bottom: 1px solid var(--border-dim);
-  flex-direction: row; flex-wrap: wrap; min-height: 110px; max-height: 130px;
-}
-#bf-player { 
-  grid-row: 4; grid-column: 1 / 4; 
-  background: rgba(224,48,48,0.04);
-  border-top: 1px solid var(--border-dim);
-  flex-direction: row; flex-wrap: wrap; min-height: 110px; max-height: 130px;
+/* ── BATTLEFIELD WRAPPER ── */
+#bf-wrapper {
+  flex: 1; display: flex; flex-direction: column;
+  overflow: hidden; min-height: 0;
 }
 
-.bf-label {
-  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--text-dim); align-self: flex-start;
+/* Each side = half the battlefield */
+.side-zone {
+  flex: 1; display: flex; flex-direction: column;
+  min-height: 0; overflow: hidden; padding: 2px 6px;
+  position: relative;
 }
+#side-ai { border-bottom: 2px solid var(--border-dim); background: rgba(96,48,192,0.03); justify-content: flex-end; }
+#side-player { background: rgba(224,48,48,0.03); justify-content: flex-start; }
+
+/* ── CARD ROWS WITHIN A SIDE ── */
+.bf-row {
+  display: flex; flex-direction: row; align-items: center;
+  gap: 4px; padding: 2px 0; overflow-x: auto; overflow-y: visible;
+  scrollbar-width: thin; min-height: 50px; flex-shrink: 0;
+  position: relative;
+}
+.bf-row.lands-row { min-height: 44px; }
+.bf-row.relics-row { min-height: 50px; }
+.bf-row.creatures-row { min-height: 90px; flex: 1; }
+
+/* Row labels */
+.row-label {
+  font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-dim); writing-mode: vertical-rl; 
+  transform: rotate(180deg); align-self: center;
+  flex-shrink: 0; padding: 2px; min-width: 14px;
+}
+
+/* Discard pile */
+.discard-pile {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  z-index: 5;
+}
+.discard-stack {
+  width: 46px; height: 64px; border-radius: 4px;
+  background: rgba(0,0,0,0.4); border: 1px dashed var(--border-dim);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 2px; cursor: pointer; position: relative;
+  transition: border-color 0.15s;
+}
+.discard-stack:hover { border-color: var(--border-bright); }
+.discard-stack .ds-count {
+  font-family: 'Share Tech Mono', monospace; font-size: 13px;
+  font-weight: 700; color: var(--text-mid);
+}
+.discard-stack .ds-label {
+  font-size: 7px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--text-dim);
+}
+.discard-stack .ds-top {
+  position: absolute; inset: 0; border-radius: 4px;
+  overflow: hidden; opacity: 0.5;
+}
+.discard-stack .ds-top img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
 
 /* ── CARD COMPONENT ── */
 .card {
-  width: 72px; height: 100px;
   border-radius: 4px; border: 1px solid var(--border-dim);
   background: var(--bg-card); cursor: pointer;
   position: relative; overflow: hidden;
   transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
-  flex-shrink: 0;
-  display: flex; flex-direction: column;
+  flex-shrink: 0; display: flex; flex-direction: column;
+  width: 64px; height: 90px;
 }
-.card:hover { transform: translateY(-6px) scale(1.05); z-index: 50; }
-.card.selected { border-color: var(--gold); box-shadow: 0 0 8px var(--gold-glow); transform: translateY(-8px) scale(1.06); z-index: 60; }
-.card.attackable { border-color: var(--red); box-shadow: 0 0 6px var(--red-glow); animation: pulse-red 1.2s infinite; }
+.card:hover { transform: translateY(-6px) scale(1.06); z-index: 50; }
+.card.selected { border-color: var(--gold) !important; box-shadow: 0 0 10px var(--gold-glow) !important; transform: translateY(-10px) scale(1.1) !important; z-index: 60; }
+.card.attackable { border-color: var(--red); box-shadow: 0 0 8px var(--red-glow); animation: pulse-red 1.2s infinite; }
 .card.blockable { border-color: #30a0e0; box-shadow: 0 0 6px rgba(48,160,224,0.3); animation: pulse-blue 1.2s infinite; }
-.card.exhausted { opacity: 0.65; transform: rotate(4deg); }
-.card.exhausted:hover { transform: rotate(4deg) translateY(-6px) scale(1.05); }
-.card.overexhausted { opacity: 0.45; transform: rotate(9deg); }
-.card.overexhausted:hover { transform: rotate(9deg) translateY(-6px) scale(1.05); }
-.card.newly-turned { outline: 2px solid rgba(255,200,0,0.4); }
-.card.attacking { outline: 2px solid var(--red); }
-.card.blocking { outline: 2px solid #30a0e0; }
+.card.exhausted { opacity: 0.65; transform: rotate(5deg) translateX(4px); }
+.card.exhausted:hover { transform: rotate(5deg) translateX(4px) translateY(-6px) scale(1.05); }
+.card.overexhausted { opacity: 0.4; transform: rotate(10deg) translateX(8px); }
+.card.overexhausted:hover { transform: rotate(10deg) translateX(8px) translateY(-6px) scale(1.05); }
+.card.newly-turned { outline: 2px solid rgba(255,200,0,0.5); }
+.card.attacking { outline: 2px solid var(--red) !important; animation: pulse-red 0.8s infinite; }
+.card.blocking { outline: 2px solid #30a0e0 !important; }
+.card.tap-hint { box-shadow: 0 0 6px rgba(212,160,32,0.5); }
+
+/* Land cards smaller */
+.lands-row .card { width: 46px; height: 52px; }
+.lands-row .card .card-img { display: none; }
+.lands-row .card .card-img-placeholder { font-size: 14px; }
+.lands-row .card .card-footer { padding: 1px 3px; }
+.lands-row .card .card-name-mini { font-size: 7px; max-width: 38px; }
+.lands-row .kw-badges { display: none; }
+
+/* Relic cards medium */
+.relics-row .card { width: 54px; height: 76px; }
 
 .card-img {
   width: 100%; flex: 1; object-fit: cover; object-position: top;
@@ -151,53 +189,33 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 }
 .card-img-placeholder {
   width: 100%; flex: 1; display: flex; align-items: center; justify-content: center;
-  background: var(--bg-panel); font-size: 22px;
+  background: var(--bg-panel); font-size: 20px;
 }
 
 .card-footer {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 2px 4px; background: rgba(0,0,0,0.7);
-  font-size: 9px; font-weight: 600; letter-spacing: 0.5px;
+  padding: 2px 3px; background: rgba(0,0,0,0.75);
+  font-size: 8px; font-weight: 600; letter-spacing: 0.5px; flex-shrink: 0;
 }
-.card-name-mini { color: var(--text-bright); max-width: 52px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.card-power { color: var(--gold); font-family: 'Share Tech Mono', monospace; font-size: 11px; }
-
-/* Power mod overlays */
-.card .power-mod {
-  position: absolute; top: 3px; right: 3px;
-  background: rgba(0,0,0,0.7); border-radius: 2px;
-  font-size: 9px; font-family: 'Share Tech Mono', monospace;
-  padding: 1px 3px; font-weight: 700;
-}
-.power-mod.plus { color: #40e060; }
-.power-mod.minus { color: #e04040; }
-
-/* Bleed counter */
-.bleed-indicator {
-  position: absolute; bottom: 18px; left: 3px;
-  background: rgba(224,32,48,0.85); border-radius: 2px;
-  font-size: 8px; font-family: 'Share Tech Mono', monospace;
-  padding: 1px 3px; color: #fff; font-weight: 700;
-}
+.card-name-mini { color: var(--text-bright); max-width: 44px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.card-power { color: var(--gold); font-family: 'Share Tech Mono', monospace; font-size: 10px; }
 
 /* Keyword badges */
 .kw-badges {
-  position: absolute; top: 3px; left: 3px;
+  position: absolute; top: 2px; left: 2px;
   display: flex; flex-direction: column; gap: 1px;
 }
 .kw-badge {
-  font-size: 7px; padding: 1px 3px; border-radius: 2px;
+  font-size: 6px; padding: 1px 2px; border-radius: 2px;
   font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
 }
-.kw-haste { background: rgba(224,80,0,0.85); color: #fff; }
-.kw-wall { background: rgba(80,120,200,0.85); color: #fff; }
-.kw-breach { background: rgba(200,60,0,0.85); color: #fff; }
-.kw-tireless { background: rgba(0,160,80,0.85); color: #fff; }
-.kw-siphon { background: rgba(120,0,200,0.85); color: #fff; }
+.kw-haste { background: rgba(224,80,0,0.9); color: #fff; }
+.kw-wall { background: rgba(80,120,200,0.9); color: #fff; }
+.kw-breach { background: rgba(200,60,0,0.9); color: #fff; }
+.kw-tireless { background: rgba(0,160,80,0.9); color: #fff; }
+.kw-siphon { background: rgba(120,0,200,0.9); color: #fff; }
 
-.color-bar {
-  height: 3px; width: 100%;
-}
+.color-bar { height: 3px; width: 100%; flex-shrink: 0; }
 .color-bar.Red { background: var(--red); }
 .color-bar.White { background: var(--white-c); }
 .color-bar.Black { background: var(--black-c); }
@@ -205,17 +223,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .color-bar.Colorless { background: var(--colorless); }
 .color-bar.Land { background: var(--gold); }
 
-/* ── HAND CARDS (bigger) ── */
-.hand-card {
-  width: 80px; height: 112px;
-}
-.hand-card:hover { transform: translateY(-12px) scale(1.1); z-index: 50; }
-.hand-card.selected { transform: translateY(-14px) scale(1.12); border-color: var(--gold); box-shadow: 0 0 12px var(--gold-glow); }
-.hand-card.playable { border-color: rgba(212,160,32,0.6); }
-.hand-card.unplayable { opacity: 0.45; cursor: not-allowed; }
-
-/* ── LANDS STRIP ── */
-#lands-ai { grid-row: 3; grid-column: 1; /* overlapping, now horizontal strip */ }
+/* ── HAND CARDS ── */
+.hand-card { width: 76px; height: 108px; }
+.hand-card:hover { transform: translateY(-18px) scale(1.12); z-index: 50; }
+.hand-card.selected { transform: translateY(-22px) scale(1.15) !important; border-color: var(--gold) !important; box-shadow: 0 0 14px var(--gold-glow) !important; }
+.hand-card.playable { border-color: rgba(212,160,32,0.5); }
+.hand-card.unplayable { opacity: 0.4; }
+.hand-card.targeting { border-color: #30e0ff !important; box-shadow: 0 0 12px rgba(48,224,255,0.4) !important; animation: pulse-blue 0.8s infinite; }
 /* keep simple: lands shown in battlefield via type */
 
 /* ── ACTION BAR ── */
@@ -480,58 +494,69 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
     <!-- AI INFO -->
     <div id="ai-info-strip">
       <div class="player-stats">
-        <div class="stat-block">
-          <span class="stat-icon">❤️</span>
-          <span class="stat-val life-val" id="ai-life">20</span>
-        </div>
-        <div class="stat-block">
-          <span class="stat-icon">🩸</span>
-          <span class="stat-val bleed-val" id="ai-bleed">0</span>
-        </div>
-        <div class="stat-block">
-          <span style="font-size:10px;color:var(--text-dim)">DECK</span>
-          <span class="stat-val deck-val" id="ai-deck-count">40</span>
-        </div>
-        <div class="stat-block">
-          <span style="font-size:10px;color:var(--text-dim)">LANDS</span>
-          <span class="stat-val deck-val" id="ai-land-count">20</span>
-        </div>
+        <div class="stat-block"><span class="stat-icon">❤️</span><span class="stat-val life-val" id="ai-life">20</span></div>
+        <div class="stat-block"><span class="stat-icon">🩸</span><span class="stat-val bleed-val" id="ai-bleed">0</span></div>
+        <div class="stat-block"><span style="font-size:9px;color:var(--text-dim)">DECK</span><span class="stat-val deck-val" id="ai-deck-count">40</span></div>
+        <div class="stat-block"><span style="font-size:9px;color:var(--text-dim)">LAND</span><span class="stat-val deck-val" id="ai-land-count">20</span></div>
       </div>
-      <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;">AI OPPONENT</div>
+      <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;">AI OPPONENT</div>
       <div class="resource-row" id="ai-mana-display"></div>
     </div>
 
-    <!-- AI BATTLEFIELD -->
-    <div class="bf-zone" id="bf-ai">
-      <span class="bf-label">AI BATTLEFIELD</span>
-    </div>
+    <!-- BATTLEFIELD WRAPPER -->
+    <div id="bf-wrapper">
 
-    <!-- PLAYER BATTLEFIELD -->
-    <div class="bf-zone" id="bf-player">
-      <span class="bf-label">YOUR BATTLEFIELD</span>
+      <!-- AI SIDE -->
+      <div class="side-zone" id="side-ai">
+        <div class="bf-row creatures-row" id="bf-ai-creatures">
+          <span class="row-label">CREATURES</span>
+        </div>
+        <div class="bf-row relics-row" id="bf-ai-relics">
+          <span class="row-label">RELICS</span>
+          <div class="discard-pile" id="discard-ai-wrap">
+            <div class="discard-stack" onclick="showDiscardPile('ai')" title="AI Discard Pile">
+              <div class="ds-top" id="discard-ai-top"></div>
+              <span class="ds-count" id="discard-ai-count">0</span>
+              <span class="ds-label">DISCARD</span>
+            </div>
+          </div>
+        </div>
+        <div class="bf-row lands-row" id="bf-ai-lands">
+          <span class="row-label">LANDS</span>
+        </div>
+      </div>
+
+      <!-- PLAYER SIDE -->
+      <div class="side-zone" id="side-player">
+        <div class="bf-row lands-row" id="bf-player-lands">
+          <span class="row-label">LANDS</span>
+        </div>
+        <div class="bf-row relics-row" id="bf-player-relics">
+          <span class="row-label">RELICS</span>
+          <div class="discard-pile" id="discard-player-wrap">
+            <div class="discard-stack" onclick="showDiscardPile('player')" title="Your Discard Pile">
+              <div class="ds-top" id="discard-player-top"></div>
+              <span class="ds-count" id="discard-player-count">0</span>
+              <span class="ds-label">DISCARD</span>
+            </div>
+          </div>
+        </div>
+        <div class="bf-row creatures-row" id="bf-player-creatures">
+          <span class="row-label">CREATURES</span>
+        </div>
+      </div>
+
     </div>
 
     <!-- PLAYER INFO -->
     <div id="player-info-strip">
       <div class="player-stats">
-        <div class="stat-block">
-          <span class="stat-icon">❤️</span>
-          <span class="stat-val life-val" id="player-life">20</span>
-        </div>
-        <div class="stat-block">
-          <span class="stat-icon">🩸</span>
-          <span class="stat-val bleed-val" id="player-bleed">0</span>
-        </div>
-        <div class="stat-block">
-          <span style="font-size:10px;color:var(--text-dim)">DECK</span>
-          <span class="stat-val deck-val" id="player-deck-count">40</span>
-        </div>
-        <div class="stat-block">
-          <span style="font-size:10px;color:var(--text-dim)">LANDS</span>
-          <span class="stat-val deck-val" id="player-land-count">20</span>
-        </div>
+        <div class="stat-block"><span class="stat-icon">❤️</span><span class="stat-val life-val" id="player-life">20</span></div>
+        <div class="stat-block"><span class="stat-icon">🩸</span><span class="stat-val bleed-val" id="player-bleed">0</span></div>
+        <div class="stat-block"><span style="font-size:9px;color:var(--text-dim)">DECK</span><span class="stat-val deck-val" id="player-deck-count">40</span></div>
+        <div class="stat-block"><span style="font-size:9px;color:var(--text-dim)">LAND</span><span class="stat-val deck-val" id="player-land-count">20</span></div>
       </div>
-      <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;">YOU</div>
+      <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;">YOU</div>
       <div class="resource-row" id="player-mana-display"></div>
     </div>
 
@@ -542,10 +567,12 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   <!-- ACTION BAR -->
   <div id="action-bar">
     <button class="btn btn-muted" id="btn-mulligan" onclick="doMulligan()">MULLIGAN</button>
-    <button class="btn btn-secondary" id="btn-play-land" onclick="playSelectedLand()">PLAY LAND</button>
     <button class="btn btn-primary" id="btn-play-card" onclick="playSelectedCard()">PLAY CARD</button>
     <button class="btn btn-danger" id="btn-attack" onclick="declareAttack()" style="display:none">DECLARE ATTACK</button>
     <button class="btn btn-muted" id="btn-end-combat" onclick="endCombatPhase()" style="display:none">END COMBAT</button>
+    <div id="targeting-hint" style="display:none;font-size:11px;color:#30e0ff;letter-spacing:1px;padding:0 8px;">
+      ⊕ SELECT TARGET — click a card or ESC to cancel
+    </div>
     <button class="btn btn-primary" id="btn-next-phase" onclick="nextPhase()">NEXT PHASE →</button>
   </div>
 
@@ -817,7 +844,7 @@ function startGame(faction) {
     player: {
       life: 20, bleed: 0,
       hand: [], main: [...(pDecks?.main||[])], land: [...(pDecks?.land||[])],
-      battlefield: [], // instances
+      battlefield: [],
       discard: [],
       mana: {R:0,W:0,B:0,P:0,G:0,C:0},
       landPlayedThisTurn: false,
@@ -1314,9 +1341,12 @@ function declareAttack() {
   if (G.phase !== 'battle' || G.activePlayer !== 'player') return;
   combatPhase = 'declare';
   attackers = [];
-  log('Select creatures to attack with, then click "Confirm Attack".', 'important');
-  document.getElementById('btn-attack').textContent = 'CONFIRM ATTACK';
-  document.getElementById('btn-attack').onclick = confirmAttack;
+  // Reset any stale attack flags
+  G.player.battlefield.forEach(i => { i.attacking = false; });
+  log('⚔ Click your creatures to declare attackers. Click CONFIRM ATTACK when ready.', 'important');
+  const btn = document.getElementById('btn-attack');
+  btn.textContent = 'CONFIRM ATTACK';
+  btn.onclick = confirmAttack;
   updateUI();
 }
 
@@ -1508,67 +1538,129 @@ function endCombatPhase() {
 }
 
 // ── PLAYING CARDS ─────────────────────────────────────────────
-function playSelectedLand() {
-  if (!selectedCardId) { log('Select a land card first.'); return; }
-  const player = G.player;
-  if (player.landPlayedThisTurn) { log('You can only play 1 land per turn.'); return; }
-  if (!['prebattle','postbattle'].includes(G.phase)) { log('Lands can only be played in Pre-Battle or Post-Battle.'); return; }
-  if (G.activePlayer !== 'player') return;
-
-  const inst = player.hand.find(i => i.instId === selectedCardId);
-  if (!inst || inst.type !== 'Land') { log('Selected card is not a land.'); return; }
-
-  player.hand = player.hand.filter(i => i.instId !== selectedCardId);
-  inst.exhaustState = 'renewed';
-  inst.newlyTurned = false;
-  player.battlefield.push(inst);
-  player.landPlayedThisTurn = true;
-  selectedCardId = null;
-  log(`You play ${inst.name}.`, 'important');
-  updateUI();
+function playSelectedCard() {
+  if (!selectedCardId) { log('Select a card from your hand first.'); return; }
+  const inst = G.player.hand.find(i => i.instId === selectedCardId);
+  if (!inst) return;
+  playCard(inst);
 }
 
-function playSelectedCard() {
-  if (!selectedCardId) { log('Select a card to play.'); return; }
-  if (G.activePlayer !== 'player') return;
-  if (!['prebattle','postbattle'].includes(G.phase) && G.phase !== 'battle') {
-    log('Cards can be played in Pre-Battle or Post-Battle phases.');
-    return;
+function playCard(inst) {
+  if (G.activePlayer !== 'player') { log('Not your turn.'); return; }
+  if (!['prebattle','postbattle'].includes(G.phase) && inst.type !== 'Spell') {
+    log('Creatures, Relics and Lands can only be played in Pre-Battle or Post-Battle.'); return;
   }
 
-  const player = G.player;
-  const inst = player.hand.find(i => i.instId === selectedCardId);
-  if (!inst) { log('Card not found.'); return; }
-  if (inst.type === 'Land') { playSelectedLand(); return; }
+  // Land — no cost, 1 per turn
+  if (inst.type === 'Land') {
+    if (G.player.landPlayedThisTurn) { log('You can only play 1 land per turn.'); return; }
+    G.player.hand = G.player.hand.filter(i => i.instId !== inst.instId);
+    inst.exhaustState = 'renewed'; inst.newlyTurned = false;
+    G.player.battlefield.push(inst);
+    G.player.landPlayedThisTurn = true;
+    selectedCardId = null;
+    log(`You play ${inst.name}.`, 'important');
+    updateUI(); return;
+  }
 
-  // Tap available lands to pay cost automatically
+  // Auto-tap affordable lands
   autoTapForCost('player', inst.cost);
 
   if (!canPayCost('player', inst.cost)) {
-    log(`Cannot afford ${inst.name} (Cost: ${inst.cost}). Tap lands manually first.`, '');
+    log(`Not enough mana for ${inst.name} (needs ${inst.cost}). Tap lands first.`, '');
     return;
   }
 
   payCost('player', inst.cost);
-  player.hand = player.hand.filter(i => i.instId !== selectedCardId);
+  G.player.hand = G.player.hand.filter(i => i.instId !== inst.instId);
+  selectedCardId = null;
 
   if (inst.type === 'Creature') {
     inst.newlyTurned = !hasKeyword(inst,'haste');
     inst.exhaustState = 'renewed';
-    player.battlefield.push(inst);
+    G.player.battlefield.push(inst);
     log(`You play ${inst.name} (${inst.power} power).`, 'important');
+    updateUI();
   } else if (inst.type === 'Relic') {
     inst.newlyTurned = false;
     inst.exhaustState = 'renewed';
-    player.battlefield.push(inst);
+    G.player.battlefield.push(inst);
     log(`You play ${inst.name} [Relic].`, 'important');
+    updateUI();
   } else if (inst.type === 'Spell') {
-    resolveSpell(inst, 'player');
-    player.discard.push(inst);
     log(`You cast ${inst.name}.`, 'important');
+    castSpellWithTargeting(inst, 'player', () => {
+      G.player.discard.push(inst);
+      updateUI();
+    });
   }
+}
 
-  selectedCardId = null;
+function castSpellWithTargeting(inst, caster, onDone) {
+  const txt = (inst.abilities || '').toLowerCase();
+  const opp = caster === 'player' ? 'ai' : 'player';
+
+  // Determine if spell needs a target
+  const needsOpponentCreature = txt.includes('target creature') &&
+    (txt.includes('destroy') || txt.includes('damage') || txt.includes('-1 power') ||
+     txt.includes('no combat damage') || txt.includes('deals no') || txt.includes('exhaust'));
+  const needsOwnCreature = txt.includes('target creature') &&
+    (txt.includes('+1 power') || txt.includes('+2 power') || txt.includes('gains') || txt.includes('tireless'));
+  const needsAnyCreature = txt.includes('target creature') && !needsOpponentCreature && !needsOwnCreature;
+
+  if (needsOpponentCreature && G[opp].battlefield.filter(i=>i.type==='Creature').length > 0) {
+    beginTargeting(inst, caster, 'opponent-creature', (target) => {
+      resolveSpellOnTarget(inst, caster, target);
+      onDone();
+    });
+  } else if (needsOwnCreature && G[caster].battlefield.filter(i=>i.type==='Creature').length > 0) {
+    beginTargeting(inst, caster, 'own-creature', (target) => {
+      resolveSpellOnTarget(inst, caster, target);
+      onDone();
+    });
+  } else {
+    // No specific target or no valid targets — resolve immediately
+    resolveSpell(inst, caster);
+    onDone();
+  }
+}
+
+function resolveSpellOnTarget(inst, caster, target) {
+  const txt = (inst.abilities || '').toLowerCase();
+  const opp = caster === 'player' ? 'ai' : 'player';
+  const targetOwner = G[caster].battlefield.find(i => i.instId === target.instId) ? caster : opp;
+
+  if (txt.includes('destroy')) {
+    destroyCreature(target, targetOwner);
+    log(`${inst.name}: ${target.name} destroyed.`, 'damage');
+  } else if (txt.includes('no combat damage') || txt.includes('deals no')) {
+    target.noCombatDamage = true;
+    log(`${inst.name}: ${target.name} deals no damage this turn.`, '');
+  } else if (txt.includes('-1 power')) {
+    target.power = Math.max(0, (target.power||0) - 1);
+    log(`${inst.name}: ${target.name} gets -1 power.`, '');
+  } else if (txt.includes('+2 power')) {
+    target.power = (target.power||0) + 2;
+    log(`${inst.name}: ${target.name} gets +2 power until end of turn.`, 'heal');
+  } else if (txt.includes('+1 power') || txt.includes('gains +1')) {
+    target.power = (target.power||0) + 1;
+    log(`${inst.name}: ${target.name} gets +1 power.`, 'heal');
+  } else if (txt.includes('gains breach')) {
+    target.keywords.breach = true;
+    log(`${inst.name}: ${target.name} gains Breach.`, 'heal');
+  } else if (txt.includes('exhausted') || (txt.includes('exhaust') && txt.includes('target'))) {
+    target.exhaustState = 'exhausted';
+    log(`${inst.name}: ${target.name} exhausted.`, '');
+  } else if (txt.includes('overexhausted')) {
+    target.exhaustState = 'overexhausted';
+    log(`${inst.name}: ${target.name} overexhausted.`, '');
+  } else if (txt.includes('returned to')) {
+    G[targetOwner].battlefield = G[targetOwner].battlefield.filter(i => i.instId !== target.instId);
+    G[targetOwner].hand.push(target);
+    log(`${inst.name}: ${target.name} returned to hand.`, '');
+  } else {
+    resolveSpell(inst, caster);
+  }
   updateUI();
 }
 
@@ -1669,42 +1761,150 @@ function resolveSpell(inst, caster) {
   updateUI();
 }
 
-// ── BATTLEFIELD CLICK HANDLER ─────────────────────────────────
-function handleBattlefieldClick(inst) {
-  if (G.activePlayer !== 'player') {
-    log('It is not your turn.', '');
+// ── TARGETING SYSTEM ─────────────────────────────────────────
+let targetingState = {
+  active: false,
+  spell: null,       // inst of spell being cast
+  caster: null,      // 'player'|'ai'
+  mode: null,        // 'opponent-creature'|'any-creature'|'own-creature'|'player'|'any'
+  callback: null,    // fn(targetInst or 'player'|'ai')
+};
+
+function beginTargeting(spell, caster, mode, callback) {
+  targetingState = { active: true, spell, caster, mode, callback };
+  document.getElementById('targeting-hint').style.display = 'flex';
+  log(`Choose a target for ${spell.name}.`, 'important');
+  updateUI();
+}
+
+function cancelTargeting() {
+  targetingState = { active: false, spell: null, caster: null, mode: null, callback: null };
+  document.getElementById('targeting-hint').style.display = 'none';
+  updateUI();
+}
+
+function isValidTarget(inst, owner) {
+  const { mode, caster } = targetingState;
+  const opp = caster === 'player' ? 'ai' : 'player';
+  if (!mode) return false;
+  if (mode === 'opponent-creature') return owner === opp && inst.type === 'Creature';
+  if (mode === 'own-creature') return owner === caster && inst.type === 'Creature';
+  if (mode === 'any-creature') return inst.type === 'Creature';
+  if (mode === 'own-creature-or-relic') return owner === caster && (inst.type === 'Creature' || inst.type === 'Relic');
+  if (mode === 'any') return true;
+  return false;
+}
+
+function resolveTarget(inst, owner) {
+  if (!targetingState.active) return;
+  const cb = targetingState.callback;
+  cancelTargeting();
+  if (cb) cb(inst, owner);
+}
+
+// ── UNIFIED CARD CLICK HANDLER ────────────────────────────────
+function handleCardClick(inst, who) {
+  // If targeting mode: resolve target
+  if (targetingState.active) {
+    if (isValidTarget(inst, who)) {
+      resolveTarget(inst, who);
+    } else {
+      log('Not a valid target.', '');
+    }
     return;
   }
 
-  // Land tap — works in any player phase
-  if (inst.type === 'Land') {
-    if (inst.exhaustState !== 'renewed') {
-      log(`${inst.name} is already exhausted.`, '');
+  // Hand card click — select/deselect or instant-play if already selected
+  if (who === 'player' && G.player.hand.find(i => i.instId === inst.instId)) {
+    if (selectedCardId === inst.instId) {
+      // Second click = play it
+      playCard(inst);
+    } else {
+      selectedCardId = inst.instId;
+      updateUI();
+    }
+    return;
+  }
+
+  // Battlefield clicks
+  if (who === 'player' && G.activePlayer === 'player') {
+    if (inst.type === 'Land') {
+      tapLandForMana(inst);
       return;
     }
-    tapLandForMana(inst);
-    return;
-  }
-
-  // Combat — declare attackers
-  if (G.phase === 'battle' && combatPhase === 'declare') {
-    toggleAttacker(inst);
-    return;
-  }
-
-  // Non-combat phases — show what the card can do
-  if (inst.type === 'Creature' || inst.type === 'Relic') {
-    if (inst.exhaustState !== 'renewed') {
-      log(`${inst.name} is ${inst.exhaustState} and cannot activate abilities.`, '');
+    if (G.phase === 'battle' && combatPhase === 'declare' && inst.type === 'Creature') {
+      toggleAttacker(inst);
       return;
     }
-    // Abilities can be activated in pre/post battle
     if (['prebattle','postbattle'].includes(G.phase)) {
       tryActivateAbility(inst);
-    } else {
-      log(`Click during Pre-Battle or Post-Battle to activate ${inst.name}'s abilities.`, '');
     }
   }
+}
+
+// ── HAND RENDERING ────────────────────────────────────────────
+function renderHand(who) {
+  const el = document.getElementById(`hand-${who}`);
+  el.innerHTML = '';
+  const hand = G[who].hand;
+
+  if (who === 'ai') {
+    hand.forEach(() => {
+      const back = document.createElement('div');
+      back.className = 'deck-back';
+      back.innerHTML = '<div style="font-size:16px">🦇</div><div style="font-size:8px">?</div>';
+      el.appendChild(back);
+    });
+    return;
+  }
+
+  hand.forEach(inst => {
+    const card = createCardElement(inst, true);
+    const affordable = canPayCost('player', inst.cost);
+    const isLand = inst.type === 'Land';
+    if (!affordable && !isLand) card.classList.add('unplayable');
+    else card.classList.add('playable');
+    if (inst.instId === selectedCardId) card.classList.add('selected');
+    card.onclick = (e) => {
+      e.stopPropagation();
+      handleCardClick(inst, who);
+    };
+    card.onmouseenter = () => showCardDetail(inst);
+    card.onmouseleave = () => hideCardDetail();
+    el.appendChild(card);
+  });
+}
+
+// ── DISCARD PILE DISPLAY ──────────────────────────────────────
+function updateDiscardPiles() {
+  for (const who of ['player','ai']) {
+    const pile = G[who].discard;
+    const countEl = document.getElementById(`discard-${who}-count`);
+    const topEl   = document.getElementById(`discard-${who}-top`);
+    if (!countEl) continue;
+    countEl.textContent = pile.length;
+    topEl.innerHTML = '';
+    if (pile.length > 0) {
+      const top = pile[pile.length-1];
+      if (top.image) {
+        const img = document.createElement('img');
+        img.src = top.image;
+        img.onerror = () => { img.style.display='none'; };
+        topEl.appendChild(img);
+      }
+    }
+  }
+}
+
+function showDiscardPile(who) {
+  const pile = G[who].discard;
+  if (pile.length === 0) { log(`${who === 'player' ? 'Your' : 'AI'} discard pile is empty.`, ''); return; }
+  const names = pile.slice().reverse().map(i => `• ${i.name} (${i.type})`).join('\n');
+  showModal(
+    `${who === 'player' ? 'YOUR' : 'AI'} DISCARD PILE (${pile.length})`,
+    names,
+    [{ label: 'CLOSE', cls: 'btn-muted', action: () => {} }]
+  );
 }
 
 // Basic ability activation — exhausts card and applies stated effect
@@ -1868,80 +2068,87 @@ function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 function updateUI() {
   renderHand('player');
   renderHand('ai');
-  renderBattlefield('player');
-  renderBattlefield('ai');
+  renderSide('player');
+  renderSide('ai');
   updateDeckCounts();
+  updateDiscardPiles();
   setPhase(G.phase);
 }
 
-function renderHand(who) {
-  const el = document.getElementById(`hand-${who}`);
-  el.innerHTML = '';
-  const hand = G[who].hand;
+function renderSide(who) {
+  const bf = G[who].battlefield;
+  const lands    = bf.filter(i => i.type === 'Land');
+  const relics   = bf.filter(i => i.type === 'Relic');
+  const creatures = bf.filter(i => i.type === 'Creature');
 
-  if (who === 'ai') {
-    hand.forEach(() => {
-      const back = document.createElement('div');
-      back.className = 'deck-back';
-      back.innerHTML = '<div style="font-size:18px">🦇</div><div>?</div>';
-      el.appendChild(back);
-    });
-    return;
-  }
+  const landRow    = document.getElementById(`bf-${who}-lands`);
+  const relicRow   = document.getElementById(`bf-${who}-relics`);
+  const creatRow   = document.getElementById(`bf-${who}-creatures`);
 
-  hand.forEach(inst => {
-    const card = createCardElement(inst, true);
-    const affordable = canPayCost('player', inst.cost);
-    const isLand = inst.type === 'Land';
-    if (!affordable && !isLand) card.classList.add('unplayable');
-    else card.classList.add('playable');
-    if (inst.instId === selectedCardId) card.classList.add('selected');
-    card.onclick = () => {
-      selectedCardId = inst.instId === selectedCardId ? null : inst.instId;
-      updateUI();
-    };
-    card.onmouseenter = () => showCardDetail(inst);
-    card.onmouseleave = () => hideCardDetail();
-    el.appendChild(card);
+  // Keep labels, re-render cards
+  clearRow(landRow);
+  clearRow(relicRow);
+  clearRow(creatRow);
+
+  lands.forEach(inst => {
+    const card = createCardElement(inst, false);
+    if (who === 'player' && inst.exhaustState === 'renewed' && G.activePlayer === 'player') {
+      card.classList.add('tap-hint');
+      card.title = 'Click to tap for mana';
+    }
+    addCardHandlers(card, inst, who);
+    landRow.appendChild(card);
+  });
+
+  relics.forEach(inst => {
+    const card = createCardElement(inst, false);
+    applyExhaustClasses(card, inst);
+    addCardHandlers(card, inst, who);
+    relicRow.appendChild(card);
+  });
+
+  creatures.forEach(inst => {
+    const card = createCardElement(inst, false);
+    applyExhaustClasses(card, inst);
+    if (inst.newlyTurned) card.classList.add('newly-turned');
+    if (inst.attacking) card.classList.add('attacking');
+    if (inst.blocking) card.classList.add('blocking');
+    // Attackable highlight
+    if (who === 'player' && combatPhase === 'declare' &&
+        !inst.newlyTurned && inst.exhaustState === 'renewed' && !hasKeyword(inst,'wall')) {
+      card.classList.add('attackable');
+    }
+    // Targetable by spell
+    if (targetingState.active) {
+      const validTarget = isValidTarget(inst, who);
+      if (validTarget) card.classList.add('blockable');
+    }
+    addCardHandlers(card, inst, who);
+    creatRow.appendChild(card);
   });
 }
 
-function renderBattlefield(who) {
-  const el = document.getElementById(`bf-${who}`);
-  el.innerHTML = `<span class="bf-label">${who.toUpperCase()} BATTLEFIELD</span>`;
-
-  G[who].battlefield.forEach(inst => {
-    const card = createCardElement(inst, false);
-
-    // Visual cues
-    if (who === 'player' && inst.type === 'Land' && inst.exhaustState === 'renewed' && G.activePlayer === 'player') {
-      card.style.cursor = 'pointer';
-      card.title = 'Click to tap for mana';
-      card.style.boxShadow = '0 0 6px rgba(212,160,32,0.4)';
+function clearRow(rowEl) {
+  // Remove all children except the row-label span
+  Array.from(rowEl.children).forEach(ch => {
+    if (!ch.classList.contains('row-label') && !ch.classList.contains('discard-pile')) {
+      rowEl.removeChild(ch);
     }
-
-    if (who === 'player') {
-      if (combatPhase === 'declare' && inst.type==='Creature' && !inst.newlyTurned && inst.exhaustState==='renewed' && !hasKeyword(inst,'wall')) {
-        card.classList.add('attackable');
-      }
-    }
-
-    if (inst.attacking) card.classList.add('attacking');
-    if (inst.blocking) card.classList.add('blocking');
-    if (inst.exhaustState === 'exhausted') card.classList.add('exhausted');
-    if (inst.exhaustState === 'overexhausted') card.classList.add('overexhausted');
-    if (inst.newlyTurned) card.classList.add('newly-turned');
-
-    card.onclick = () => {
-      if (who === 'player') {
-        handleBattlefieldClick(inst);
-      }
-    };
-    card.onmouseenter = () => showCardDetail(inst);
-    card.onmouseleave = () => hideCardDetail();
-
-    el.appendChild(card);
   });
+}
+
+function applyExhaustClasses(card, inst) {
+  if (inst.exhaustState === 'exhausted') card.classList.add('exhausted');
+  if (inst.exhaustState === 'overexhausted') card.classList.add('overexhausted');
+}
+
+function addCardHandlers(card, inst, who) {
+  card.onclick = (e) => {
+    e.stopPropagation();
+    handleCardClick(inst, who);
+  };
+  card.onmouseenter = () => showCardDetail(inst);
+  card.onmouseleave = () => hideCardDetail();
 }
 
 function createCardElement(inst, isHand) {
@@ -2155,12 +2362,37 @@ function showBanner(text) {
   setTimeout(() => el.classList.remove('show'), 1500);
 }
 
+// Keep for backward compatibility
+function playSelectedLand() { playSelectedCard(); }
+
 // ── KEYBOARD SHORTCUTS ────────────────────────────────────────
 document.addEventListener('keydown', e => {
   if (!G) return;
   if (e.key === 'n' || e.key === 'N') nextPhase();
   if (e.key === 'l' || e.key === 'L') toggleLog();
-  if (e.key === 'Escape') { selectedCardId = null; closeModal(); updateUI(); }
+  if (e.key === 'Escape') {
+    if (targetingState.active) { cancelTargeting(); log('Targeting cancelled.', ''); return; }
+    selectedCardId = null;
+    if (combatPhase === 'declare') {
+      attackers = [];
+      G.player.battlefield.forEach(i => i.attacking = false);
+      combatPhase = null;
+      const btn = document.getElementById('btn-attack');
+      btn.textContent = 'DECLARE ATTACK';
+      btn.onclick = declareAttack;
+    }
+    closeModal();
+    updateUI();
+  }
+});
+
+// Click anywhere outside cards to deselect
+document.addEventListener('click', e => {
+  if (!G) return;
+  if (targetingState.active) return;
+  if (!e.target.closest('.card') && !e.target.closest('.btn') && !e.target.closest('#modal-box')) {
+    if (selectedCardId) { selectedCardId = null; updateUI(); }
+  }
 });
 
 </script>
