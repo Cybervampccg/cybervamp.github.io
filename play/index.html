@@ -124,26 +124,20 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 /* ── BATTLEFIELD WRAPPER ── */
 #bf-wrapper {
-  flex:1; display:flex; flex-direction:column; overflow:hidden; min-height:0;
+  flex:1; display:flex; flex-direction:column; min-height:0;
   position: relative;
   background-image: url('https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/playmat.png?raw=true');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-}
-
-/* Dark overlay — use a child div, NOT ::before, to avoid stacking context issues */
-#bf-overlay {
-  position: absolute; inset: 0;
-  background: rgba(0,0,0,0.52);
-  pointer-events: none;
-  z-index: 0;
+  overflow: visible; /* allow lunge animations to cross zone boundaries */
 }
 
 .side-zone {
   flex:1; display:flex; flex-direction:column;
-  min-height:0; overflow:hidden; padding:2px 6px;
+  min-height:0; padding:2px 6px;
   position: relative; z-index: 1;
+  overflow: visible; /* cards must be able to lunge across this boundary */
 }
 #side-ai     { border-bottom:2px solid rgba(96,48,192,0.4); }
 #side-player { }
@@ -154,7 +148,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   gap:8px; padding:4px 0; overflow-x:auto; overflow-y:visible;
   scrollbar-width:thin; position:relative;
 }
-.bf-row.main-row  { flex:1; min-height:0; align-items:center; overflow-y:visible; }
+.bf-row.main-row  { flex:1; min-height:0; align-items:center; overflow:visible; }
 .bf-row.lands-row { min-height:88px; flex-shrink:0; }
 
 /* Creatures group — centered, fills available width */
@@ -162,6 +156,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   display:flex; flex-direction:row; align-items:center;
   gap:14px; justify-content:center; flex:1;
   padding:6px 8px; overflow:visible; flex-wrap:wrap;
+  position:relative;
 }
 
 /* Separator between creatures and relics */
@@ -418,7 +413,44 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 @keyframes damage-flash { 0%,100%{background:transparent} 50%{background:rgba(255,32,48,0.3)} }
 @keyframes heal-flash { 0%,100%{background:transparent} 50%{background:rgba(48,200,80,0.3)} }
 
-/* ── COMBAT ANIMATIONS ── */
+/* ── DRAG & DROP ── */
+/* Ghost card that follows the cursor */
+#drag-ghost {
+  position: fixed; pointer-events: none; z-index: 9000;
+  opacity: 0.82; transform: rotate(-4deg) scale(1.08);
+  transition: none; border: 2px solid var(--gold);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.8), 0 0 16px rgba(212,160,32,0.5);
+  border-radius: 6px; overflow: hidden;
+  display: none;
+}
+/* Cards being dragged — fade in place */
+.card.dragging { opacity: 0.25; pointer-events: none; }
+/* Drop zone glow — battlefield areas that accept drops */
+.drop-zone-active {
+  outline: 2px dashed rgba(212,160,32,0.7) !important;
+  background: rgba(212,160,32,0.08) !important;
+  border-radius: 6px;
+}
+/* Spell targeting drop — enemy card glows red */
+.spell-drop-target {
+  outline: 3px solid var(--red) !important;
+  box-shadow: 0 0 18px rgba(224,48,48,0.7) !important;
+}
+/* Reject shake */
+@keyframes drop-reject {
+  0%,100% { transform: translateX(0); }
+  20%     { transform: translateX(-8px); }
+  50%     { transform: translateX(8px); }
+  80%     { transform: translateX(-4px); }
+}
+.drop-reject { animation: drop-reject 0.3s ease forwards; }
+
+/* Hand cards — show grab cursor when draggable */
+.hand-card.playable  { cursor: grab; }
+.hand-card.dragging  { cursor: grabbing; }
+.hand-card.unplayable { cursor: not-allowed; }
+
+
 /* Card played from hand */
 @keyframes card-arrive {
   0%   { opacity:0; transform:translateY(32px) scale(0.88); }
@@ -429,26 +461,35 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 /* Player attacker lunges UP toward AI */
 @keyframes lunge-up {
-  0%   { transform: translateY(0) scale(1); }
-  40%  { transform: translateY(-72px) scale(1.12); filter: drop-shadow(0 0 12px rgba(224,48,48,0.9)); }
-  100% { transform: translateY(0) scale(1); filter: none; }
+  0%   { transform: translateY(0) scale(1) !important; z-index: 200; }
+  40%  { transform: translateY(-80px) scale(1.15) !important; filter: drop-shadow(0 0 14px rgba(224,48,48,0.95)); z-index: 200; }
+  100% { transform: translateY(0) scale(1) !important; filter: none; z-index: 1; }
 }
 /* AI attacker lunges DOWN toward player */
 @keyframes lunge-down {
-  0%   { transform: translateY(0) scale(1); }
-  40%  { transform: translateY(72px) scale(1.12); filter: drop-shadow(0 0 12px rgba(224,48,48,0.9)); }
-  100% { transform: translateY(0) scale(1); filter: none; }
+  0%   { transform: translateY(0) scale(1) !important; z-index: 200; }
+  40%  { transform: translateY(80px) scale(1.15) !important; filter: drop-shadow(0 0 14px rgba(224,48,48,0.95)); z-index: 200; }
+  100% { transform: translateY(0) scale(1) !important; filter: none; z-index: 1; }
 }
-.card-lunge-up   { animation: lunge-up   0.55s cubic-bezier(0.25,0,0.3,1) forwards; }
-.card-lunge-down { animation: lunge-down 0.55s cubic-bezier(0.25,0,0.3,1) forwards; }
+.card-lunge-up   {
+  animation: lunge-up 0.55s cubic-bezier(0.25,0,0.3,1) forwards !important;
+  position: relative; z-index: 200;
+}
+.card-lunge-down {
+  animation: lunge-down 0.55s cubic-bezier(0.25,0,0.3,1) forwards !important;
+  position: relative; z-index: 200;
+}
 
 /* Blockers slide to center and lift */
 @keyframes blocker-rally {
   0%   { transform: translateY(0) scale(1); }
-  30%  { transform: translateY(-18px) scale(1.07); filter: drop-shadow(0 0 8px rgba(48,160,224,0.8)); }
+  30%  { transform: translateY(-20px) scale(1.08); filter: drop-shadow(0 0 10px rgba(48,160,224,0.9)); }
   100% { transform: translateY(0) scale(1); filter: none; }
 }
-.card-blocker-rally { animation: blocker-rally 0.45s ease-out forwards; }
+.card-blocker-rally {
+  animation: blocker-rally 0.45s ease-out forwards !important;
+  position: relative; z-index: 150;
+}
 
 /* Life total impact flash */
 @keyframes life-impact {
@@ -661,7 +702,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
     <!-- BATTLEFIELD WRAPPER -->
     <div id="bf-wrapper">
-      <div id="bf-overlay"></div>
+      <div id="bf-overlay" style="position:absolute;inset:0;background:rgba(0,0,0,0.52);pointer-events:none;z-index:0;"></div>
 
       <!-- AI SIDE -->
       <div class="side-zone" id="side-ai">
@@ -743,6 +784,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
   <!-- BLOCKING LINES SVG — drawn over battlefield to show block assignments -->
   <svg id="block-lines" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:80;" xmlns="http://www.w3.org/2000/svg"></svg>
+
+  <!-- DRAG GHOST — floating card clone that follows the cursor -->
+  <div id="drag-ghost"></div>
 
 </div>
 
@@ -1118,8 +1162,9 @@ function renderHand(who) {
     else card.classList.add('playable');
     if (inst.instId === selectedCardId) card.classList.add('selected');
     card.onclick = (e) => { e.stopPropagation(); handleCardClick(inst, 'player'); };
-    card.onmouseenter = () => showCardDetail(inst, card);
+    card.onmouseenter = () => { if (!_drag) showCardDetail(inst, card); };
     card.onmouseleave = () => hideCardDetail();
+    addDragHandlers(card, inst);
     el.appendChild(card);
   });
 }
@@ -1783,7 +1828,7 @@ async function aiDeclareAttack() {
   const myAttackers = attackCandidates.slice(0, Math.min(attackCandidates.length, 5));
   myAttackers.forEach(inst => {
     inst.attacking = true;
-    if (!hasKeyword(inst,'tireless')) inst.exhaustState = 'exhausted';
+    // Don't exhaust yet — wait until after animation
   });
   log(`⚔ AI attacks with: ${myAttackers.map(i=>i.name+'['+getEffectivePower(i)+']').join(', ')}`, 'important');
   log('Assign blockers by clicking an AI attacker then your creature. Cast spells freely.', 'important');
@@ -1810,6 +1855,11 @@ async function aiDeclareAttack() {
 
   // Run lunge animation first, then resolve damage
   await runCombatAnimation(myAttackers, playerBlockers, 'down', 'player');
+
+  // Now exhaust non-Tireless attackers
+  myAttackers.forEach(inst => {
+    if (!hasKeyword(inst,'tireless')) inst.exhaustState = 'exhausted';
+  });
 
   resolveCombat(myAttackers, playerBlockers, 'player');
   myAttackers.forEach(i => { i.attacking = false; });
@@ -1984,11 +2034,6 @@ function confirmAttack() {
 
   if (atkInsts.length === 0) { endCombatPhase(); return; }
 
-  // Exhaust non-Tireless attackers
-  atkInsts.forEach(inst => {
-    if (!hasKeyword(inst,'tireless')) inst.exhaustState = 'exhausted';
-  });
-
   combatPhase = 'resolving';
   document.getElementById('btn-attack').style.display = 'none';
 
@@ -2010,14 +2055,19 @@ function confirmAttack() {
     log(`AI blocks ${atk.name} with ${blk.name}[${getEffectivePower(blk)}].`, '');
   });
 
+  // Render state (attackers still renewed so they render upright for animation)
   updateUI();
 
-  // Run lunge animation THEN resolve damage
+  // Run lunge animation, THEN exhaust and resolve
   runCombatAnimation(atkInsts, blockers, 'up', 'ai').then(() => {
+    // Now exhaust non-Tireless attackers
+    atkInsts.forEach(inst => {
+      if (!hasKeyword(inst,'tireless')) inst.exhaustState = 'exhausted';
+    });
+
     log('── Damage resolves ──', 'phase');
     resolveCombat(atkInsts, blockers, 'ai');
 
-    // Cleanup
     attackers = [];
     blockers = {};
     combatPhase = null;
@@ -3199,6 +3249,186 @@ function flashLifeHeal(who) {
 }
 
 
+
+// ── DRAG & DROP SYSTEM ────────────────────────────────────────
+let _drag = null; // { inst, cardEl, ghostEl, offsetX, offsetY }
+
+function initDrag(inst, cardEl) {
+  const ghost = document.getElementById('drag-ghost');
+
+  // Build ghost from the card element's current HTML
+  ghost.innerHTML = cardEl.innerHTML;
+  ghost.style.width  = cardEl.offsetWidth  + 'px';
+  ghost.style.height = cardEl.offsetHeight + 'px';
+  ghost.style.display = 'block';
+
+  cardEl.classList.add('dragging');
+  _drag = { inst, cardEl };
+
+  return ghost;
+}
+
+function moveDrag(e) {
+  if (!_drag) return;
+  const ghost = document.getElementById('drag-ghost');
+  ghost.style.left = (e.clientX - ghost.offsetWidth  / 2) + 'px';
+  ghost.style.top  = (e.clientY - ghost.offsetHeight / 2 - 16) + 'px';
+
+  // Highlight drop zones and spell targets under cursor
+  clearDropHighlights();
+  const el = getTopElementUnder(e.clientX, e.clientY);
+  if (!el) return;
+
+  const inst = _drag.inst;
+  const isCastableSpell = inst.type === 'Spell' && canPayCost('player', inst.cost);
+
+  // Spell dragged onto an enemy creature → spell-drop-target highlight
+  if (isCastableSpell) {
+    const targetCard = el.closest('[data-inst]');
+    if (targetCard) {
+      const targetInstId = parseInt(targetCard.dataset.inst);
+      const targetInst = G.ai.battlefield.find(i => i.instId === targetInstId) ||
+                         G.player.battlefield.find(i => i.instId === targetInstId);
+      if (targetInst && isSpellTargetValid(inst, targetInst)) {
+        targetCard.classList.add('spell-drop-target');
+        return;
+      }
+    }
+  }
+
+  // Any playable card dragged over the player battlefield → zone glow
+  const affordable = canPayCost('player', inst.cost);
+  const isLand = inst.type === 'Land';
+  if (affordable || isLand) {
+    // Find which zone we're over
+    const zone = el.closest('#bf-player-creatures, #bf-player-relics, #bf-player-lands, #side-player');
+    if (zone) zone.classList.add('drop-zone-active');
+  }
+}
+
+function endDrag(e) {
+  if (!_drag) return;
+  const ghost = document.getElementById('drag-ghost');
+  ghost.style.display = 'none';
+  _drag.cardEl.classList.remove('dragging');
+  clearDropHighlights();
+
+  const inst   = _drag.inst;
+  _drag = null;
+
+  // Find what we dropped onto
+  const el = getTopElementUnder(e.clientX, e.clientY);
+  if (!el) return;
+
+  // ── SPELL + TARGET DROP ───────────────────────────────────────
+  if (inst.type === 'Spell') {
+    const targetCard = el.closest('[data-inst]');
+    if (targetCard) {
+      const targetInstId = parseInt(targetCard.dataset.inst);
+      const targetInst = G.ai.battlefield.find(i => i.instId === targetInstId) ||
+                         G.player.battlefield.find(i => i.instId === targetInstId);
+      const targetOwner = G.ai.battlefield.find(i => i.instId === targetInstId) ? 'ai' : 'player';
+
+      if (targetInst && isSpellTargetValid(inst, targetInst)) {
+        // Pay cost, remove from hand, resolve on that target
+        autoTapForCost('player', inst.cost);
+        if (!canPayCost('player', inst.cost)) {
+          rejectDrop(targetCard);
+          log(`Not enough mana for ${inst.name}.`, '');
+          return;
+        }
+        payCost('player', inst.cost);
+        G.player.hand = G.player.hand.filter(i => i.instId !== inst.instId);
+        sfx('card_play');
+        log(`You cast ${inst.name} → ${targetInst.name}.`, 'important');
+        resolveSpellOnTarget(inst, 'player', targetInst, targetOwner);
+        G.player.discard.push(inst);
+        updateUI();
+        return;
+      }
+    }
+    // Dropped on empty battlefield — use normal spell flow
+    if (isOverPlayerSide(e.clientX, e.clientY)) {
+      playCard(inst);
+      return;
+    }
+    return;
+  }
+
+  // ── CREATURE / RELIC / LAND DROP ─────────────────────────────
+  if (isOverPlayerSide(e.clientX, e.clientY)) {
+    const affordable = canPayCost('player', inst.cost);
+    const isLand = inst.type === 'Land';
+    if (!affordable && !isLand) {
+      // Shake the hand zone to show rejection
+      const handEl = document.getElementById('hand-player');
+      if (handEl) { handEl.classList.add('drop-reject'); setTimeout(() => handEl.classList.remove('drop-reject'), 350); }
+      log(`Not enough mana for ${inst.name}.`, '');
+      return;
+    }
+    playCard(inst);
+  }
+}
+
+// Check if a spell can target a given creature
+function isSpellTargetValid(spellInst, targetInst) {
+  if (!spellInst || !targetInst) return false;
+  const txt = (spellInst.abilities || '').toLowerCase();
+  // Must need a target
+  const needsTarget = txt.includes('target creature') || txt.includes('target attacking') ||
+                      txt.includes('target blocking') || txt.includes('target exhausted') ||
+                      txt.includes('target overexhausted');
+  if (!needsTarget) return false;
+  // Exhausted/overexhausted specific
+  if (txt.includes('target exhausted') && targetInst.exhaustState !== 'exhausted') return false;
+  if (txt.includes('target overexhausted') && targetInst.exhaustState !== 'overexhausted') return false;
+  return true;
+}
+
+// Returns the topmost element under x,y excluding the ghost
+function getTopElementUnder(x, y) {
+  const ghost = document.getElementById('drag-ghost');
+  ghost.style.display = 'none';
+  const el = document.elementFromPoint(x, y);
+  ghost.style.display = 'block';
+  return el;
+}
+
+function isOverPlayerSide(x, y) {
+  const side = document.getElementById('side-player');
+  if (!side) return false;
+  const r = side.getBoundingClientRect();
+  return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+}
+
+function clearDropHighlights() {
+  document.querySelectorAll('.drop-zone-active').forEach(el => el.classList.remove('drop-zone-active'));
+  document.querySelectorAll('.spell-drop-target').forEach(el => el.classList.remove('spell-drop-target'));
+}
+
+function rejectDrop(el) {
+  if (!el) return;
+  el.classList.add('drop-reject');
+  setTimeout(() => el.classList.remove('drop-reject'), 350);
+}
+
+// Wire drag events onto a hand card element
+function addDragHandlers(cardEl, inst) {
+  const affordable = canPayCost('player', inst.cost);
+  const isLand = inst.type === 'Land';
+  if (!affordable && !isLand) return; // unaffordable → no drag
+
+  cardEl.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return; // left click only
+    e.preventDefault();
+    hideCardDetail();
+    initDrag(inst, cardEl);
+  });
+}
+
+// Global mouse move + up listeners (attached once)
+document.addEventListener('mousemove', (e) => { if (_drag) moveDrag(e); });
+document.addEventListener('mouseup',   (e) => { if (_drag) endDrag(e); });
 
 // ── UI RENDERING ──────────────────────────────────────────────
 function updateUI() {
