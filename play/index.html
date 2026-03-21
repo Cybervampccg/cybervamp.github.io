@@ -81,6 +81,39 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 #ai-info-strip { background: rgba(20,10,50,0.82); border-bottom: 1px solid var(--border-dim); }
 #player-info-strip { background: rgba(30,10,10,0.82); border-top: 1px solid var(--border-dim); }
 
+/* ── FACTION BANNERS ── */
+.faction-banner {
+  position: relative;
+  width: 120px; height: 38px;
+  flex-shrink: 0; overflow: hidden; border-radius: 4px;
+  border: 1px solid var(--border-dim);
+}
+.banner-img {
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: center;
+  display: block;
+}
+.banner-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.45);
+  gap: 1px;
+}
+.banner-faction-name {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 11px; font-weight: 700;
+  color: #fff; letter-spacing: 1px;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+  line-height: 1;
+}
+.banner-role {
+  font-size: 7px; letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.6);
+  line-height: 1;
+}
+
 .player-stats { display: flex; align-items: center; gap: 14px; }
 .stat-block { display: flex; align-items: center; gap: 5px; font-size: 12px; }
 .stat-icon { font-size: 14px; }
@@ -516,13 +549,21 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
     <!-- AI INFO -->
     <div id="ai-info-strip">
+      <!-- Faction banner with text overlay -->
+      <div class="faction-banner" id="ai-banner">
+        <img class="banner-img" id="ai-banner-img" src="" alt="">
+        <div class="banner-overlay">
+          <span class="banner-faction-name" id="ai-faction-label">AI</span>
+          <span class="banner-role">OPPONENT</span>
+        </div>
+      </div>
+      <!-- Stats -->
       <div class="player-stats">
         <div class="stat-block"><span class="stat-icon">❤️</span><span class="stat-val life-val" id="ai-life">20</span></div>
         <div class="stat-block"><span class="stat-icon">🩸</span><span class="stat-val bleed-val" id="ai-bleed">0</span></div>
         <div class="stat-block"><span style="font-size:9px;color:var(--text-dim)">DECK</span><span class="stat-val deck-val" id="ai-deck-count">40</span></div>
         <div class="stat-block"><span style="font-size:9px;color:var(--text-dim)">LAND</span><span class="stat-val deck-val" id="ai-land-count">20</span></div>
       </div>
-      <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;">AI OPPONENT</div>
       <div class="resource-row" id="ai-mana-display"></div>
     </div>
 
@@ -572,13 +613,21 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
     <!-- PLAYER INFO -->
     <div id="player-info-strip">
+      <!-- Faction banner with text overlay -->
+      <div class="faction-banner" id="player-banner">
+        <img class="banner-img" id="player-banner-img" src="" alt="">
+        <div class="banner-overlay">
+          <span class="banner-faction-name" id="player-faction-label">YOU</span>
+          <span class="banner-role">PLAYER</span>
+        </div>
+      </div>
+      <!-- Stats -->
       <div class="player-stats">
         <div class="stat-block"><span class="stat-icon">❤️</span><span class="stat-val life-val" id="player-life">20</span></div>
         <div class="stat-block"><span class="stat-icon">🩸</span><span class="stat-val bleed-val" id="player-bleed">0</span></div>
         <div class="stat-block"><span style="font-size:9px;color:var(--text-dim)">DECK</span><span class="stat-val deck-val" id="player-deck-count">40</span></div>
         <div class="stat-block"><span style="font-size:9px;color:var(--text-dim)">LAND</span><span class="stat-val deck-val" id="player-land-count">20</span></div>
       </div>
-      <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;">YOU</div>
       <div class="resource-row" id="player-mana-display"></div>
     </div>
 
@@ -782,6 +831,13 @@ const FACTION_DECKS = {
 // Choose opposite faction for AI
 const FACTION_OPPOSITES = { Red:'Black', Black:'Red', White:'Purple', Purple:'White' };
 
+const FACTION_BANNERS = {
+  Red:    'https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/red_banner.png?raw=true',
+  White:  'https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/white_banner.png?raw=true',
+  Black:  'https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/black_banner.png?raw=true',
+  Purple: 'https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/purple_banner.png?raw=true',
+};
+
 // ── HELPERS ───────────────────────────────────────────────────
 // ── AUDIO SYSTEM ──────────────────────────────────────────────
 const BASE_AUDIO = 'https://github.com/Cybervampccg/cybervamp.github.io/blob/main/play/audio/';
@@ -821,18 +877,74 @@ function toggleMute() {
   sfxMuted = !sfxMuted;
   const btn = document.getElementById('btn-mute');
   if (btn) btn.textContent = sfxMuted ? '🔇' : '🔊';
+  // Also control BGM
+  if (sfxMuted) {
+    bgmPause();
+  } else {
+    bgmPlay();
+  }
+}
+
+// ── BACKGROUND MUSIC ──────────────────────────────────────────
+const BGM_URL = 'https://github.com/Cybervampccg/cybervamp.github.io/blob/main/play/audio/bgm.mp3?raw=true';
+let _bgm = null;
+let _bgmStarted = false;
+
+function _initBGM() {
+  if (_bgm) return;
+  _bgm = new Audio(BGM_URL);
+  _bgm.loop = true;
+  _bgm.volume = 0.35;
+  _bgm.preload = 'auto';
+}
+
+function bgmPlay() {
+  if (sfxMuted) return;
+  _initBGM();
+  if (_bgm.paused) {
+    _bgm.play().catch(() => {}); // autoplay policy — silently fail until user interacts
+  }
+}
+
+function bgmPause() {
+  if (_bgm && !_bgm.paused) _bgm.pause();
+}
+
+function bgmFadeIn(duration = 2000) {
+  if (sfxMuted) return;
+  _initBGM();
+  _bgm.volume = 0;
+  _bgm.play().catch(() => {});
+  const step = 0.35 / (duration / 50);
+  const fade = setInterval(() => {
+    if (_bgm.volume < 0.35) {
+      _bgm.volume = Math.min(0.35, _bgm.volume + step);
+    } else {
+      clearInterval(fade);
+    }
+  }, 50);
 }
 
 // Preload all sounds as soon as the page loads
 window.addEventListener('load', () => {
   Object.keys(SOUNDS).forEach(k => _getAudio(k));
+  _initBGM(); // preload BGM too
 });
 
-
+function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length-1; i>0; i--) {
     const j = Math.floor(Math.random()*(i+1));
     [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
 }
@@ -900,6 +1012,38 @@ function makeInst(cardId, owner) {
   };
 }
 
+// ── FACTION BANNERS ───────────────────────────────────────────
+const FACTION_COLORS = {
+  Red:    '#e03030',
+  White:  '#c8c0f0',
+  Black:  '#6030c0',
+  Purple: '#a020f0',
+};
+
+function setBanners(playerFaction, aiFaction) {
+  // Player banner
+  const pImg = document.getElementById('player-banner-img');
+  const pLabel = document.getElementById('player-faction-label');
+  if (pImg) {
+    pImg.src = FACTION_BANNERS[playerFaction] || '';
+    pImg.style.borderColor = FACTION_COLORS[playerFaction] || 'transparent';
+  }
+  if (pLabel) pLabel.textContent = playerFaction.toUpperCase();
+  const pBanner = document.getElementById('player-banner');
+  if (pBanner) pBanner.style.borderColor = FACTION_COLORS[playerFaction] || 'var(--border-dim)';
+
+  // AI banner
+  const aImg = document.getElementById('ai-banner-img');
+  const aLabel = document.getElementById('ai-faction-label');
+  if (aImg) {
+    aImg.src = FACTION_BANNERS[aiFaction] || '';
+    aImg.style.borderColor = FACTION_COLORS[aiFaction] || 'transparent';
+  }
+  if (aLabel) aLabel.textContent = aiFaction.toUpperCase();
+  const aBanner = document.getElementById('ai-banner');
+  if (aBanner) aBanner.style.borderColor = FACTION_COLORS[aiFaction] || 'var(--border-dim)';
+}
+
 function startGame(faction) {
   document.getElementById('faction-chooser').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
@@ -937,6 +1081,12 @@ function startGame(faction) {
   // AI draws 7 automatically (smart: ~3 lands, 4 main)
   for (let i=0; i<3; i++) drawFromDeck('ai','land');
   for (let i=0; i<4; i++) drawFromDeck('ai','main');
+
+  // Set faction banners
+  setBanners(faction, aiFaction);
+
+  // Start background music (fade in — faction click = valid user gesture)
+  bgmFadeIn(3000);
 
   // Player draws opening hand interactively
   setPhase('prebattle');
@@ -2636,6 +2786,7 @@ function checkWin() {
 }
 
 function showWinLoss(playerWon, reason) {
+  bgmPause(); // stop music at the dramatic moment
   showModal(
     playerWon ? '⚡ VICTORY' : '💀 DEFEAT',
     `${reason}\n\nYou ended with ${G.player.life} life. AI had ${G.ai.life} life.`,
