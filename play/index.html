@@ -115,9 +115,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   gap: 8px; padding: 4px 0; overflow-x: auto; overflow-y: visible;
   scrollbar-width: thin; flex-shrink: 0; position: relative;
 }
-.bf-row.creatures-row { min-height: 140px; }
-.bf-row.relics-row    { min-height: 106px; }
-.bf-row.lands-row     { min-height: 62px;  }
+.bf-row.creatures-row { min-height: 164px; }
+.bf-row.relics-row    { min-height: 130px; }
+.bf-row.lands-row     { min-height: 80px;  }
 
 .row-label {
   font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase;
@@ -127,7 +127,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 /* Discard pile */
 .discard-pile { margin-left: auto; display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; padding-right: 4px; }
 .discard-stack {
-  width: 60px; height: 84px; border-radius: 5px;
+  width: 68px; height: 96px; border-radius: 5px;
   background: rgba(0,0,0,0.4); border: 1px dashed var(--border-dim);
   display: flex; align-items: center; justify-content: center;
   flex-direction: column; gap: 2px; cursor: pointer; position: relative; transition: border-color 0.15s;
@@ -145,9 +145,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   position: relative; overflow: hidden;
   transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   flex-shrink: 0; display: flex; flex-direction: column;
-  width: 90px; height: 126px;
+  width: 104px; height: 146px;
 }
-.card:hover { transform: translateY(-10px) scale(1.08); z-index: 50; }
+.card:hover { transform: translateY(-10px) scale(1.07); z-index: 50; }
 .card.selected { border-color:var(--gold)!important; box-shadow:0 0 14px var(--gold-glow)!important; transform:translateY(-14px) scale(1.12)!important; z-index:60; }
 .card.attackable { border-color:var(--red); box-shadow:0 0 10px var(--red-glow); animation:pulse-red 1.2s infinite; }
 .card.blockable  { border-color:#30a0e0; box-shadow:0 0 8px rgba(48,160,224,0.3); animation:pulse-blue 1.2s infinite; }
@@ -156,34 +156,36 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .card.exhausted {
   opacity: 0.78;
   transform: rotate(90deg);
-  margin: 22px 8px;
+  margin: 28px 10px;
 }
-.card.exhausted:hover { transform: rotate(90deg) scale(1.08); z-index:50; }
+.card.exhausted:hover { transform: rotate(90deg) scale(1.07); z-index:50; }
 
 /* Full 180° for overexhausted */
 .card.overexhausted {
   opacity: 0.45;
   transform: rotate(180deg);
-  margin: 0 6px;
+  margin: 0 8px;
 }
-.card.overexhausted:hover { transform: rotate(180deg) scale(1.08); z-index:50; }
+.card.overexhausted:hover { transform: rotate(180deg) scale(1.07); z-index:50; }
 
 .card.newly-turned { outline: 2px solid rgba(255,200,0,0.55); }
 .card.attacking { outline: 3px solid var(--red)!important; animation:pulse-red 0.7s infinite; }
 .card.blocking  { outline: 3px solid #30a0e0!important; }
 .card.tap-hint  { box-shadow: 0 0 9px rgba(212,160,32,0.65); }
 
-/* Land cards — compact strip */
-.lands-row .card { width:58px; height:46px; margin:0 2px; }
-.lands-row .card.exhausted { transform:rotate(90deg); margin:18px 6px; }
-.lands-row .card .card-img { display:none; }
-.lands-row .card .card-img-placeholder { font-size:13px; }
-.lands-row .card .card-name-mini { font-size:7px; }
+/* Land cards — show full art now */
+.lands-row .card { width:72px; height:72px; }
+.lands-row .card .card-img { display:block; object-position:center; }
+.lands-row .card .card-img-placeholder { font-size:18px; }
+.lands-row .card .card-name-mini { font-size:7px; max-width:60px; }
+.lands-row .card .card-power { display:none; }
 .lands-row .kw-badges { display:none; }
+.lands-row .card.exhausted { transform:rotate(90deg); margin:16px 6px; }
+.lands-row .card.exhausted:hover { transform:rotate(90deg) scale(1.08); }
 
-/* Relic cards — medium */
-.relics-row .card { width:74px; height:104px; }
-.relics-row .card.exhausted { margin: 20px 6px; }
+/* Relic cards */
+.relics-row .card { width:90px; height:126px; }
+.relics-row .card.exhausted { margin: 26px 10px; }
 
 .card-img { width:100%; flex:1; object-fit:cover; object-position:top; background:var(--bg-panel); min-height:0; }
 .card-img-placeholder { width:100%; flex:1; display:flex; align-items:center; justify-content:center; background:var(--bg-panel); font-size:26px; min-height:0; }
@@ -1167,7 +1169,9 @@ async function runAITurn() {
 function renewPhase(who) {
   const s = G[who];
   s.battlefield.forEach(inst => {
-    if (inst.exhaustState === 'overexhausted') inst.exhaustState = 'exhausted';
+    // Overexhausted → renewed in ONE renew phase (per rules: two full renew phases,
+    // but the game tracks it as: overexhausted renews to renewed on next renew)
+    if (inst.exhaustState === 'overexhausted') inst.exhaustState = 'renewed';
     else if (inst.exhaustState === 'exhausted') inst.exhaustState = 'renewed';
     inst.newlyTurned = false;
     inst.attacking = false;
@@ -1566,8 +1570,15 @@ function playSelectedCard() {
 
 function playCard(inst) {
   if (G.activePlayer !== 'player') { log('Not your turn.'); return; }
-  if (!['prebattle','postbattle'].includes(G.phase) && inst.type !== 'Spell') {
+  // Spells can be played any phase except renew/draw; permanents only pre/post-battle
+  const isSpell = inst.type === 'Spell';
+  const validPhase = ['prebattle','postbattle','battle'].includes(G.phase);
+  const permanentPhase = ['prebattle','postbattle'].includes(G.phase);
+  if (!isSpell && !permanentPhase) {
     log('Creatures, Relics and Lands can only be played in Pre-Battle or Post-Battle.'); return;
+  }
+  if (isSpell && !validPhase) {
+    log('Spells cannot be played during Renew or Draw phase.'); return;
   }
 
   // Land — no cost, 1 per turn
@@ -1619,66 +1630,127 @@ function castSpellWithTargeting(inst, caster, onDone) {
   const txt = (inst.abilities || '').toLowerCase();
   const opp = caster === 'player' ? 'ai' : 'player';
 
-  // Determine if spell needs a target
-  const needsOpponentCreature = txt.includes('target creature') &&
-    (txt.includes('destroy') || txt.includes('damage') || txt.includes('-1 power') ||
-     txt.includes('no combat damage') || txt.includes('deals no') || txt.includes('exhaust'));
-  const needsOwnCreature = txt.includes('target creature') &&
-    (txt.includes('+1 power') || txt.includes('+2 power') || txt.includes('gains') || txt.includes('tireless'));
-  const needsAnyCreature = txt.includes('target creature') && !needsOpponentCreature && !needsOwnCreature;
-
-  if (needsOpponentCreature && G[opp].battlefield.filter(i=>i.type==='Creature').length > 0) {
-    beginTargeting(inst, caster, 'opponent-creature', (target) => {
-      resolveSpellOnTarget(inst, caster, target);
-      onDone();
-    });
-  } else if (needsOwnCreature && G[caster].battlefield.filter(i=>i.type==='Creature').length > 0) {
-    beginTargeting(inst, caster, 'own-creature', (target) => {
-      resolveSpellOnTarget(inst, caster, target);
-      onDone();
-    });
-  } else {
-    // No specific target or no valid targets — resolve immediately
+  // Does this spell target a creature at all?
+  if (!txt.includes('target creature') && !txt.includes('target attacking') && !txt.includes('target blocking')) {
     resolveSpell(inst, caster);
     onDone();
+    return;
   }
+
+  // Determine which side(s) are valid targets
+  // Negative effects → opponent's creatures
+  const isNegative = txt.includes('destroy') || txt.includes('-1 power') ||
+    txt.includes('no combat damage') || txt.includes('deals no') ||
+    (txt.includes('exhaust') && !txt.includes('overexhaust ability'));
+
+  // Positive effects → your own creatures (or attacking creatures in battle)
+  const isPositive = txt.includes('+1 power') || txt.includes('+2 power') ||
+    txt.includes('gains breach') || txt.includes('gains tireless') ||
+    txt.includes('gains siphon') || txt.includes('gains haste') ||
+    txt.includes('gains +') || txt.includes('gain breach') ||
+    txt.includes('gain tireless') || txt.includes('renew target');
+
+  // Specific to attacking/blocking creatures
+  const isAttackTarget = txt.includes('target attacking');
+  const isBlockTarget  = txt.includes('target blocking');
+
+  let mode = 'any-creature';
+  if (isAttackTarget) mode = 'attacking-creature';
+  else if (isBlockTarget) mode = 'blocking-creature';
+  else if (isNegative && !isPositive) mode = 'opponent-creature';
+  else if (isPositive && !isNegative) mode = 'own-creature';
+  // If ambiguous (e.g. "target creature gains X or Y") → let player pick any
+
+  // Build valid target list based on mode
+  const allCreatures = [
+    ...G[caster].battlefield.filter(i => i.type==='Creature').map(i => ({inst:i, owner:caster})),
+    ...G[opp].battlefield.filter(i => i.type==='Creature').map(i => ({inst:i, owner:opp}))
+  ];
+
+  const validTargets = allCreatures.filter(({inst: t, owner}) => {
+    if (mode === 'opponent-creature') return owner === opp;
+    if (mode === 'own-creature') return owner === caster;
+    if (mode === 'attacking-creature') return t.attacking;
+    if (mode === 'blocking-creature') return t.blocking;
+    return true; // any-creature
+  });
+
+  if (validTargets.length === 0) {
+    log(`${inst.name}: No valid targets — resolving without target.`, '');
+    resolveSpell(inst, caster);
+    onDone();
+    return;
+  }
+
+  // If only one valid target, auto-select it
+  if (validTargets.length === 1) {
+    resolveSpellOnTarget(inst, caster, validTargets[0].inst, validTargets[0].owner);
+    onDone();
+    return;
+  }
+
+  // Multiple targets — enter targeting mode
+  beginTargeting(inst, caster, mode, (target, targetOwner) => {
+    resolveSpellOnTarget(inst, caster, target, targetOwner);
+    onDone();
+  });
 }
 
-function resolveSpellOnTarget(inst, caster, target) {
+function resolveSpellOnTarget(inst, caster, target, targetOwner) {
   const txt = (inst.abilities || '').toLowerCase();
   const opp = caster === 'player' ? 'ai' : 'player';
-  const targetOwner = G[caster].battlefield.find(i => i.instId === target.instId) ? caster : opp;
 
-  if (txt.includes('destroy')) {
+  // Determine owner if not passed
+  if (!targetOwner) {
+    targetOwner = G[caster].battlefield.find(i => i.instId === target.instId) ? caster : opp;
+  }
+
+  if (txt.includes('destroy') && !txt.includes('overexhausted')) {
     destroyCreature(target, targetOwner);
     log(`${inst.name}: ${target.name} destroyed.`, 'damage');
   } else if (txt.includes('no combat damage') || txt.includes('deals no')) {
     target.noCombatDamage = true;
-    log(`${inst.name}: ${target.name} deals no damage this turn.`, '');
+    log(`${inst.name}: ${target.name} deals no combat damage this turn.`, '');
   } else if (txt.includes('-1 power')) {
     target.power = Math.max(0, (target.power||0) - 1);
     log(`${inst.name}: ${target.name} gets -1 power.`, '');
   } else if (txt.includes('+2 power')) {
     target.power = (target.power||0) + 2;
-    log(`${inst.name}: ${target.name} gets +2 power until end of turn.`, 'heal');
+    log(`${inst.name}: ${target.name} gets +2 power.`, 'heal');
   } else if (txt.includes('+1 power') || txt.includes('gains +1')) {
     target.power = (target.power||0) + 1;
     log(`${inst.name}: ${target.name} gets +1 power.`, 'heal');
-  } else if (txt.includes('gains breach')) {
+  } else if (txt.includes('gains breach') || txt.includes('gain breach')) {
     target.keywords.breach = true;
-    log(`${inst.name}: ${target.name} gains Breach.`, 'heal');
-  } else if (txt.includes('exhausted') || (txt.includes('exhaust') && txt.includes('target'))) {
-    target.exhaustState = 'exhausted';
-    log(`${inst.name}: ${target.name} exhausted.`, '');
-  } else if (txt.includes('overexhausted')) {
+    log(`${inst.name}: ${target.name} gains Breach!`, 'heal');
+  } else if (txt.includes('gains tireless') || txt.includes('gain tireless')) {
+    target.keywords.tireless = true;
+    log(`${inst.name}: ${target.name} gains Tireless.`, 'heal');
+  } else if (txt.includes('gains siphon') || txt.includes('gain siphon')) {
+    target.keywords.siphon = true;
+    log(`${inst.name}: ${target.name} gains Siphon.`, 'heal');
+  } else if (txt.includes('gains haste') || txt.includes('gain haste')) {
+    target.keywords.haste = true;
+    target.newlyTurned = false;
+    log(`${inst.name}: ${target.name} gains Haste.`, 'heal');
+  } else if (txt.includes('renew target')) {
+    target.exhaustState = 'renewed';
+    log(`${inst.name}: ${target.name} renewed.`, 'heal');
+  } else if (txt.includes('overexhausted') && txt.includes('target')) {
     target.exhaustState = 'overexhausted';
     log(`${inst.name}: ${target.name} overexhausted.`, '');
-  } else if (txt.includes('returned to')) {
-    G[targetOwner].battlefield = G[targetOwner].battlefield.filter(i => i.instId !== target.instId);
+  } else if (txt.includes('exhaust') && txt.includes('target')) {
+    target.exhaustState = 'exhausted';
+    log(`${inst.name}: ${target.name} exhausted.`, '');
+  } else if (txt.includes('returned to') || txt.includes('return') && txt.includes('hand')) {
+    const arr = G[targetOwner].battlefield;
+    const idx = arr.findIndex(i => i.instId === target.instId);
+    if (idx !== -1) arr.splice(idx, 1);
     G[targetOwner].hand.push(target);
     log(`${inst.name}: ${target.name} returned to hand.`, '');
   } else {
-    resolveSpell(inst, caster);
+    // Fallback — just log it
+    log(`${inst.name} targets ${target.name}.`, '');
   }
   updateUI();
 }
@@ -1806,9 +1878,11 @@ function isValidTarget(inst, owner) {
   const { mode, caster } = targetingState;
   const opp = caster === 'player' ? 'ai' : 'player';
   if (!mode) return false;
-  if (mode === 'opponent-creature') return owner === opp && inst.type === 'Creature';
-  if (mode === 'own-creature') return owner === caster && inst.type === 'Creature';
-  if (mode === 'any-creature') return inst.type === 'Creature';
+  if (mode === 'opponent-creature')  return owner === opp && inst.type === 'Creature';
+  if (mode === 'own-creature')       return owner === caster && inst.type === 'Creature';
+  if (mode === 'any-creature')       return inst.type === 'Creature';
+  if (mode === 'attacking-creature') return inst.type === 'Creature' && inst.attacking;
+  if (mode === 'blocking-creature')  return inst.type === 'Creature' && inst.blocking;
   if (mode === 'own-creature-or-relic') return owner === caster && (inst.type === 'Creature' || inst.type === 'Relic');
   if (mode === 'any') return true;
   return false;
