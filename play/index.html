@@ -575,6 +575,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   <!-- ACTION OVERLAY — shown during AI combat blocking & response windows -->
   <div id="action-overlay" style="display:none;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:7px 16px;background:rgba(0,80,140,0.18);border-top:1px solid rgba(48,160,224,0.4);flex-shrink:0;"></div>
 
+  <!-- BLOCKING LINES SVG — drawn over battlefield to show block assignments -->
+  <svg id="block-lines" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:80;" xmlns="http://www.w3.org/2000/svg"></svg>
+
 </div>
 
 <!-- PANELS & OVERLAYS -->
@@ -1021,23 +1024,51 @@ function addMana(who, color, amount) {
 
 function canPayCost(who, costStr) {
   const needed = parseCost(costStr);
-  const have = G[who].mana;
+  const have   = { ...G[who].mana }; // work on a copy
+
+  // Pay each specific colored requirement first
   for (const color of ['R','W','B','P']) {
     if ((needed[color] || 0) > (have[color] || 0)) return false;
+    have[color] -= (needed[color] || 0);
   }
-  // Gold check
-  const totalGold = (have.G || 0) + (have.C || 0);
-  if ((needed.G || 0) > totalGold) return false;
-  if ((needed.C || 0) > (have.C || 0)) return false;
+
+  // Gold {G} must be paid by Gold mana only (not colored blood)
+  if ((needed.G || 0) > (have.G || 0)) return false;
+  have.G -= (needed.G || 0);
+
+  // Colorless {C} can be paid by ANY remaining mana (Gold or any blood color)
+  const needC = needed.C || 0;
+  if (needC > 0) {
+    const totalAny = (have.R||0) + (have.W||0) + (have.B||0) + (have.P||0) + (have.G||0) + (have.C||0);
+    if (needC > totalAny) return false;
+  }
+
   return true;
 }
 
 function payCost(who, costStr) {
   const needed = parseCost(costStr);
-  const have = G[who].mana;
-  for (const color of ['R','W','B','P','G','C']) {
-    have[color] = Math.max(0, (have[color]||0) - (needed[color]||0));
+  const have   = G[who].mana;
+
+  // Pay specific colors first
+  for (const color of ['R','W','B','P']) {
+    const pay = Math.min(needed[color] || 0, have[color] || 0);
+    have[color] = (have[color] || 0) - pay;
   }
+
+  // Pay Gold
+  const payG = Math.min(needed.G || 0, have.G || 0);
+  have.G = (have.G || 0) - payG;
+
+  // Pay colorless {C} — drain from any remaining pool (Gold first, then colors)
+  let needC = needed.C || 0;
+  for (const color of ['G','R','W','B','P','C']) {
+    if (needC <= 0) break;
+    const pay = Math.min(needC, have[color] || 0);
+    have[color] = (have[color] || 0) - pay;
+    needC -= pay;
+  }
+
   updateManaDisplay(who);
 }
 
@@ -1366,6 +1397,9 @@ async function aiDeclareAttack() {
   playerBlockTarget = null;
   combatPhase = null;
   updateUI();
+  // Clear block lines
+  const bls = document.getElementById('block-lines');
+  if (bls) bls.innerHTML = '';
 }
 
 // ── ACTION OVERLAY (blocking / response windows) ──────────────
@@ -1928,69 +1962,89 @@ function autoTapForCost(who, costStr) {
 function resolveSpell(inst, caster) {
   const txt = (inst.abilities || '').toLowerCase();
 
-  // Basic spell effects
-  if (txt.includes('destroy target overexhausted creature')) {
-    // Burnout / Curse of Fatigue
-    const targets = G[caster==='player'?'ai':'player'].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='overexhausted');
-    if (targets.length > 0) {
-      destroyCreature(targets[0], caster==='player'?'ai':'player');
-      log(`${inst.name}: Destroyed ${targets[0].name}.`, 'damage');
+  // ── TOKEN CREATION ──────────────────────────────────────────
+  if (txt.includes('create') && txt.includes('token')) {
+    const counts = {
+      'bat token':    (txt.match(/(\d+) bat token/)?.[1]   || (txt.includes('bat token')   ? '1' : '0')) | 0,
+      'wolf token':   (txt.match(/(\d+) wolf token/)?.[1]  || (txt.includes('wolf token')  ? '1' : '0')) | 0,
+      'zombie token': (txt.match(/(\d+) zombie token/)?.[1]|| (txt.includes('zombie token')? '1' : '0')) | 0,
+      'raven token':  (txt.match(/(\d+) raven token/)?.[1] || (txt.includes('raven token') ? '1' : '0')) | 0,
+      'skeleton token': (txt.includes('skeleton token') ? '1' : '0') | 0,
+    };
+    const nameMap = { 'bat token':'Bat Token', 'wolf token':'Wolf Token', 'zombie token':'Zombie Token', 'raven token':'Raven Token' };
+    let created = false;
+    for (const [key, count] of Object.entries(counts)) {
+      if (count > 0 && nameMap[key]) {
+        for (let i = 0; i < count; i++) createToken(nameMap[key], caster);
+        created = true;
+      }
     }
-  } else if (txt.includes('deal 1 damage to all creatures')) {
+    if (counts['skeleton token'] > 0) {
+      // Skeleton = 2-power token with Wall, use Zombie as base but override power
+      createTokenCustom('Skeleton Token', 2, '', caster);
+      created = true;
+    }
+    if (created) { updateUI(); return; }
+  }
+
+  // ── LIFE DRAIN / GAIN ────────────────────────────────────────
+  if (txt.includes('target player loses 1 life') && txt.includes('gain 1 life')) {
     const opp = caster==='player'?'ai':'player';
-    const toDestroy = G[opp].battlefield.filter(i => i.type==='Creature' && (i.power||0) <= 1);
-    toDestroy.forEach(i => destroyCreature(i, opp));
-    log(`${inst.name}: 1 damage to all opponent creatures.`, 'damage');
-  } else if (txt.includes('target creature is destroyed')) {
-    const opp = caster==='player'?'ai':'player';
-    const targets = G[opp].battlefield.filter(i => i.type==='Creature');
-    if (targets.length > 0) {
-      const target = targets.reduce((a,b) => (a.power||0) > (b.power||0) ? a : b);
-      destroyCreature(target, opp);
-      log(`${inst.name}: Destroyed ${target.name}.`, 'damage');
-    }
-  } else if (txt.includes('target creature gets +2 power')) {
-    const ally = G[caster].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed');
-    if (ally.length > 0) {
-      ally[0].power = (ally[0].power||0) + 2;
-      log(`${inst.name}: ${ally[0].name} gains +2 power.`, 'heal');
-    }
-  } else if (txt.includes('gains +1 power and breach')) {
-    const ally = G[caster].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed');
-    if (ally.length > 0) {
-      ally[0].power = (ally[0].power||0) + 1;
-      ally[0].keywords.breach = true;
-      log(`${inst.name}: ${ally[0].name} gains +1 power and Breach.`, 'heal');
-    }
-  } else if (txt.includes('remove up to 3 bleed counters')) {
-    const removed = Math.min(3, G[caster].bleed);
-    G[caster].bleed -= removed;
-    G[caster].life += removed;
-    updateLifeDisplay(caster);
-    log(`${inst.name}: Removed ${removed} Bleed counters and gained ${removed} life.`, 'heal');
-  } else if (txt.includes('target player loses 1 life and you gain 1 life')) {
-    const opp = caster==='player'?'ai':'player';
-    G[opp].life -= 1;
-    G[caster].life += 1;
+    G[opp].life -= 1; G[caster].life += 1;
     updateLifeDisplay(opp); updateLifeDisplay(caster);
-    log(`${inst.name}: Opponent loses 1 life, you gain 1 life.`, '');
-  } else if (txt.includes('target exhausted creature becomes overexhausted')) {
+    log(`${inst.name}: -1 life to opponent, +1 life to you.`, '');
+  }
+  // ── BLEED REMOVAL ────────────────────────────────────────────
+  else if (txt.includes('remove') && txt.includes('bleed counter') && !txt.includes('target creature')) {
+    const n = txt.match(/up to (\d+)/)?.[1] ? parseInt(txt.match(/up to (\d+)/)[1]) : 1;
+    const removed = Math.min(n, G[caster].bleed);
+    G[caster].bleed -= removed;
+    if (txt.includes('gain life')) G[caster].life += removed;
+    updateLifeDisplay(caster);
+    log(`${inst.name}: Removed ${removed} Bleed counters.`, 'heal');
+  }
+  // ── DAMAGE TO ALL CREATURES ──────────────────────────────────
+  else if (txt.includes('deal 1 damage to all creatures')) {
     const opp = caster==='player'?'ai':'player';
-    const targets = G[opp].battlefield.filter(i => i.exhaustState==='exhausted');
-    if (targets.length > 0) {
-      targets[0].exhaustState = 'overexhausted';
-      log(`${inst.name}: ${targets[0].name} becomes overexhausted.`, '');
-    }
-  } else if (txt.includes('target creature card is returned to its owner')) {
+    const toKill = G[opp].battlefield.filter(i => i.type==='Creature' && (i.power||0) <= 1);
+    toKill.forEach(i => removeFromBattlefield(i, opp));
+    log(`${inst.name}: 1 damage to all opponent creatures. ${toKill.length} destroyed.`, 'damage');
+  }
+  // ── DESTROY OVEREXHAUSTED ────────────────────────────────────
+  else if (txt.includes('destroy target overexhausted')) {
     const opp = caster==='player'?'ai':'player';
-    const targets = G[opp].battlefield.filter(i => i.type==='Creature');
-    if (targets.length > 0) {
-      const t = targets[0];
-      G[opp].battlefield = G[opp].battlefield.filter(i => i.instId !== t.instId);
-      G[opp].hand.push(t);
-      log(`${inst.name}: ${t.name} returned to owner's hand.`, '');
+    const targets = G[opp].battlefield.filter(i => i.exhaustState==='overexhausted');
+    if (targets.length > 0) { removeFromBattlefield(targets[0], opp); log(`${inst.name}: ${targets[0].name} destroyed.`, 'damage'); }
+  }
+  // ── WOLF/BAT SURGE ───────────────────────────────────────────
+  else if (txt.includes('wolf') && txt.includes('haste') && txt.includes('tireless')) {
+    const wolves = G[caster].battlefield.filter(i => i.name.includes('Wolf'));
+    wolves.forEach(w => { w.keywords.haste = true; w.keywords.tireless = true; w.newlyTurned = false; });
+    log(`${inst.name}: Wolf tokens gain Haste and Tireless.`, 'heal');
+  }
+  // ── RETURN FROM DISCARD ──────────────────────────────────────
+  else if (txt.includes('discard pile') && txt.includes('hand')) {
+    const pile = G[caster].discard.filter(i => i.type==='Creature');
+    if (pile.length > 0) {
+      const card = pile[pile.length - 1];
+      G[caster].discard = G[caster].discard.filter(i => i.instId !== card.instId);
+      G[caster].hand.push(card);
+      log(`${inst.name}: ${card.name} returned to hand.`, 'heal');
     }
-  } else {
+  }
+  // ── EXHAUST MULTIPLE TARGETS ─────────────────────────────────
+  else if (txt.includes('exhaust up to 2') || txt.includes('{exhaust} two')) {
+    const opp = caster==='player'?'ai':'player';
+    const targets = G[opp].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed').slice(0,2);
+    targets.forEach(t => { t.exhaustState = 'exhausted'; log(`${inst.name}: ${t.name} exhausted.`, ''); });
+  }
+  // ── LIFE GAIN ────────────────────────────────────────────────
+  else if (txt.includes('gain') && txt.includes('life') && !txt.includes('target')) {
+    const n = parseInt(txt.match(/gain (\d+) life/)?.[1] || '2');
+    G[caster].life += n; updateLifeDisplay(caster);
+    log(`${inst.name}: Gained ${n} life.`, 'heal');
+  }
+  else {
     log(`${inst.name}: effect applied.`, '');
   }
   updateUI();
@@ -2414,22 +2468,45 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
   updateUI();
 }
 
-// Create a token for a player
+// Create a named token (must exist in CARD_MAP)
 function createToken(tokenName, who) {
-  const tokenData = {
-    'Bat Token':    { id:192, power:1, abilities:'Bleed 1' },
-    'Wolf Token':   { id:193, power:2, abilities:'Bleed 1' },
-    'Zombie Token': { id:194, power:3, abilities:'Must overexhaust to attack' },
-    'Raven Token':  { id:191, power:1, abilities:'' },
-  }[tokenName];
-  if (!tokenData) return;
-  const base = CARD_MAP[tokenData.id];
-  if (!base) return;
-  const token = makeInst(tokenData.id, who);
-  if (!token) return;
+  const idMap = { 'Bat Token':192, 'Wolf Token':193, 'Zombie Token':194, 'Raven Token':191 };
+  const id = idMap[tokenName];
+  if (!id) { log(`Unknown token: ${tokenName}`, ''); return; }
+  const token = makeInst(id, who);
+  if (!token) { log(`createToken: CARD_MAP missing id ${id}`, ''); return; }
   token.newlyTurned = false; // tokens enter ready
+  token.subtype = 'Token';
   G[who].battlefield.push(token);
   log(`${tokenName} created for ${who}.`, 'heal');
+  updateUI();
+}
+
+// Create a custom token not in the card database
+function createTokenCustom(name, power, abilities, who) {
+  const token = {
+    instId: nextInstId++,
+    cardId: null,
+    owner: who,
+    name,
+    color: 'Colorless',
+    type: 'Creature',
+    subtype: 'Token',
+    cost: '',
+    basePower: power, power,
+    abilities,
+    image: null,
+    rarity: 'Token',
+    produces: null,
+    exhaustState: 'renewed',
+    newlyTurned: false,
+    powerMods: [],
+    keywords: parseKeywords(abilities),
+    tempKeywords: {},
+    attacking: false, blocking: false, blockTarget: null,
+  };
+  G[who].battlefield.push(token);
+  log(`${name} (${power} power) created for ${who}.`, 'heal');
   updateUI();
 }
 
@@ -2503,6 +2580,8 @@ function updateUI() {
   updateDeckCounts();
   updateDiscardPiles();
   setPhase(G.phase);
+  // Draw block lines after DOM settles
+  requestAnimationFrame(drawBlockLines);
 }
 
 function renderSide(who) {
@@ -2607,6 +2686,7 @@ function createCardElement(inst, isHand) {
   const base = CARD_MAP[inst.cardId] || inst;
   const card = document.createElement('div');
   card.className = 'card' + (isHand ? ' hand-card' : '');
+  card.dataset.inst = inst.instId; // for block-line targeting
 
   // Color bar
   const bar = document.createElement('div');
@@ -2691,7 +2771,84 @@ function updateManaDisplay(who) {
   }
 }
 
-// ── LOG ───────────────────────────────────────────────────────
+// ── BLOCK LINES ───────────────────────────────────────────────
+function drawBlockLines() {
+  const svg = document.getElementById('block-lines');
+  if (!svg) return;
+  svg.innerHTML = '';
+
+  const isBlocking = combatPhase === 'player-block' || combatPhase === 'response';
+  if (!isBlocking || Object.keys(playerBlockers).length === 0) return;
+
+  // For each blocker → attacker pair, draw a line
+  Object.entries(playerBlockers).forEach(([blkId, atkId]) => {
+    const blkEl = document.querySelector(`[data-inst="${blkId}"]`);
+    const atkEl = document.querySelector(`[data-inst="${atkId}"]`);
+    if (!blkEl || !atkEl) return;
+
+    const blkR = blkEl.getBoundingClientRect();
+    const atkR = atkEl.getBoundingClientRect();
+
+    // Centre points
+    const x1 = blkR.left + blkR.width / 2;
+    const y1 = blkR.top  + blkR.height / 2;
+    const x2 = atkR.left + atkR.width / 2;
+    const y2 = atkR.top  + atkR.height / 2;
+
+    // Glowing line with arrowhead
+    const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+    const mid   = `arrow-${blkId}`;
+    defs.innerHTML = `
+      <marker id="${mid}" viewBox="0 0 10 10" refX="8" refY="5"
+              markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#30e0ff" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>`;
+    svg.appendChild(defs);
+
+    // Glow layer
+    const glow = document.createElementNS('http://www.w3.org/2000/svg','line');
+    glow.setAttribute('x1', x1); glow.setAttribute('y1', y1);
+    glow.setAttribute('x2', x2); glow.setAttribute('y2', y2);
+    glow.setAttribute('stroke', 'rgba(48,224,255,0.2)');
+    glow.setAttribute('stroke-width', '8');
+    glow.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(glow);
+
+    // Main line
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.setAttribute('stroke', '#30e0ff');
+    line.setAttribute('stroke-width', '2.5');
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('stroke-dasharray', '8 4');
+    line.setAttribute('marker-end', `url(#${mid})`);
+    svg.appendChild(line);
+
+    // Label near midpoint
+    const mx = (x1 + x2) / 2;
+    const my = (y1 + y2) / 2;
+    const bg = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    bg.setAttribute('x', mx - 22); bg.setAttribute('y', my - 10);
+    bg.setAttribute('width', 44);  bg.setAttribute('height', 18);
+    bg.setAttribute('rx', 4);
+    bg.setAttribute('fill', 'rgba(0,20,40,0.85)');
+    svg.appendChild(bg);
+
+    const blkInst = G.player.battlefield.find(i => i.instId === parseInt(blkId));
+    const atkInst = G.ai.battlefield.find(i => i.instId === parseInt(atkId));
+    const label   = `${getEffectivePower(blkInst)||'?'} ✕ ${getEffectivePower(atkInst)||'?'}`;
+    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x', mx); txt.setAttribute('y', my + 4);
+    txt.setAttribute('text-anchor', 'middle');
+    txt.setAttribute('fill', '#30e0ff');
+    txt.setAttribute('font-size', '10');
+    txt.setAttribute('font-family', 'Share Tech Mono, monospace');
+    txt.textContent = label;
+    svg.appendChild(txt);
+  });
+}
 function log(msg, type='') {
   const el = document.getElementById('log-entries');
   const entry = document.createElement('div');
