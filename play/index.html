@@ -950,24 +950,30 @@ function bgmFadeIn(duration = 2000) {
   if (sfxMuted) return;
   _initBGM();
   _bgm.volume = 0;
-  const playPromise = _bgm.play();
-  if (playPromise) {
-    playPromise.then(() => {
-      // Successfully started — fade in
-      const step = 0.35 / (duration / 50);
-      const fade = setInterval(() => {
-        if (!_bgm) { clearInterval(fade); return; }
-        if (_bgm.volume < 0.35) {
+  const tryPlay = () => {
+    const p = _bgm.play();
+    if (p && typeof p.then === 'function') {
+      p.then(() => {
+        const step = 0.35 / (duration / 50);
+        const fade = setInterval(() => {
+          if (!_bgm) { clearInterval(fade); return; }
           _bgm.volume = Math.min(0.35, _bgm.volume + step);
-        } else {
-          clearInterval(fade);
-        }
-      }, 50);
-    }).catch(() => {
-      // Autoplay blocked — will start on next user interaction
-      _bgmStarted = false;
-    });
-  }
+          if (_bgm.volume >= 0.35) clearInterval(fade);
+        }, 50);
+      }).catch(() => {
+        // Blocked — retry once on next user click
+        const retry = () => {
+          document.removeEventListener('click', retry);
+          bgmFadeIn(duration);
+        };
+        document.addEventListener('click', retry, { once: true });
+      });
+    } else {
+      // No promise returned — just set volume directly
+      setTimeout(() => { if (_bgm) _bgm.volume = 0.35; }, 100);
+    }
+  };
+  tryPlay();
 }
 
 // Preload all sounds as soon as the page loads
@@ -985,13 +991,69 @@ function shuffle(arr) {
   return a;
 }
 
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+function renderHand(who) {
+  const el = document.getElementById(`hand-${who}`);
+  if (!el) return;
+  el.innerHTML = '';
+  const hand = G[who].hand;
+
+  if (who === 'ai') {
+    hand.forEach(() => {
+      const back = document.createElement('div');
+      back.className = 'deck-back';
+      const img = document.createElement('img');
+      img.src = 'https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/card_back.png?raw=true';
+      img.alt = 'card back';
+      img.onerror = () => { img.style.display='none'; back.style.background='linear-gradient(135deg,#1a0030,#0d0515)'; };
+      back.appendChild(img);
+      el.appendChild(back);
+    });
+    return;
   }
-  return a;
+
+  hand.forEach(inst => {
+    const card = createCardElement(inst, true);
+    const affordable = canPayCost('player', inst.cost);
+    const isLand = inst.type === 'Land';
+    if (!affordable && !isLand) card.classList.add('unplayable');
+    else card.classList.add('playable');
+    if (inst.instId === selectedCardId) card.classList.add('selected');
+    card.onclick = (e) => { e.stopPropagation(); handleCardClick(inst, 'player'); };
+    card.onmouseenter = () => showCardDetail(inst, card);
+    card.onmouseleave = () => hideCardDetail();
+    el.appendChild(card);
+  });
+}
+
+function updateDiscardPiles() {
+  for (const who of ['player','ai']) {
+    const pile = G[who].discard;
+    const countEl = document.getElementById(`discard-${who}-count`);
+    const topEl   = document.getElementById(`discard-${who}-top`);
+    if (!countEl) continue;
+    countEl.textContent = pile.length;
+    topEl.innerHTML = '';
+    if (pile.length > 0) {
+      const top = pile[pile.length-1];
+      if (top.image) {
+        const img = document.createElement('img');
+        img.src = top.image;
+        img.onerror = () => { img.style.display='none'; };
+        topEl.appendChild(img);
+      }
+    }
+  }
+}
+
+function showDiscardPile(who) {
+  const pile = G[who].discard;
+  if (pile.length === 0) { log(`${who === 'player' ? 'Your' : 'AI'} discard pile is empty.`, ''); return; }
+  const names = pile.slice().reverse().map(i => `• ${i.name} (${i.type})`).join('\n');
+  showModal(
+    `${who === 'player' ? 'YOUR' : 'AI'} DISCARD PILE (${pile.length})`,
+    names,
+    [{ label: 'CLOSE', cls: 'btn-muted', action: () => {} }]
+  );
 }
 
 function parseCost(costStr) {
