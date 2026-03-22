@@ -1808,9 +1808,10 @@ async function runAITurn() {
 function renewPhase(who) {
   const s = G[who];
   s.battlefield.forEach(inst => {
-    // Overexhausted → renewed in ONE renew phase (per rules: two full renew phases,
-    // but the game tracks it as: overexhausted renews to renewed on next renew)
-    if (inst.exhaustState === 'overexhausted') inst.exhaustState = 'renewed';
+    // Two-step renewal:
+    // overexhausted → exhausted (takes one full turn to step down)
+    // exhausted     → renewed
+    if (inst.exhaustState === 'overexhausted') inst.exhaustState = 'exhausted';
     else if (inst.exhaustState === 'exhausted') inst.exhaustState = 'renewed';
     inst.newlyTurned = false;
     inst.attacking = false;
