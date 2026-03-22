@@ -406,7 +406,112 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 #modal-body { font-size: 13px; color: var(--text-mid); line-height: 1.6; margin-bottom: 20px; }
 #modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
-/* ── ANIMATIONS ── */
+/* ── GLIMPSE PANEL ── */
+#glimpse-panel {
+  position: fixed; top: 0; right: 0; width: 320px; height: 100vh;
+  background: rgba(8,4,24,0.97);
+  border-left: 2px solid var(--purple);
+  z-index: 10000; display: none; flex-direction: column;
+  box-shadow: -8px 0 40px rgba(0,0,0,0.8);
+  animation: glimpse-slide-in 0.2s ease-out;
+}
+@keyframes glimpse-slide-in {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+#glimpse-panel.visible { display: flex; }
+
+#glimpse-header {
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid var(--border-dim);
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 12px; color: var(--purple);
+  letter-spacing: 2px; text-transform: uppercase;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-shrink: 0;
+}
+#glimpse-subtitle {
+  font-size: 9px; color: var(--text-dim);
+  letter-spacing: 1px; font-family: sans-serif;
+  font-style: italic; text-transform: none;
+  margin-top: 2px;
+}
+
+/* Two drop zones */
+.glimpse-zone {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start;
+  padding: 10px 8px; gap: 6px;
+  border: 2px dashed transparent;
+  border-radius: 6px; margin: 4px 8px;
+  transition: border-color 0.15s, background 0.15s;
+  min-height: 0; overflow-y: auto;
+  scrollbar-width: thin;
+}
+.glimpse-zone.top-zone {
+  border-color: rgba(48,160,224,0.3);
+  background: rgba(48,160,224,0.04);
+}
+.glimpse-zone.bot-zone {
+  border-color: rgba(96,48,192,0.3);
+  background: rgba(96,48,192,0.04);
+}
+.glimpse-zone.drag-over {
+  border-color: var(--gold) !important;
+  background: rgba(212,160,32,0.12) !important;
+}
+.glimpse-zone-label {
+  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text-dim); flex-shrink: 0; padding: 2px 0 4px;
+}
+.glimpse-zone-divider {
+  height: 1px; background: var(--border-dim);
+  margin: 0 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.glimpse-zone-divider span {
+  background: rgba(8,4,24,0.97); padding: 0 8px;
+  font-size: 9px; color: var(--text-dim); letter-spacing: 1px;
+}
+
+/* Cards inside the Glimpse panel */
+.glimpse-card {
+  width: 110px; height: 154px;
+  border-radius: 6px; overflow: hidden;
+  border: 1px solid var(--border-dim);
+  cursor: grab; flex-shrink: 0;
+  position: relative;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  background: var(--bg-card);
+}
+.glimpse-card:hover { transform: scale(1.04); box-shadow: 0 4px 16px rgba(0,0,0,0.6); }
+.glimpse-card.dragging-glimpse { opacity: 0.3; cursor: grabbing; }
+.glimpse-card img { width: 100%; height: 80%; object-fit: cover; object-position: top; display: block; }
+.glimpse-card-footer {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,0.88); padding: 3px 5px;
+  font-size: 8px; color: var(--text-bright);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.glimpse-card-power {
+  position: absolute; top: 4px; right: 4px;
+  background: rgba(0,0,0,0.75); border-radius: 3px;
+  font-size: 11px; font-weight: 700; color: var(--gold);
+  padding: 1px 4px; font-family: 'Share Tech Mono', monospace;
+}
+
+#glimpse-confirm {
+  margin: 8px 12px;
+  padding: 10px; border-radius: 5px;
+  background: var(--purple); color: #fff;
+  font-family: 'Cinzel Decorative', serif; font-size: 11px;
+  letter-spacing: 1px; cursor: pointer; text-align: center;
+  border: none; flex-shrink: 0;
+  transition: background 0.15s;
+}
+#glimpse-confirm:hover { background: #c030ff; }
+#glimpse-confirm:disabled { background: var(--border-dim); cursor: default; color: var(--text-dim); }
+
 @keyframes pulse-red { 0%,100%{box-shadow:0 0 6px var(--red-glow)} 50%{box-shadow:0 0 14px rgba(224,48,48,0.5)} }
 @keyframes pulse-blue { 0%,100%{box-shadow:0 0 6px rgba(48,160,224,0.3)} 50%{box-shadow:0 0 14px rgba(48,160,224,0.6)} }
 @keyframes float-in { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
@@ -781,6 +886,27 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
   <!-- ACTION OVERLAY — shown during AI combat blocking & response windows -->
   <div id="action-overlay" style="display:none;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:7px 16px;background:rgba(0,80,140,0.18);border-top:1px solid rgba(48,160,224,0.4);flex-shrink:0;"></div>
+
+  <!-- GLIMPSE PANEL — slides in from right, drag cards to top/bottom zones -->
+  <div id="glimpse-panel">
+    <div id="glimpse-header">
+      <div>
+        <div id="glimpse-title">GLIMPSE</div>
+        <div id="glimpse-subtitle">Drag cards to keep on top or send to bottom</div>
+      </div>
+    </div>
+    <!-- TOP ZONE -->
+    <div class="glimpse-zone top-zone" id="glimpse-top">
+      <div class="glimpse-zone-label">⬆ TOP OF DECK</div>
+    </div>
+    <!-- Divider -->
+    <div class="glimpse-zone-divider"><span>drag cards between zones</span></div>
+    <!-- BOTTOM ZONE -->
+    <div class="glimpse-zone bot-zone" id="glimpse-bot">
+      <div class="glimpse-zone-label">⬇ BOTTOM OF DECK</div>
+    </div>
+    <button id="glimpse-confirm" onclick="confirmGlimpse()" disabled>CONFIRM</button>
+  </div>
 
   <!-- BLOCKING LINES SVG — drawn over battlefield to show block assignments -->
   <svg id="block-lines" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:80;" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -3612,97 +3738,230 @@ function applyWhileAttackingAuras(who, attackingInsts) {
     }
   });
 }
+// ── GLIMPSE PANEL ─────────────────────────────────────────────
+let _glimpseState = null; // { who, topIds, cards, decisions, canPutInHand, isReverse, onDone }
+let _glimpseDrag  = null; // { cardEl, cardIdx, startZone }
+
 function doGlimpse(who, n, sourceName, canPutInHand) {
-  if (G[who].main.length === 0) {
-    log(`${sourceName}: Glimpse ${n} — deck empty.`, '');
-    return;
-  }
+  if (G[who].main.length === 0) { log(`${sourceName}: Glimpse ${n} — deck empty.`, ''); return; }
   const count  = Math.min(n, G[who].main.length);
-  const topIds   = G[who].main.slice(0, count);
-  const topCards = topIds.map(id => CARD_MAP[id]).filter(Boolean);
-
-  log(`${sourceName}: Glimpse ${count} — choosing fate of top ${count} card(s).`, 'important');
-
-  let idx = 0;
-  const decisions = [];
-
-  function showCard() {
-    if (idx >= topCards.length) {
-      const handPicks = [], topPicks = [], botPicks = [];
-      topCards.forEach((c, i) => {
-        if      (decisions[i] === 'hand')   handPicks.push({ id: topIds[i], card: c });
-        else if (decisions[i] === 'bottom') botPicks.push(topIds[i]);
-        else                                topPicks.push(topIds[i]);
-      });
-      G[who].main.splice(0, count);
-      G[who].main = [...topPicks, ...G[who].main, ...botPicks];
-      handPicks.forEach(({ id, card }) => {
-        const inst = makeInst(id, who);
-        if (inst) { G[who].hand.push(inst); log(`  · ${card.name} → hand`, 'heal'); }
-      });
-      updateUI();
-      log('Glimpse complete.', '');
-      return;
-    }
-    const card = topCards[idx];
-    const remaining = topCards.length - idx - 1;
-    const actions = [
-      { label: '⬆ KEEP ON TOP',    cls: 'btn-primary',   action: () => { decisions.push('top');    idx++; showCard(); } },
-      { label: '⬇ SEND TO BOTTOM', cls: 'btn-muted',     action: () => { decisions.push('bottom'); idx++; showCard(); } },
-    ];
-    if (canPutInHand) {
-      actions.splice(1, 0, { label: '✋ ADD TO HAND', cls: 'btn-secondary', action: () => { decisions.push('hand'); idx++; showCard(); } });
-    }
-    showModalHTML(
-      `GLIMPSE — ${idx + 1} / ${topCards.length}${remaining > 0 ? ` (${remaining} more)` : ' (last)'}`,
-      buildCardModalHTML(card),
-      actions
-    );
-  }
-  showCard();
+  const topIds = G[who].main.slice(0, count);
+  const cards  = topIds.map(id => CARD_MAP[id]).filter(Boolean);
+  log(`${sourceName}: Glimpse ${count} — drag cards to choose their fate.`, 'important');
+  openGlimpsePanel(who, topIds, cards, false, canPutInHand);
 }
 
-// Reverse Glimpse — look at bottom N cards, choose to move them to top or keep at bottom
 function doReverseGlimpse(who, n, sourceName) {
-  if (G[who].main.length === 0) {
-    log(`${sourceName}: Reverse Glimpse ${n} — deck empty.`, '');
-    return;
-  }
+  if (G[who].main.length === 0) { log(`${sourceName}: Reverse Glimpse ${n} — deck empty.`, ''); return; }
   const count  = Math.min(n, G[who].main.length);
   const deck   = G[who].main;
   const botIds = deck.slice(deck.length - count);
-  const botCards = botIds.map(id => CARD_MAP[id]).filter(Boolean);
+  const cards  = botIds.map(id => CARD_MAP[id]).filter(Boolean);
+  log(`${sourceName}: Reverse Glimpse ${count} — drag cards to top or leave at bottom.`, 'important');
+  openGlimpsePanel(who, botIds, cards, true, false);
+}
 
-  log(`${sourceName}: Reverse Glimpse ${count} — viewing bottom ${count} card(s).`, 'important');
+function openGlimpsePanel(who, ids, cards, isReverse, canPutInHand) {
+  _glimpseState = { who, ids, cards, isReverse, canPutInHand,
+                    decisions: new Array(cards.length).fill(isReverse ? 'bottom' : 'top') };
 
-  let idx = 0;
-  const decisions = [];
+  // Title
+  document.getElementById('glimpse-title').textContent = isReverse ? 'REVERSE GLIMPSE' : 'GLIMPSE';
+  document.getElementById('glimpse-subtitle').textContent =
+    canPutInHand
+      ? 'Drag to top, bottom, or your hand area'
+      : isReverse ? 'Drag to move to top — leave to keep at bottom'
+                  : 'Drag to bottom to send there — leave on top by default';
 
-  function showCard() {
-    if (idx >= botCards.length) {
-      deck.splice(deck.length - count, count);
-      const topPicks = [], botPicks = [];
-      botCards.forEach((c, i) => {
-        if (decisions[i] === 'top') topPicks.push(botIds[i]);
-        else botPicks.push(botIds[i]);
-      });
-      G[who].main = [...topPicks, ...deck, ...botPicks];
-      updateUI();
-      log('Reverse Glimpse complete.', '');
-      return;
-    }
-    const card = botCards[idx];
-    const remaining = botCards.length - idx - 1;
-    showModalHTML(
-      `REVERSE GLIMPSE — ${idx + 1} / ${botCards.length}${remaining > 0 ? ` (${remaining} more)` : ' (last)'}`,
-      buildCardModalHTML(card),
-      [
-        { label: '⬆ MOVE TO TOP',    cls: 'btn-primary', action: () => { decisions.push('top');    idx++; showCard(); } },
-        { label: '⬇ KEEP AT BOTTOM', cls: 'btn-muted',   action: () => { decisions.push('bottom'); idx++; showCard(); } },
-      ]
-    );
+  // Build zone labels
+  document.querySelector('#glimpse-top .glimpse-zone-label').textContent = '⬆ TOP OF DECK';
+  document.querySelector('#glimpse-bot .glimpse-zone-label').textContent = '⬇ BOTTOM OF DECK';
+
+  // Clear zones
+  clearGlimpseZones();
+
+  // Render cards — all start in default zone based on isReverse
+  cards.forEach((card, i) => {
+    const el = buildGlimpseCardEl(card, i);
+    const zone = isReverse
+      ? document.getElementById('glimpse-bot')
+      : document.getElementById('glimpse-top');
+    zone.appendChild(el);
+  });
+
+  // Show panel, hide card preview
+  document.getElementById('card-preview').style.display = 'none';
+  const panel = document.getElementById('glimpse-panel');
+  panel.classList.add('visible');
+
+  // Enable confirm once visible
+  document.getElementById('glimpse-confirm').disabled = false;
+}
+
+function buildGlimpseCardEl(card, idx) {
+  const el = document.createElement('div');
+  el.className = 'glimpse-card';
+  el.dataset.cardIdx = idx;
+  el.setAttribute('data-card-idx', idx);
+
+  if (card && card.image) {
+    const img = document.createElement('img');
+    img.src = card.image;
+    img.alt = card.name;
+    img.onerror = () => { img.style.display = 'none'; };
+    el.appendChild(img);
   }
-  showCard();
+  if (card && card.type === 'Creature' && card.power !== null) {
+    const pow = document.createElement('div');
+    pow.className = 'glimpse-card-power';
+    pow.textContent = card.power;
+    el.appendChild(pow);
+  }
+  const footer = document.createElement('div');
+  footer.className = 'glimpse-card-footer';
+  footer.textContent = card ? card.name : '?';
+  el.appendChild(footer);
+
+  // Drag events
+  el.addEventListener('mousedown', glimpseCardMouseDown);
+  return el;
+}
+
+function clearGlimpseZones() {
+  ['glimpse-top','glimpse-bot'].forEach(zid => {
+    const z = document.getElementById(zid);
+    // Remove all card elements (keep zone-label)
+    Array.from(z.children).forEach(c => {
+      if (!c.classList.contains('glimpse-zone-label')) z.removeChild(c);
+    });
+  });
+}
+
+// ── Glimpse drag handlers ──────────────────────────────────────
+let _gDragEl   = null; // floating ghost element
+let _gDragIdx  = null;
+let _gDragSrc  = null; // 'top' | 'bot'
+
+function glimpseCardMouseDown(e) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  const cardEl = e.currentTarget;
+  _gDragIdx = parseInt(cardEl.dataset.cardIdx);
+  _gDragSrc = cardEl.closest('#glimpse-top') ? 'top' : 'bot';
+
+  // Build ghost
+  const rect = cardEl.getBoundingClientRect();
+  _gDragEl = cardEl.cloneNode(true);
+  _gDragEl.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;
+    width:${rect.width}px;height:${rect.height}px;z-index:10100;
+    pointer-events:none;opacity:0.88;transform:rotate(-3deg) scale(1.06);
+    box-shadow:0 8px 24px rgba(0,0,0,0.7);border:2px solid var(--gold);border-radius:6px;`;
+  document.body.appendChild(_gDragEl);
+
+  cardEl.classList.add('dragging-glimpse');
+
+  document.addEventListener('mousemove', glimpseMouseMove);
+  document.addEventListener('mouseup',   glimpseMouseUp);
+}
+
+function glimpseMouseMove(e) {
+  if (!_gDragEl) return;
+  _gDragEl.style.left = (e.clientX - 55) + 'px';
+  _gDragEl.style.top  = (e.clientY - 77) + 'px';
+
+  // Highlight zone under cursor
+  document.getElementById('glimpse-top').classList.remove('drag-over');
+  document.getElementById('glimpse-bot').classList.remove('drag-over');
+  const el = getGlimpseZoneUnder(e.clientX, e.clientY);
+  if (el) el.classList.add('drag-over');
+}
+
+function glimpseMouseUp(e) {
+  document.removeEventListener('mousemove', glimpseMouseMove);
+  document.removeEventListener('mouseup',   glimpseMouseUp);
+
+  document.getElementById('glimpse-top').classList.remove('drag-over');
+  document.getElementById('glimpse-bot').classList.remove('drag-over');
+
+  if (_gDragEl) { _gDragEl.remove(); _gDragEl = null; }
+
+  // Find which zone we dropped onto
+  const zone = getGlimpseZoneUnder(e.clientX, e.clientY);
+  const dest = zone ? (zone.id === 'glimpse-top' ? 'top' : 'bot') : _gDragSrc;
+
+  // Move the card element to the new zone
+  const state = _glimpseState;
+  if (state) {
+    state.decisions[_gDragIdx] = dest === 'bot' ? 'bottom' : 'top';
+    if (state.isReverse) state.decisions[_gDragIdx] = dest === 'top' ? 'top' : 'bottom';
+  }
+
+  // Move card element in DOM
+  const topZone = document.getElementById('glimpse-top');
+  const botZone = document.getElementById('glimpse-bot');
+  const srcCardEl = (dest === _gDragSrc)
+    ? ((_gDragSrc === 'top' ? topZone : botZone).querySelector(`[data-card-idx="${_gDragIdx}"]`))
+    : ((_gDragSrc === 'top' ? topZone : botZone).querySelector(`[data-card-idx="${_gDragIdx}"]`));
+
+  // Re-find and move
+  const existingCard = document.querySelector(`.glimpse-card[data-card-idx="${_gDragIdx}"]`);
+  if (existingCard) {
+    existingCard.classList.remove('dragging-glimpse');
+    const destZone = dest === 'top' ? topZone : botZone;
+    destZone.appendChild(existingCard);
+  }
+}
+
+function getGlimpseZoneUnder(x, y) {
+  for (const id of ['glimpse-top','glimpse-bot']) {
+    const el = document.getElementById(id);
+    const r  = el.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return el;
+  }
+  return null;
+}
+
+function confirmGlimpse() {
+  const state = _glimpseState;
+  if (!state) return;
+
+  const { who, ids, cards, decisions, isReverse } = state;
+
+  if (!isReverse) {
+    // Normal Glimpse: remove top N from deck, put top-picks back on top, bot-picks at bottom
+    const topPicks = [], botPicks = [], handPicks = [];
+    cards.forEach((c, i) => {
+      if      (decisions[i] === 'hand')   handPicks.push(ids[i]);
+      else if (decisions[i] === 'bottom') botPicks.push(ids[i]);
+      else                                topPicks.push(ids[i]);
+    });
+    G[who].main.splice(0, ids.length);
+    G[who].main = [...topPicks, ...G[who].main, ...botPicks];
+    handPicks.forEach(id => {
+      const inst = makeInst(id, who);
+      if (inst) { G[who].hand.push(inst); log(`  · ${CARD_MAP[id]?.name} → hand`, 'heal'); }
+    });
+    const tCount = topPicks.length, bCount = botPicks.length;
+    log(`Glimpse: ${tCount} kept on top, ${bCount} sent to bottom.`, '');
+  } else {
+    // Reverse Glimpse: bottom N cards, top-picks go to deck top, rest stay bottom
+    const deck = G[who].main;
+    deck.splice(deck.length - ids.length, ids.length);
+    const topPicks = [], botPicks = [];
+    cards.forEach((c, i) => {
+      if (decisions[i] === 'top') topPicks.push(ids[i]);
+      else botPicks.push(ids[i]);
+    });
+    G[who].main = [...topPicks, ...deck, ...botPicks];
+    log(`Reverse Glimpse: ${topPicks.length} moved to top.`, '');
+  }
+
+  // Close panel
+  document.getElementById('glimpse-panel').classList.remove('visible');
+  document.getElementById('card-preview').style.display = '';
+  _glimpseState = null;
+  updateUI();
+  log('Glimpse complete.', '');
 }
 
 // ── HELPERS ───────────────────────────────────────────────────
