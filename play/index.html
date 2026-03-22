@@ -1490,6 +1490,7 @@ function offerMulligan() {
         cls: 'btn-primary',
         action: () => {
           log('Opening hand kept.', 'important');
+          updateUI();
           showBanner('YOUR TURN');
         }
       },
@@ -3951,6 +3952,8 @@ function showModal(title, body, actions) {
 
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('visible');
+  // Refresh board state after any modal closes
+  if (G) updateUI();
 }
 
 function showManaChoice(inst, colors) {
