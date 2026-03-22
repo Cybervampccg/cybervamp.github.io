@@ -1308,6 +1308,13 @@ function parseKeywords(txt) {
   if (t.includes('breach')) kw.breach = true;
   if (t.includes('siphon')) kw.siphon = true;
   const bm = t.match(/bleed (\d+)/); if (bm) kw.bleed = parseInt(bm[1]);
+  const sb = t.match(/self bleed (\d+)/); if (sb) kw.selfBleed = parseInt(sb[1]);
+  // "Cannot be blocked" — fully unblockable
+  if (t.includes('cannot be blocked') && !t.includes('cannot be blocked by')) kw.unblockable = true;
+  // "Cannot be blocked by walls" — only walls cannot block it
+  if (t.includes('cannot be blocked by walls')) kw.noWallBlock = true;
+  // "While [this/on battlefield], your attacking creatures gain X"
+  if (t.includes('while') && t.includes('attacking') && t.includes('gain')) kw.whileAttackingAura = true;
   return kw;
 }
 
@@ -1992,6 +1999,18 @@ async function aiDeclareAttack() {
     if (!hasKeyword(inst,'tireless')) inst.exhaustState = 'exhausted';
   });
 
+  // Apply "while attacking" auras from AI's battlefield
+  applyWhileAttackingAuras('ai', myAttackers);
+
+  // Self Bleed on AI attackers with static selfBleed keyword
+  myAttackers.forEach(inst => {
+    if (inst.keywords.selfBleed) {
+      G.ai.bleed += inst.keywords.selfBleed;
+      log(`${inst.name}: Self Bleed ${inst.keywords.selfBleed}.`, 'bleed');
+      updateLifeDisplay('ai');
+    }
+  });
+
   resolveCombat(myAttackers, playerBlockers, 'player');
   myAttackers.forEach(i => { i.attacking = false; });
   G.player.battlefield.forEach(i => { i.blocking = false; });
@@ -2085,6 +2104,9 @@ function handleBlockingClick(inst, who) {
 
   // Click an AI attacker → mark it as block target
   if (who === 'ai' && inst.attacking) {
+    if (hasKeyword(inst,'unblockable')) {
+      log(`${inst.name} cannot be blocked.`, ''); return;
+    }
     playerBlockTarget = inst.instId;
     log(`Select a blocker for ${inst.name}[${getEffectivePower(inst)}].`, 'important');
     updateUI();
@@ -2095,6 +2117,11 @@ function handleBlockingClick(inst, who) {
   if (who === 'player' && inst.type === 'Creature' && playerBlockTarget !== null) {
     if (inst.exhaustState !== 'renewed') { log(`${inst.name} is exhausted.`, ''); return; }
     if (inst.attacking) { log(`${inst.name} is attacking.`, ''); return; }
+    // Check if target attacker can be blocked by this creature
+    const atk = G.ai.battlefield.find(i => i.instId === playerBlockTarget);
+    if (atk && hasKeyword(atk,'noWallBlock') && hasKeyword(inst,'wall')) {
+      log(`${atk.name} cannot be blocked by walls.`, ''); return;
+    }
 
     // Toggle off if already blocking this attacker
     if (playerBlockers[inst.instId] === playerBlockTarget) {
@@ -2108,7 +2135,6 @@ function handleBlockingClick(inst, who) {
 
     playerBlockers[inst.instId] = playerBlockTarget;
     inst.blocking = true;
-    const atk = G.ai.battlefield.find(i => i.instId === playerBlockTarget);
     log(`${inst.name}[${getEffectivePower(inst)}] → blocks ${atk?.name||'?'}[${atk?getEffectivePower(atk):'?'}].`, 'important');
     playerBlockTarget = null;
     updateUI();
@@ -2171,7 +2197,7 @@ function confirmAttack() {
 
   log(`⚔ ATTACKING: ${atkInsts.map(i => i.name+'['+getEffectivePower(i)+']').join(', ')}`, 'phase');
 
-  // AI decides blocks
+  // AI decides blocks — skip unblockable attackers
   blockers = {};
   const aiAvail = G.ai.battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed' && !i.attacking);
   const sortedAtk = [...atkInsts].sort((a,b) => getEffectivePower(b)-getEffectivePower(a));
@@ -2179,7 +2205,12 @@ function confirmAttack() {
 
   sortedAtk.forEach(atk => {
     if (!remaining.length) return;
-    const blk = remaining.find(b => getEffectivePower(b) >= getEffectivePower(atk)) || remaining[0];
+    // Unblockable — cannot be blocked at all
+    if (hasKeyword(atk,'unblockable')) { log(`${atk.name} cannot be blocked.`,''); return; }
+    // noWallBlock — walls cannot block this creature
+    const validBlockers = remaining.filter(b => !(hasKeyword(atk,'noWallBlock') && hasKeyword(b,'wall')));
+    if (!validBlockers.length) return;
+    const blk = validBlockers.find(b => getEffectivePower(b) >= getEffectivePower(atk)) || validBlockers[0];
     if (!blk) return;
     blockers[blk.instId] = atk.instId;
     blk.blocking = true;
@@ -2195,6 +2226,18 @@ function confirmAttack() {
     // Now exhaust non-Tireless attackers
     atkInsts.forEach(inst => {
       if (!hasKeyword(inst,'tireless')) inst.exhaustState = 'exhausted';
+    });
+
+    // Apply "while attacking" auras from creatures on battlefield
+    applyWhileAttackingAuras('player', atkInsts);
+
+    // Self Bleed on attackers that have it as a static keyword
+    atkInsts.forEach(inst => {
+      if (inst.keywords.selfBleed) {
+        G.player.bleed += inst.keywords.selfBleed;
+        log(`${inst.name}: Self Bleed ${inst.keywords.selfBleed}.`, 'bleed');
+        updateLifeDisplay('player');
+      }
     });
 
     log('── Damage resolves ──', 'phase');
@@ -2457,31 +2500,37 @@ function combatResolutionMulti(atk, blockerInsts, defendingSide) {
   const atkP = getEffectivePower(atk);
   const atkDealsNoDamage = !!atk.noCombatDamage;
 
-  // Total blocker power vs attacker
-  const totalBlkP = blockerInsts.reduce((s, b) => s + getEffectivePower(b), 0);
+  // Walls deal 0 combat damage — they block but cannot harm the attacker
+  // Total effective blocker power for destroying the attacker (walls contribute 0)
+  const totalBlkP = blockerInsts.reduce((s, b) => {
+    return s + (hasKeyword(b, 'wall') ? 0 : getEffectivePower(b));
+  }, 0);
 
-  log(`${atk.name}[${atkP}${atkDealsNoDamage?',no dmg':''}] vs ${blockerInsts.map(b=>b.name+'['+getEffectivePower(b)+']').join(' + ')} (total blocker: ${totalBlkP})`, '');
+  const wallBlockers    = blockerInsts.filter(b => hasKeyword(b, 'wall'));
+  const nonWallBlockers = blockerInsts.filter(b => !hasKeyword(b, 'wall'));
+
+  log(`${atk.name}[${atkP}${atkDealsNoDamage?',no dmg':''}] vs ${blockerInsts.map(b=>b.name+(hasKeyword(b,'wall')?'[W]':'')+'['+getEffectivePower(b)+']').join(' + ')} (effective blocker power: ${totalBlkP})`, '');
 
   // ── Blocker damage to attacker ─────────────────────────────────
-  // Attacker is destroyed if combined blocker power >= attacker power
+  // Attacker is destroyed only by NON-wall blocker power
   const atkDestroyed = totalBlkP >= atkP;
 
-  // ── Attacker damage to blockers (distributed in declaration order) ──
-  // Attacker deals 0 damage if noCombatDamage, otherwise distributes atkP
+  // ── Attacker damage to blockers ────────────────────────────────
   let atkDmgRemaining = atkDealsNoDamage ? 0 : atkP;
   const destroyedBlockers = [];
 
+  // Walls still take damage — they just don't deal any back
   blockerInsts.forEach(blk => {
     const blkP = getEffectivePower(blk);
     if (atkDmgRemaining >= blkP) {
       destroyedBlockers.push(blk);
       atkDmgRemaining -= blkP;
-      log(`→ ${blk.name}[${blkP}] destroyed.`, 'damage');
+      log(`→ ${blk.name}[${blkP}]${hasKeyword(blk,'wall')?'(Wall)':''} destroyed.`, 'damage');
     } else if (atkDmgRemaining > 0) {
       log(`→ ${blk.name}[${blkP}] survives (took ${atkDmgRemaining} damage).`, '');
       atkDmgRemaining = 0;
     } else {
-      log(`→ ${blk.name}[${blkP}] takes no damage (attacker damage spent).`, '');
+      log(`→ ${blk.name}[${blkP}] takes no damage.`, '');
     }
   });
 
@@ -2497,7 +2546,7 @@ function combatResolutionMulti(atk, blockerInsts, defendingSide) {
     updateLifeDisplay(defendingSide);
   }
 
-  // Attacker destroyed by combined blocker power (even if it deals no damage)
+  // Attacker destroyed by combined non-wall blocker power
   if (atkDestroyed) {
     const stillAlive = G[attackingSide].battlefield.find(i => i.instId === atk.instId);
     if (stillAlive) {
@@ -2913,6 +2962,11 @@ function resolveSpell(inst, caster) {
     const targets = G[opp].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed').slice(0,2);
     targets.forEach(t => { t.exhaustState = 'exhausted'; log(`${inst.name}: ${t.name} exhausted.`, ''); });
   }
+  // ── GLIMPSE ──────────────────────────────────────────────────
+  else if (txt.includes('glimpse')) {
+    const n = parseInt(txt.match(/glimpse (\d+)/)?.[1] || '1');
+    doGlimpse(caster, n, inst.name);
+  }
   // ── LIFE GAIN ────────────────────────────────────────────────
   else if (txt.includes('gain') && txt.includes('life') && !txt.includes('target')) {
     const n = parseInt(txt.match(/gain (\d+) life/)?.[1] || '2');
@@ -3315,15 +3369,11 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
   }
   else if (seg.includes('glimpse')) {
     const n = parseInt(seg.match(/glimpse (\d+)/)?.[1] || '1');
-    log(`${inst.name}: Glimpse ${n} — look at the top ${n} card(s) of your deck.`, 'important');
-    // Peek at top cards and log their names
-    const top = G[who].main.slice(0, n);
-    if (top.length > 0) {
-      top.forEach(id => {
-        const c = CARD_MAP[id];
-        if (c) log(`  · ${c.name}`, '');
-      });
-    }
+    doGlimpse(who, n, inst.name);
+  }
+  else if (seg.includes('reverse glimpse')) {
+    const n = parseInt(seg.match(/reverse glimpse (\d+)/)?.[1] || '3');
+    doReverseGlimpse(who, n, inst.name);
   }
   else if (seg.includes('self bleed')) {
     const n = parseInt(seg.match(/self bleed (\d+)/)?.[1] || '1');
@@ -3376,6 +3426,160 @@ function createTokenCustom(name, power, abilities, who) {
   G[who].battlefield.push(token);
   log(`${name} (${power} power) created for ${who}.`, 'heal');
   updateUI();
+}
+
+// "While [this/on battlefield] your attacking creatures gain X" — applied at combat resolve
+function applyWhileAttackingAuras(who, attackingInsts) {
+  if (!attackingInsts.length) return;
+  G[who].battlefield.forEach(aura => {
+    if (!aura.keywords.whileAttackingAura) return;
+    const txt = (aura.abilities || '').toLowerCase();
+    // "+1 power"
+    if (txt.includes('+1 power') && txt.includes('attacking')) {
+      attackingInsts.forEach(atk => {
+        if (atk.instId === aura.instId) return; // don't buff self twice
+        atk.powerMods.push({ amount: 1, until: 'eot' });
+        log(`${aura.name}: ${atk.name} gets +1 power (while attacking).`, '');
+      });
+    }
+    // "gain breach"
+    if (txt.includes('breach') && txt.includes('attacking')) {
+      attackingInsts.forEach(atk => {
+        atk.tempKeywords.breach = true;
+        log(`${aura.name}: ${atk.name} gains Breach (while attacking).`, '');
+      });
+    }
+    // "gain bleed +1"
+    const bleedMatch = txt.match(/bleed \+(\d+)/);
+    if (bleedMatch && txt.includes('attacking')) {
+      const bonus = parseInt(bleedMatch[1]);
+      attackingInsts.forEach(atk => {
+        atk.keywords.bleed = (atk.keywords.bleed || 0) + bonus;
+        log(`${aura.name}: ${atk.name} gains Bleed +${bonus}.`, '');
+      });
+    }
+  });
+}
+function doGlimpse(who, n, sourceName, canPutInHand) {
+  if (G[who].main.length === 0) {
+    log(`${sourceName}: Glimpse ${n} — deck empty.`, '');
+    return;
+  }
+  const count = Math.min(n, G[who].main.length);
+  const topIds   = G[who].main.slice(0, count);
+  const topCards = topIds.map(id => CARD_MAP[id]).filter(Boolean);
+
+  log(`${sourceName}: Glimpse ${count} — choosing fate of top ${count} card(s).`, 'important');
+
+  let idx = 0;
+  const decisions = []; // 'top' | 'bottom' | 'hand'
+
+  function showCard() {
+    if (idx >= topCards.length) {
+      // Apply decisions — remove peeked IDs from top of deck
+      const handPicks = [];
+      const topPicks  = [];
+      const botPicks  = [];
+      topCards.forEach((c, i) => {
+        if      (decisions[i] === 'hand')   handPicks.push({ id: topIds[i], card: c });
+        else if (decisions[i] === 'bottom') botPicks.push(topIds[i]);
+        else                                topPicks.push(topIds[i]);
+      });
+      // Remove all peeked cards from deck top
+      G[who].main.splice(0, count);
+      // Rebuild: top decisions → rest of deck → bottom decisions
+      G[who].main = [...topPicks, ...G[who].main, ...botPicks];
+      // Put hand picks into hand
+      handPicks.forEach(({ id, card }) => {
+        const inst = makeInst(id, who);
+        if (inst) { G[who].hand.push(inst); log(`  · ${card.name} → hand`, 'heal'); }
+      });
+      updateUI();
+      log('Glimpse complete.', '');
+      return;
+    }
+
+    const card = topCards[idx];
+    const remaining = topCards.length - idx - 1;
+    const actions = [
+      {
+        label: '⬆ KEEP ON TOP',
+        cls: 'btn-primary',
+        action: () => { decisions.push('top');    idx++; showCard(); }
+      },
+      {
+        label: '⬇ SEND TO BOTTOM',
+        cls: 'btn-muted',
+        action: () => { decisions.push('bottom'); idx++; showCard(); }
+      },
+    ];
+    if (canPutInHand) {
+      actions.splice(1, 0, {
+        label: '✋ ADD TO HAND',
+        cls: 'btn-secondary',
+        action: () => { decisions.push('hand');   idx++; showCard(); }
+      });
+    }
+
+    const costStr  = card.cost || 'free';
+    const powerStr = card.type === 'Creature' ? `Power: ${card.power}  |  ` : '';
+    const abilStr  = card.abilities ? `\n\n${card.abilities}` : '';
+
+    showModal(
+      `GLIMPSE — Card ${idx + 1} of ${topCards.length}`,
+      `${card.name}\n${card.type} · ${card.color}  |  Cost: ${costStr}\n${powerStr}${remaining > 0 ? `(${remaining} more after this)` : '(last card)'}${abilStr}`,
+      actions
+    );
+  }
+
+  showCard();
+}
+
+// Reverse Glimpse — look at bottom N cards, choose to move them to top or keep at bottom
+function doReverseGlimpse(who, n, sourceName) {
+  if (G[who].main.length === 0) {
+    log(`${sourceName}: Reverse Glimpse ${n} — deck empty.`, '');
+    return;
+  }
+  const count  = Math.min(n, G[who].main.length);
+  const deck   = G[who].main;
+  const botIds = deck.slice(deck.length - count); // last N cards
+  const botCards = botIds.map(id => CARD_MAP[id]).filter(Boolean);
+
+  log(`${sourceName}: Reverse Glimpse ${count} — viewing bottom ${count} card(s).`, 'important');
+
+  let idx = 0;
+  const decisions = []; // 'top' | 'bottom'
+
+  function showCard() {
+    if (idx >= botCards.length) {
+      // Remove bottom N cards
+      deck.splice(deck.length - count, count);
+      // Put 'top' ones on top, 'bottom' ones back at bottom
+      const topPicks = [];
+      const botPicks = [];
+      botCards.forEach((c, i) => {
+        if (decisions[i] === 'top') topPicks.push(botIds[i]);
+        else botPicks.push(botIds[i]);
+      });
+      G[who].main = [...topPicks, ...deck, ...botPicks];
+      updateUI();
+      log('Reverse Glimpse complete.', '');
+      return;
+    }
+    const card = botCards[idx];
+    const remaining = botCards.length - idx - 1;
+    showModal(
+      `REVERSE GLIMPSE — Card ${idx + 1} of ${botCards.length}`,
+      `${card.name}\n${card.type} · ${card.color}  |  Cost: ${card.cost || 'free'}\n${card.type === 'Creature' ? `Power: ${card.power}\n` : ''}${card.abilities ? `\n${card.abilities}` : ''}\n\n${remaining > 0 ? `${remaining} more after this.` : 'Last card.'}`,
+      [
+        { label: '⬆ MOVE TO TOP',      cls: 'btn-primary',   action: () => { decisions.push('top');    idx++; showCard(); } },
+        { label: '⬇ KEEP AT BOTTOM',   cls: 'btn-muted',     action: () => { decisions.push('bottom'); idx++; showCard(); } },
+      ]
+    );
+  }
+
+  showCard();
 }
 
 // ── HELPERS ───────────────────────────────────────────────────
