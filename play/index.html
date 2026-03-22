@@ -1020,9 +1020,9 @@ const CARDS_RAW = [
   {id:604,color:"Land",type:"Land",subtype:"Core",name:"Purple Land",rarity:"Common",cost:"",power:null,abilities:"{Exhaust}: Add {P}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Purple_Land.png?raw=true",produces:"P"},
   {id:605,color:"Land",type:"Land",subtype:"Core",name:"Gold Land",rarity:"Common",cost:"",power:null,abilities:"{Exhaust}: Add {G}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Gold_Land.png?raw=true",produces:"G"},
   {id:606,color:"Land",type:"Land",subtype:null,name:"Crypto Mining Monolith",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust} Add {G} or {R}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Crypto_Mining_Monolith.png?raw=true",produces:"R"},
-  {id:607,color:"Land",type:"Land",subtype:null,name:"Vault of Eternal Coins",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust} Add {G} or {W}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Vault_of_Eternal_Coins.png?raw=true",produces:"W"},
-  {id:608,color:"Land",type:"Land",subtype:null,name:"Reliquary Cache",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust} Add {G} or {B}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Reliquary_Cache.png?raw=true",produces:"B"},
-  {id:609,color:"Land",type:"Land",subtype:null,name:"Golden Shard Requiem",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust} Add {G} or {P}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Golden_Shard_Requiem.png?raw=true",produces:"P"},
+  {id:607,color:"Land",type:"Land",subtype:null,name:"Vault of Eternal Coins",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust} Add {G} or {W}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Vault_of_Eternal_Coins.png?raw=true",produces:"GW"},
+  {id:608,color:"Land",type:"Land",subtype:null,name:"Reliquary Cache",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust} Add {G} or {B}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Reliquary_Cache.png?raw=true",produces:"GB"},
+  {id:609,color:"Land",type:"Land",subtype:null,name:"Golden Shard Requiem",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust} Add {G} or {P}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Golden_Shard_Requiem.png?raw=true",produces:"GP"},
   {id:610,color:"Land",type:"Land",subtype:null,name:"The Promised Land",rarity:"Rare",cost:"",power:null,abilities:"{Exhaust}: Take 1 damage and add {G}\n{Exhaust}: Take 1 damage and add Blood of any color able to be produced by land you control",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/The_Promised_Land.png?raw=true",produces:"any"},
   {id:700,color:"Black",type:"Creature",subtype:"Token",name:"Raven Token",rarity:"",cost:"",power:1,abilities:"",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Raven_Token.png?raw=true",produces:null},
   {id:701,color:"Black",type:"Creature",subtype:"Token",name:"Bat Token",rarity:"",cost:"",power:1,abilities:"Bleed 1",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Bat_Token.png?raw=true",produces:null},
@@ -1575,21 +1575,32 @@ function setPhase(phase) {
 
 // ── MANA SYSTEM ──────────────────────────────────────────────
 function tapLandForMana(inst) {
-  if (inst.exhaustState !== 'renewed') { log('Land is already exhausted.'); return; }
+  if (inst.exhaustState !== 'renewed') { log(`${inst.name} is already exhausted.`); return; }
   sfx('land');
   const prod = inst.produces;
+  const isOverexhaustLand = (inst.abilities || '').toLowerCase().includes('{overexhaust}');
+
+  function doExhaust() {
+    if (isOverexhaustLand) {
+      inst.exhaustState = 'overexhausted';
+      updateUI();
+    } else {
+      exhaustCard(inst);
+    }
+  }
+
   if (!prod || prod === 'any') {
-    // Prompt for color
-    showManaChoice(inst);
+    showManaChoice(inst, null, doExhaust);
     return;
   }
   if (prod.length === 1) {
+    // Single color — no choice needed
     addMana(inst.owner, prod, 1);
-    exhaustCard(inst);
+    doExhaust();
     log(`${inst.name} → +1 ${prod}`, '');
   } else {
-    // Dual land: pick one
-    showManaChoice(inst, prod.split(''));
+    // Dual land — show choice
+    showManaChoice(inst, prod.split(''), doExhaust);
   }
 }
 
@@ -1915,6 +1926,7 @@ async function aiPlayCards() {
     ai.battlefield.push(inst);
     sfx('card_play', 0.4);
     log(`AI plays ${inst.name} (${inst.power} power).`, '');
+    fireEnterTrigger(inst, 'ai');
     await delay(350);
     updateUI();
   }
@@ -2142,6 +2154,7 @@ function toggleAttacker(inst) {
     attackers.push(inst.instId);
     inst.attacking = true;
     log(`${inst.name} → attacking!`, 'important');
+    fireAttackTrigger(inst, 'player');
   }
   updateUI(); // must call full updateUI so setPhase keeps button as CONFIRM ATTACK
 }
@@ -2211,10 +2224,158 @@ function removeFromBattlefield(inst, owner) {
   if (idx !== -1) {
     G[owner].battlefield.splice(idx, 1);
     G[owner].discard.push(inst);
+    // Fire on-destroy triggers
+    fireDestroyTrigger(inst, owner);
   }
 }
 
-// ── TRIGGER ABILITY CHECKER ───────────────────────────────────
+// ── ENTER-PLAY TRIGGERS ───────────────────────────────────────
+function fireEnterTrigger(inst, who) {
+  const txt = (inst.abilities || '').toLowerCase();
+  if (!txt.includes('when this') && !txt.includes('when this card enters') &&
+      !txt.includes('when this enters')) return;
+
+  // "When this card enters play, create 1 Bat token"
+  if (txt.includes('enter') && txt.includes('bat token')) {
+    const n = parseInt(txt.match(/(\d+) bat token/)?.[1] || '1');
+    for (let i = 0; i < n; i++) createToken('Bat Token', who);
+    log(`${inst.name}: Bat Token created.`, 'heal');
+  }
+  // "When this card enters play, create 1 Wolf token"
+  if (txt.includes('enter') && txt.includes('wolf token')) {
+    const n = parseInt(txt.match(/(\d+) wolf token/)?.[1] || '1');
+    for (let i = 0; i < n; i++) createToken('Wolf Token', who);
+    log(`${inst.name}: Wolf Token created.`, 'heal');
+  }
+  // "When this card enters play, create 1 Zombie token"
+  if (txt.includes('enter') && txt.includes('zombie token')) {
+    const n = parseInt(txt.match(/(\d+) zombie token/)?.[1] || '1');
+    for (let i = 0; i < n; i++) createToken('Zombie Token', who);
+    log(`${inst.name}: Zombie Token created.`, 'heal');
+  }
+  // "When this card enters play, create 1 Raven token"
+  if (txt.includes('enter') && txt.includes('raven token')) {
+    const n = parseInt(txt.match(/(\d+) raven token/)?.[1] || '1');
+    for (let i = 0; i < n; i++) createToken('Raven Token', who);
+    log(`${inst.name}: Raven Token created.`, 'heal');
+  }
+  // "When this enters, gain X life"
+  const lifeMatch = txt.match(/when this.*enters.*gain (\d+) life/);
+  if (lifeMatch) {
+    const n = parseInt(lifeMatch[1]);
+    G[who].life += n;
+    updateLifeDisplay(who);
+    log(`${inst.name}: Gained ${n} life on entry.`, 'heal');
+  }
+  // "When this enters, draw a card"
+  if (txt.includes('enter') && txt.includes('draw a card')) {
+    drawFromDeck(who, G[who].main.length > 0 ? 'main' : 'land');
+    log(`${inst.name}: Drew a card on entry.`, '');
+  }
+  // "When this enters you may pay 2 life to see target player's hand" (Perch Watcher)
+  if (txt.includes('enter') && txt.includes('pay') && txt.includes('life') && txt.includes('hand')) {
+    const costMatch = txt.match(/pay (\d+) life/);
+    const cost = costMatch ? parseInt(costMatch[1]) : 2;
+    if (who === 'player') {
+      showModal(
+        inst.name,
+        `Pay ${cost} life to see the AI's hand?`,
+        [
+          {
+            label: `PAY ${cost} LIFE`,
+            cls: 'btn-danger',
+            action: () => {
+              if (G.player.life > cost) {
+                G.player.life -= cost;
+                updateLifeDisplay('player');
+                const handNames = G.ai.hand.map(c => `• ${c.name} (${c.cost || 'free'})`).join('\n');
+                showModal("AI's Hand", handNames || 'Empty', [{ label:'CLOSE', cls:'btn-muted', action:()=>{} }]);
+                log(`${inst.name}: Paid ${cost} life to see AI hand.`, 'bleed');
+              } else {
+                log('Not enough life.', '');
+              }
+            }
+          },
+          { label: 'SKIP', cls: 'btn-muted', action: () => {} }
+        ]
+      );
+    }
+  }
+}
+
+// ── DESTROY TRIGGERS ──────────────────────────────────────────
+function fireDestroyTrigger(inst, owner) {
+  const txt = (inst.abilities || '').toLowerCase();
+  if (!txt.includes('when this') && !txt.includes('if this') && 
+      !txt.includes('when this card is destroyed') && !txt.includes('when this is destroyed')) return;
+
+  // "When this card is destroyed, create 1 Bat token" (Dusk Warrior id:201)
+  if (txt.includes('destroyed') && txt.includes('bat token')) {
+    const n = parseInt(txt.match(/(\d+) bat token/)?.[1] || '1');
+    for (let i = 0; i < n; i++) createToken('Bat Token', owner);
+    log(`${inst.name}: Bat Token created on death.`, 'heal');
+  }
+  // "When this is destroyed, create 2 Zombie tokens" (id:218)
+  if (txt.includes('destroyed') && txt.includes('zombie token')) {
+    const n = parseInt(txt.match(/(\d+) zombie token/)?.[1] || '2');
+    for (let i = 0; i < n; i++) createToken('Zombie Token', owner);
+    log(`${inst.name}: ${n} Zombie Token(s) created on death.`, 'heal');
+  }
+  // "When this card is destroyed, gain 1 life" (id:101)
+  if (txt.includes('destroyed') && txt.includes('gain') && txt.includes('life')) {
+    const n = parseInt(txt.match(/gain (\d+) life/)?.[1] || '1');
+    G[owner].life += n;
+    updateLifeDisplay(owner);
+    log(`${inst.name}: Gained ${n} life on death.`, 'heal');
+  }
+  // "When destroyed, return to hand"
+  if (txt.includes('destroyed') && txt.includes('return') && txt.includes('hand')) {
+    // Remove from discard and put in hand
+    G[owner].discard = G[owner].discard.filter(i => i.instId !== inst.instId);
+    inst.exhaustState = 'renewed';
+    inst.newlyTurned = true;
+    G[owner].hand.push(inst);
+    log(`${inst.name}: Returned to hand on death.`, 'heal');
+  }
+}
+
+// ── ATTACK TRIGGERS ───────────────────────────────────────────
+function fireAttackTrigger(inst, who) {
+  const txt = (inst.abilities || '').toLowerCase();
+  if (!txt.includes('when this') || !txt.includes('attack')) return;
+
+  // "When this creature is declared as an attacker, you may give +1 power to target Bat token" (id:206)
+  if (txt.includes('attacker') && txt.includes('+1 power') && txt.includes('bat token')) {
+    if (who === 'player') {
+      const bats = G.player.battlefield.filter(i => i.name.includes('Bat'));
+      if (bats.length === 1) {
+        bats[0].power = (bats[0].power || 0) + 1;
+        log(`${inst.name}: Bat token gains +1 power.`, '');
+      } else if (bats.length > 1) {
+        showModal(
+          inst.name,
+          'Choose a Bat token to give +1 power:',
+          bats.map(b => ({
+            label: `${b.name} [${getEffectivePower(b)}]`,
+            cls: 'btn-secondary',
+            action: () => { b.power = (b.power || 0) + 1; log(`${b.name} gets +1 power.`, ''); updateUI(); }
+          })).concat([{ label: 'SKIP', cls: 'btn-muted', action: () => {} }])
+        );
+      }
+    }
+  }
+
+  // "When this creature is declared as an attacker, exhaust up to 2 target creatures" (id:319)
+  if (txt.includes('attacker') && txt.includes('exhaust up to 2')) {
+    if (who === 'player') {
+      log(`${inst.name}: Choose up to 2 creatures to exhaust (click them in targeting mode).`, 'important');
+      // Simple auto-exhaust of AI's 2 weakest creatures
+      const opp = 'ai';
+      const targets = G[opp].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed').slice(0,2);
+      targets.forEach(t => { t.exhaustState = 'exhausted'; log(`${t.name} exhausted.`, ''); });
+    }
+  }
+}
 // Called BEFORE damage so all creatures still exist for checks
 // Attacker-overexhaust triggers are deferred to run AFTER damage via returned callbacks
 function fireCombatTriggers(atkInsts, blkMap, defendingSide) {
@@ -2490,8 +2651,8 @@ function playCard(inst) {
     G.player.battlefield.push(inst);
     sfx('card_play');
     log(`You play ${inst.name} (${inst.power} power).`, 'important');
+    fireEnterTrigger(inst, 'player');
     updateUI();
-    // Card-arrive animation — find the freshly rendered element
     requestAnimationFrame(() => {
       const el = document.querySelector(`[data-inst="${inst.instId}"]`);
       if (el) el.classList.add('card-arrive');
@@ -2502,6 +2663,7 @@ function playCard(inst) {
     G.player.battlefield.push(inst);
     sfx('card_play');
     log(`You play ${inst.name} [Relic].`, 'important');
+    fireEnterTrigger(inst, 'player');
     updateUI();
     requestAnimationFrame(() => {
       const el = document.querySelector(`[data-inst="${inst.instId}"]`);
@@ -3967,18 +4129,21 @@ function closeModal() {
   if (G) updateUI();
 }
 
-function showManaChoice(inst, colors) {
+function showManaChoice(inst, colors, onChosen) {
   const choices = colors || ['R','W','B','P','G','C'];
+  const colorNames = { R:'Red Blood', W:'White Blood', B:'Black Blood', P:'Purple Blood', G:'Gold', C:'Colorless' };
   showModal(
-    'Choose Mana',
-    `${inst.name} can produce which color?`,
+    `${inst.name}`,
+    `Choose which mana to add:`,
     choices.map(c => ({
-      label: c,
+      label: colorNames[c] || c,
       cls: 'btn-muted',
       action: () => {
         addMana(inst.owner, c, 1);
-        exhaustCard(inst);
-        log(`${inst.name} → +1 ${c}`, '');
+        if (onChosen) onChosen();
+        else exhaustCard(inst);
+        log(`${inst.name} → +1 ${colorNames[c] || c}`, '');
+        updateUI();
       }
     }))
   );
