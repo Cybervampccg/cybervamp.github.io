@@ -1287,7 +1287,7 @@ function showDiscardPile(who) {
   showModal(
     `${who === 'player' ? 'YOUR' : 'AI'} DISCARD PILE (${pile.length})`,
     names,
-    [{ label: 'CLOSE', cls: 'btn-muted', action: () => {} }]
+    [{ label: 'CLOSE', cls: 'btn-muted', action: () => { if(G) updateUI(); } }]
   );
 }
 
@@ -1809,10 +1809,14 @@ function renewPhase(who) {
   const s = G[who];
   s.battlefield.forEach(inst => {
     // Two-step renewal:
-    // overexhausted → exhausted (takes one full turn to step down)
-    // exhausted     → renewed
-    if (inst.exhaustState === 'overexhausted') inst.exhaustState = 'exhausted';
-    else if (inst.exhaustState === 'exhausted') inst.exhaustState = 'renewed';
+    // overexhausted → exhausted (still unavailable for one more turn)
+    // exhausted     → renewed   (ready to act)
+    if (inst.exhaustState === 'overexhausted') {
+      inst.exhaustState = 'exhausted';
+      if (who === 'player') log(`${inst.name}: Overexhaust → now Exhausted (ready next turn).`, '');
+    } else if (inst.exhaustState === 'exhausted') {
+      inst.exhaustState = 'renewed';
+    }
     inst.newlyTurned = false;
     inst.attacking = false;
     inst.blocking = false;
@@ -2095,7 +2099,7 @@ function openSpellCaster() {
           });
         }
       })),
-      { label: 'CANCEL', cls: 'btn-muted', action: () => {} }
+      { label: 'CANCEL', cls: 'btn-muted', action: () => { if(G) updateUI(); } }
     ]
   );
 }
@@ -2341,7 +2345,7 @@ function fireEnterTrigger(inst, who) {
               }
             }
           },
-          { label: 'SKIP', cls: 'btn-muted', action: () => {} }
+          { label: 'SKIP', cls: 'btn-muted', action: () => { if(G) updateUI(); } }
         ]
       );
     }
@@ -2431,7 +2435,7 @@ function fireAttackTrigger(inst, who) {
             label: `${b.name} [${getEffectivePower(b)}]`,
             cls: 'btn-secondary',
             action: () => { b.power = (b.power || 0) + 1; log(`${b.name} gets +1 power.`, ''); updateUI(); }
-          })).concat([{ label: 'SKIP', cls: 'btn-muted', action: () => {} }])
+          })).concat([{ label: 'SKIP', cls: 'btn-muted', action: () => { if(G) updateUI(); } }])
         );
       }
     }
@@ -3145,7 +3149,7 @@ function tryActivateAbility(inst) {
         cls: 'btn-secondary',
         action: () => activatePayAbility(inst, pa)
       })),
-      { label: 'CANCEL', cls: 'btn-muted', action: () => {} }
+      { label: 'CANCEL', cls: 'btn-muted', action: () => { if(G) updateUI(); } }
     ]);
     return;
   }
@@ -3162,7 +3166,7 @@ function tryActivateAbility(inst) {
     showModal(inst.name, inst.abilities, [
       { label: `EXHAUST${exhaustDesc ? ': '+exhaustDesc : ''}`,             cls:'btn-secondary', action:()=>activateAbility(inst,'exhaust') },
       { label: `OVEREXHAUST${overExhaustDesc ? ': '+overExhaustDesc : ''}`, cls:'btn-danger',    action:()=>activateAbility(inst,'overexhaust') },
-      { label: 'CANCEL', cls:'btn-muted', action:()=>{} },
+      { label: 'CANCEL', cls:'btn-muted', action:()=>{ if(G) updateUI(); } },
     ]);
   } else if (hasExhaust) {
     activateAbility(inst, 'exhaust');
@@ -4448,7 +4452,8 @@ function showModal(title, body, actions) {
 
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('visible');
-  if (G) updateUI();
+  // Actions handle their own updateUI — do NOT call it here to avoid
+  // re-rendering before the action fires (breaks dual land mana choice etc.)
 }
 
 // showModalHTML — like showModal but body renders as HTML (for card previews)
