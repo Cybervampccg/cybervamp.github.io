@@ -285,6 +285,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   justify-content: center;
   min-width: 90px;
   padding: 4px 10px;
+  z-index: 85; position: relative;
 }
 #hand-ai .hand-decks {
   padding: 4px 10px;
@@ -854,7 +855,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 #faction-chooser {
   position: fixed; inset: 0; background: var(--bg-deep);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 28px; z-index: 1000;
+  gap: 28px; z-index: 1000; overflow-y: auto; padding: 40px 20px;
 }
 .chooser-title { font-family: 'Cinzel Decorative', serif; font-size: 32px; color: var(--red); letter-spacing: 4px; }
 .chooser-subtitle { font-size: 14px; color: var(--text-mid); letter-spacing: 2px; }
@@ -1833,8 +1834,11 @@ function startGame(faction) {
   // Set faction banners on info strips
   setBanners(faction, aiFaction);
 
-  // Start background music — faction click is a valid user gesture
-  bgmFadeIn(3000);
+  // Reset BGM for clean restart on replay
+  if (_bgm) { _bgm.pause(); _bgm.currentTime = 0; }
+
+  // Start background music — defer slightly so faction click event finishes
+  setTimeout(() => bgmFadeIn(3000), 80);
 
   // Draw player's opening 7 cards, then offer mulligan
   setPhase('prebattle');
@@ -1959,41 +1963,50 @@ function setPhase(phase) {
   const isPlayerBattle = phase === 'battle' && G && G.activePlayer === 'player';
 
   if (!isPlayerBattle) {
+    // Not in player battle phase — normal navigation
     attackBtn.style.display = 'none';
     endCombatBtn.style.display = 'none';
     nextPhaseBtn.style.display = 'block';
     nextPhaseBtn.disabled = false;
+    nextPhaseBtn.textContent = 'NEXT PHASE →';
+
   } else if (combatPhase === null) {
-    // Battle phase, no combat declared yet
+    // Battle phase, nothing declared yet — choose to attack or pass
     attackBtn.textContent = 'DECLARE ATTACK';
     attackBtn.onclick = declareAttack;
     attackBtn.style.display = 'block';
-    endCombatBtn.textContent = 'SKIP COMBAT';
+    endCombatBtn.textContent = 'PASS (no attack)';
     endCombatBtn.onclick = endCombatPhase;
     endCombatBtn.style.display = 'block';
-    // NEXT PHASE hidden — use SKIP COMBAT or DECLARE ATTACK
     nextPhaseBtn.style.display = 'none';
+
   } else if (combatPhase === 'declare') {
-    // Attackers declared — lock down navigation, show only confirm/cancel
-    attackBtn.textContent = 'CONFIRM ATTACK';
+    // Attackers chosen but not confirmed — confirm or cancel selection
+    attackBtn.textContent = '⚔ CONFIRM ATTACK';
     attackBtn.onclick = confirmAttack;
     attackBtn.style.display = 'block';
-    endCombatBtn.textContent = 'CANCEL ATTACK';
+    endCombatBtn.textContent = '✕ CANCEL SELECTION';
     endCombatBtn.onclick = () => {
-      // Un-declare all attackers and reset
       attackers.forEach(id => {
         const inst = G.player.battlefield.find(i => i.instId === id);
         if (inst) { inst.attacking = false; }
       });
       attackers = [];
       combatPhase = null;
-      log('Attack cancelled.', '');
+      log('Attack selection cancelled — choose different attackers or pass.', '');
       updateUI();
     };
     endCombatBtn.style.display = 'block';
-    // Hide NEXT PHASE entirely during declare — must confirm or cancel
     nextPhaseBtn.style.display = 'none';
+
+  } else if (combatPhase === 'resolving') {
+    // Animation/resolution running — nothing to click
+    attackBtn.style.display = 'none';
+    endCombatBtn.style.display = 'none';
+    nextPhaseBtn.style.display = 'none';
+
   } else {
+    // combat resolved, waiting to advance
     attackBtn.style.display = 'none';
     endCombatBtn.textContent = 'END COMBAT';
     endCombatBtn.onclick = endCombatPhase;
