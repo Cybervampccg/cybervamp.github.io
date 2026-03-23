@@ -68,73 +68,22 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   gap: 6px; padding: 4px 8px; overflow-x: auto; overflow-y: visible;
   min-height: 128px; max-height: 148px;
   background: rgba(0,0,0,0.55);
-  scrollbar-width: thin; position: relative; z-index: 10;
+  scrollbar-width: thin; position: relative; z-index: 80;
   border-top: 1px solid rgba(255,255,255,0.06);
 }
 #hand-ai { filter: brightness(0.4); cursor: default; align-items: flex-start; }
 
 /* Player info strips — bigger, more prominent */
 #ai-info-strip, #player-info-strip {
-  display: flex; align-items: center; gap: 16px;
-  padding: 6px 16px; flex-shrink: 0;
-  z-index: 20; position: relative;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 4px 16px; flex-shrink: 0;
+  z-index: 90; position: relative; min-height: 36px;
 }
-#ai-info-strip { background: rgba(20,10,50,0.92); border-bottom: 1px solid var(--border-dim); }
-#player-info-strip { background: rgba(30,10,10,0.92); border-top: 1px solid var(--border-dim); }
+#ai-info-strip { background: rgba(20,10,50,0.95); border-bottom: 2px solid var(--border-dim); }
+#player-info-strip { background: rgba(30,10,10,0.95); border-top: 2px solid var(--border-dim); }
 
 /* Deck visual — card back with count badge */
-.deck-visual {
-  position: relative; flex-shrink: 0;
-  width: 52px; height: 72px;
-  border-radius: 5px; overflow: visible;
-  cursor: default;
-}
-.deck-visual .deck-back {
-  width: 100%; height: 100%; border-radius: 5px;
-  background: linear-gradient(135deg, #1a0830 0%, #2d0a50 40%, #1a0830 100%);
-  border: 1px solid var(--purple);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px; color: rgba(160,32,240,0.4);
-}
-.deck-visual .deck-back img {
-  width: 100%; height: 100%; object-fit: cover; border-radius: 4px;
-}
-.deck-visual .deck-count-badge {
-  position: absolute; bottom: -6px; right: -6px;
-  background: var(--bg-deep); border: 1px solid var(--border-bright);
-  border-radius: 10px; padding: 1px 6px;
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 11px; font-weight: 700; color: var(--text-bright);
-  white-space: nowrap;
-}
-/* Two stacked deck piles */
-.deck-pair {
-  display: flex; gap: 8px; align-items: center; flex-shrink: 0;
-}
-.deck-pair-label {
-  font-size: 8px; letter-spacing: 1px; color: var(--text-dim);
-  text-transform: uppercase; text-align: center; margin-top: 3px;
-}
-
-/* Life/bleed prominent display */
-.vital-stats {
-  display: flex; align-items: center; gap: 24px; flex: 1;
-  justify-content: center;
-}
-.vital-block {
-  display: flex; flex-direction: column; align-items: center; gap: 1px;
-}
-.vital-val {
-  font-family: 'Cinzel Decorative', serif;
-  font-size: 36px; font-weight: 700; line-height: 1;
-}
-.vital-val.life  { color: var(--life-green); text-shadow: 0 0 20px rgba(80,220,80,0.4); }
-.vital-val.bleed { color: var(--bleed-red);  text-shadow: 0 0 20px rgba(220,48,48,0.4); }
-.vital-label {
-  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--text-dim);
-}
-.vital-icon { font-size: 18px; margin-bottom: 1px; }
+/* old vital/deck CSS removed */
 
 /* ── FACTION BANNERS ── */
 .faction-banner {
@@ -185,7 +134,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  overflow: visible; /* allow lunge animations to cross zone boundaries */
+  overflow: visible; /* keep visible for lunge animations */
+  z-index: 1;
 }
 
 .side-zone {
@@ -320,12 +270,64 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 /* ── HAND ── */
 .hand-zone {
-  display: flex; align-items: flex-end; justify-content: center;
-  gap: 8px; padding: 6px 12px; overflow-x: auto; overflow-y: visible;
+  display: flex; align-items: stretch;
+  padding: 0; overflow: visible;
   min-height: 240px; max-height: 260px;
-  background: rgba(0,0,0,0.15); scrollbar-width: thin; position: relative; z-index: 10;
+  background: rgba(0,0,0,0.15); position: relative; z-index: 80;
 }
-#hand-ai { filter: brightness(0.75); cursor: default; align-items: flex-start; min-height: 140px; max-height: 152px; }
+#hand-ai {
+  filter: brightness(0.75); cursor: default;
+  min-height: 140px; max-height: 152px;
+}
+/* Vitals panel — left side of hand zone */
+.hand-vitals {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 8px 16px; flex-shrink: 0;
+  background: rgba(0,0,0,0.3); border-right: 1px solid var(--border-dim);
+  min-width: 110px;
+}
+.hand-vital-block {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.hand-vital-val {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 32px; font-weight: 700; line-height: 1;
+}
+.hand-vital-val.life  { color: var(--life-green); text-shadow: 0 0 16px rgba(80,220,80,0.5); }
+.hand-vital-val.bleed { color: var(--bleed-red);  text-shadow: 0 0 16px rgba(220,48,48,0.5); }
+.hand-vital-label { font-size: 8px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); }
+.hand-vital-icon { font-size: 16px; }
+/* Cards scroll area — center of hand zone */
+.hand-cards-scroll {
+  flex: 1; display: flex; align-items: flex-end; justify-content: center;
+  gap: 8px; padding: 6px 12px; overflow-x: auto; overflow-y: visible;
+  scrollbar-width: thin;
+}
+#hand-ai .hand-cards-scroll { align-items: flex-start; }
+/* Decks panel — right side of hand zone */
+.hand-decks {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 8px 14px; flex-shrink: 0;
+  background: rgba(0,0,0,0.3); border-left: 1px solid var(--border-dim);
+  min-width: 100px;
+}
+.hand-deck-pile {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.hand-deck-card {
+  width: 54px; height: 76px; border-radius: 5px; overflow: hidden;
+  border: 1px solid var(--border-dim); position: relative; cursor: default;
+  background: linear-gradient(135deg, #1a0830 0%, #2d0a50 40%, #1a0830 100%);
+  display: flex; align-items: center; justify-content: center;
+}
+.hand-deck-card img { width: 100%; height: 100%; object-fit: cover; }
+.hand-deck-card .hand-deck-count {
+  position: absolute; bottom: 2px; right: 2px;
+  background: rgba(0,0,0,0.85); border-radius: 3px;
+  font-family: 'Share Tech Mono', monospace; font-size: 11px;
+  font-weight: 700; color: var(--text-bright); padding: 1px 4px;
+}
+.hand-deck-label { font-size: 8px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); }
 
 .hand-card { width:160px; height:224px; }
 .hand-card:hover { transform:translateY(-36px) scale(1.10); z-index:50; }
@@ -371,69 +373,45 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .log-entry.bleed { color: var(--bleed-red); }
 .log-entry.phase { color: var(--gold); letter-spacing: 1px; font-weight: 600; }
 
-/* ── CARD PREVIEW ── */
+/* ── CARD PREVIEW — scaled-up real card ── */
 #card-preview {
   position: fixed;
-  width: 320px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-bright);
-  border-radius: 8px;
-  overflow: hidden;
   z-index: 9999;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.12s ease;
-  box-shadow: 0 12px 56px rgba(0,0,0,0.9);
-  display: flex; flex-direction: column;
+  /* Size: 2× battlefield card size (176×246 → 352×492) */
+  width: 352px; height: 492px;
+  filter: drop-shadow(0 12px 40px rgba(0,0,0,0.9));
 }
 #card-preview.visible { opacity: 1; }
-#card-preview img {
-  width: 100%; display: block;
-  max-height: 300px; object-fit: cover; object-position: top;
-  flex-shrink: 0;
+/* The inner .card clone fills the preview div exactly */
+#card-preview .card {
+  width: 100% !important; height: 100% !important;
+  border-radius: 10px !important;
+  font-size: 1.6em;
+  pointer-events: none;
+  cursor: default !important;
+  transform: none !important;
 }
-#card-preview .cp-body {
-  padding: 14px 16px;
-}
-#card-preview .cp-name {
-  font-family: 'Cinzel Decorative', serif;
-  font-size: 15px; color: var(--text-bright);
-  margin-bottom: 5px; line-height: 1.3;
-}
-#card-preview .cp-meta {
-  font-size: 11px; color: var(--text-mid);
-  letter-spacing: 1px; text-transform: uppercase;
-  margin-bottom: 8px;
-}
-#card-preview .cp-cost {
-  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 13px; color: var(--gold);
-  margin-bottom: 6px;
-}
-#card-preview .cp-power-line {
-  font-size: 20px; font-weight: 700;
-  color: #ffdd60; margin-bottom: 10px;
-}
-#card-preview .cp-divider {
-  height: 1px; background: var(--border-dim); margin-bottom: 10px;
-}
-#card-preview .cp-abilities {
-  font-size: 13px; color: var(--text-mid);
-  line-height: 1.7; margin-bottom: 8px;
-}
-#card-preview .cp-flavor {
-  font-size: 11px; color: var(--text-dim);
-  font-style: italic; line-height: 1.5;
+#card-preview .card:hover { transform: none !important; }
+#card-preview .card-footer { padding: 7px 9px !important; }
+#card-preview .card-name-mini { font-size: 13px !important; max-width: 200px !important; }
+#card-preview .card-power { font-size: 18px !important; }
+#card-preview .card-cost-row { padding: 3px 6px !important; }
+#card-preview .mana-pip { width: 18px !important; height: 18px !important; }
+#card-preview .kw-badge { font-size: 11px !important; padding: 3px 7px !important; }
+#card-preview .color-bar { height: 7px !important; }
+/* Abilities overlay — shown on the preview only */
+#card-preview .preview-abilities {
+  position: absolute; bottom: 36px; left: 0; right: 0;
+  background: rgba(0,0,0,0.88);
+  padding: 8px 10px;
+  font-size: 11px; color: var(--text-mid); line-height: 1.55;
+  max-height: 120px; overflow-y: auto;
+  scrollbar-width: thin;
   border-top: 1px solid var(--border-dim);
-  padding-top: 8px; margin-top: 6px;
-}
-#card-preview .cp-keywords {
-  display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px;
-}
-#card-preview .cp-kw {
-  font-size: 11px; padding: 3px 9px; border-radius: 3px;
-  font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+  pointer-events: none;
 }
 
 /* Hand card hover — lift MORE and show glow */
@@ -1016,49 +994,44 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   <!-- ARENA -->
   <div id="arena">
     <!-- AI HAND -->
-    <div class="hand-zone" id="hand-ai"></div>
+    <div class="hand-zone" id="hand-ai">
+      <!-- Life/Bleed left -->
+      <div class="hand-vitals">
+        <div class="hand-vital-block">
+          <div class="hand-vital-icon">❤️</div>
+          <div class="hand-vital-val life" id="ai-life">20</div>
+          <div class="hand-vital-label">LIFE</div>
+        </div>
+        <div class="hand-vital-block">
+          <div class="hand-vital-icon">🩸</div>
+          <div class="hand-vital-val bleed" id="ai-bleed">0</div>
+          <div class="hand-vital-label">BLEED</div>
+        </div>
+      </div>
+      <!-- Cards center -->
+      <div class="hand-cards-scroll" id="hand-ai-cards"></div>
+      <!-- Decks right -->
+      <div class="hand-decks">
+        <div class="hand-deck-pile">
+          <div class="hand-deck-card">
+            <img src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/card_back.png?raw=true" alt="deck" onerror="this.style.display='none'">
+            <span class="hand-deck-count" id="ai-deck-count">40</span>
+          </div>
+          <div class="hand-deck-label">MAIN</div>
+        </div>
+        <div class="hand-deck-pile">
+          <div class="hand-deck-card">
+            <img src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/card_back.png?raw=true" alt="land" onerror="this.style.display='none'">
+            <span class="hand-deck-count" id="ai-land-count">20</span>
+          </div>
+          <div class="hand-deck-label">LAND</div>
+        </div>
+      </div>
+    </div>
 
-    <!-- AI INFO -->
+    <!-- AI MANA BAR -->
     <div id="ai-info-strip">
-      <!-- Faction banner -->
-      <div class="faction-banner" id="ai-banner">
-        <img class="banner-img" id="ai-banner-img" src="" alt="">
-        <div class="banner-overlay">
-          <span class="banner-faction-name" id="ai-faction-label">AI</span>
-          <span class="banner-role">OPPONENT</span>
-        </div>
-      </div>
-      <!-- Deck piles -->
-      <div class="deck-pair">
-        <div>
-          <div class="deck-visual" title="Main Deck">
-            <div class="deck-back"><img src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/card_back.png?raw=true" alt="deck" onerror="this.style.display='none';this.parentElement.textContent='🃏'"></div>
-            <div class="deck-count-badge" id="ai-deck-count">40</div>
-          </div>
-          <div class="deck-pair-label">MAIN</div>
-        </div>
-        <div>
-          <div class="deck-visual" title="Land Deck">
-            <div class="deck-back"><img src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/card_back.png?raw=true" alt="land" onerror="this.style.display='none';this.parentElement.textContent='🏔'"></div>
-            <div class="deck-count-badge" id="ai-land-count">20</div>
-          </div>
-          <div class="deck-pair-label">LAND</div>
-        </div>
-      </div>
-      <!-- Life / Bleed -->
-      <div class="vital-stats">
-        <div class="vital-block">
-          <div class="vital-icon">❤️</div>
-          <div class="vital-val life" id="ai-life">20</div>
-          <div class="vital-label">LIFE</div>
-        </div>
-        <div class="vital-block">
-          <div class="vital-icon">🩸</div>
-          <div class="vital-val bleed" id="ai-bleed">0</div>
-          <div class="vital-label">BLEED</div>
-        </div>
-      </div>
-      <!-- Mana -->
+      <span id="ai-faction-label" style="font-family:'Cinzel Decorative',serif;font-size:10px;letter-spacing:2px;color:var(--text-dim);margin-right:8px;"></span>
       <div class="resource-row" id="ai-mana-display"></div>
     </div>
 
@@ -1106,52 +1079,47 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
     </div>
 
-    <!-- PLAYER INFO -->
+    <!-- PLAYER MANA BAR -->
     <div id="player-info-strip">
-      <!-- Faction banner -->
-      <div class="faction-banner" id="player-banner">
-        <img class="banner-img" id="player-banner-img" src="" alt="">
-        <div class="banner-overlay">
-          <span class="banner-faction-name" id="player-faction-label">YOU</span>
-          <span class="banner-role">PLAYER</span>
-        </div>
-      </div>
-      <!-- Deck piles -->
-      <div class="deck-pair">
-        <div>
-          <div class="deck-visual" title="Main Deck">
-            <div class="deck-back"><img src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/card_back.png?raw=true" alt="deck" onerror="this.style.display='none';this.parentElement.textContent='🃏'"></div>
-            <div class="deck-count-badge" id="player-deck-count">40</div>
-          </div>
-          <div class="deck-pair-label">MAIN</div>
-        </div>
-        <div>
-          <div class="deck-visual" title="Land Deck">
-            <div class="deck-back"><img src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/card_back.png?raw=true" alt="land" onerror="this.style.display='none';this.parentElement.textContent='🏔'"></div>
-            <div class="deck-count-badge" id="player-land-count">20</div>
-          </div>
-          <div class="deck-pair-label">LAND</div>
-        </div>
-      </div>
-      <!-- Life / Bleed -->
-      <div class="vital-stats">
-        <div class="vital-block">
-          <div class="vital-icon">❤️</div>
-          <div class="vital-val life" id="player-life">20</div>
-          <div class="vital-label">LIFE</div>
-        </div>
-        <div class="vital-block">
-          <div class="vital-icon">🩸</div>
-          <div class="vital-val bleed" id="player-bleed">0</div>
-          <div class="vital-label">BLEED</div>
-        </div>
-      </div>
-      <!-- Mana -->
+      <span id="player-faction-label" style="font-family:'Cinzel Decorative',serif;font-size:10px;letter-spacing:2px;color:var(--text-dim);margin-right:8px;"></span>
       <div class="resource-row" id="player-mana-display"></div>
     </div>
 
     <!-- PLAYER HAND -->
-    <div class="hand-zone" id="hand-player"></div>
+    <div class="hand-zone" id="hand-player">
+      <!-- Life/Bleed left -->
+      <div class="hand-vitals">
+        <div class="hand-vital-block">
+          <div class="hand-vital-icon">❤️</div>
+          <div class="hand-vital-val life" id="player-life">20</div>
+          <div class="hand-vital-label">LIFE</div>
+        </div>
+        <div class="hand-vital-block">
+          <div class="hand-vital-icon">🩸</div>
+          <div class="hand-vital-val bleed" id="player-bleed">0</div>
+          <div class="hand-vital-label">BLEED</div>
+        </div>
+      </div>
+      <!-- Cards center -->
+      <div class="hand-cards-scroll" id="hand-player-cards"></div>
+      <!-- Decks right -->
+      <div class="hand-decks">
+        <div class="hand-deck-pile">
+          <div class="hand-deck-card">
+            <img src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/card_back.png?raw=true" alt="deck" onerror="this.style.display='none'">
+            <span class="hand-deck-count" id="player-deck-count">40</span>
+          </div>
+          <div class="hand-deck-label">MAIN</div>
+        </div>
+        <div class="hand-deck-pile">
+          <div class="hand-deck-card">
+            <img src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/card_back.png?raw=true" alt="land" onerror="this.style.display='none'">
+            <span class="hand-deck-count" id="player-land-count">20</span>
+          </div>
+          <div class="hand-deck-label">LAND</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ACTION BAR -->
@@ -1208,20 +1176,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   <div id="log-entries"></div>
 </div>
 
-<div id="card-preview">
-  <div class="cp-color-bar" id="cp-color-bar" style="height:6px;flex-shrink:0;"></div>
-  <img id="cp-img" src="" alt="">
-  <div class="cp-body" id="cp-body">
-    <div class="cp-name" id="cp-name"></div>
-    <div class="cp-meta" id="cp-meta"></div>
-    <div class="cp-cost" id="cp-cost"></div>
-    <div class="cp-power-line" id="cp-power-line"></div>
-    <div class="cp-keywords" id="cp-keywords"></div>
-    <div class="cp-divider"></div>
-    <div class="cp-abilities" id="cp-abilities"></div>
-    <div class="cp-flavor" id="cp-flavor"></div>
-  </div>
-</div>
+<div id="card-preview"><!-- filled dynamically by showCardDetail --></div>
 
 <div id="turn-banner"></div>
 <div id="combat-info"></div>
@@ -1633,7 +1588,8 @@ window.addEventListener('load', () => {
 
 
 function renderHand(who) {
-  const el = document.getElementById(`hand-${who}`);
+  // Target the inner cards-scroll div, not the outer hand-zone
+  const el = document.getElementById(`hand-${who}-cards`);
   if (!el) return;
   el.innerHTML = '';
   const hand = G[who].hand;
@@ -1641,11 +1597,13 @@ function renderHand(who) {
   if (who === 'ai') {
     hand.forEach(() => {
       const back = document.createElement('div');
-      back.className = 'deck-back';
+      back.className = 'card hand-card';
+      back.style.cssText = 'overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1a0030,#0d0515);border-color:var(--border-dim);';
       const img = document.createElement('img');
       img.src = 'https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/card_back.png?raw=true';
       img.alt = 'card back';
-      img.onerror = () => { img.style.display='none'; back.style.background='linear-gradient(135deg,#1a0030,#0d0515)'; };
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+      img.onerror = () => { img.style.display='none'; };
       back.appendChild(img);
       el.appendChild(back);
     });
@@ -1777,27 +1735,40 @@ const FACTION_COLORS = {
 };
 
 function setBanners(playerFaction, aiFaction) {
-  // Player banner
-  const pImg = document.getElementById('player-banner-img');
-  const pLabel = document.getElementById('player-faction-label');
-  if (pImg) {
-    pImg.src = FACTION_BANNERS[playerFaction] || '';
-    pImg.style.borderColor = FACTION_COLORS[playerFaction] || 'transparent';
-  }
-  if (pLabel) pLabel.textContent = playerFaction.toUpperCase();
-  const pBanner = document.getElementById('player-banner');
-  if (pBanner) pBanner.style.borderColor = FACTION_COLORS[playerFaction] || 'var(--border-dim)';
+  const pColor = FACTION_COLORS[playerFaction] || 'var(--border-dim)';
+  const aColor = FACTION_COLORS[aiFaction]     || 'var(--border-dim)';
 
-  // AI banner
-  const aImg = document.getElementById('ai-banner-img');
+  // Faction labels in mana bars
+  const pLabel = document.getElementById('player-faction-label');
   const aLabel = document.getElementById('ai-faction-label');
-  if (aImg) {
-    aImg.src = FACTION_BANNERS[aiFaction] || '';
-    aImg.style.borderColor = FACTION_COLORS[aiFaction] || 'transparent';
+  if (pLabel) { pLabel.textContent = playerFaction.toUpperCase(); pLabel.style.color = pColor; }
+  if (aLabel) { aLabel.textContent = aiFaction.toUpperCase();     aLabel.style.color = aColor; }
+
+  // Color the mana bar borders
+  const playerStrip = document.getElementById('player-info-strip');
+  const aiStrip     = document.getElementById('ai-info-strip');
+  if (playerStrip) playerStrip.style.borderColor = pColor;
+  if (aiStrip)     aiStrip.style.borderColor     = aColor;
+
+  // Tint vitals/deck panel borders in hand zones
+  const playerHand = document.getElementById('hand-player');
+  const aiHand     = document.getElementById('hand-ai');
+  if (playerHand) {
+    const v = playerHand.querySelector('.hand-vitals');
+    const d = playerHand.querySelector('.hand-decks');
+    if (v) v.style.borderColor = pColor;
+    if (d) d.style.borderColor = pColor;
   }
-  if (aLabel) aLabel.textContent = aiFaction.toUpperCase();
-  const aBanner = document.getElementById('ai-banner');
-  if (aBanner) aBanner.style.borderColor = FACTION_COLORS[aiFaction] || 'var(--border-dim)';
+  if (aiHand) {
+    const v = aiHand.querySelector('.hand-vitals');
+    const d = aiHand.querySelector('.hand-decks');
+    if (v) v.style.borderColor = aColor;
+    if (d) d.style.borderColor = aColor;
+  }
+
+  // Topbar logo tint
+  const logo = document.querySelector('#topbar .logo');
+  if (logo) logo.style.color = pColor;
 }
 
 function startGame(faction) {
@@ -2186,6 +2157,9 @@ async function runAITurn() {
   await delay(400);
   setPhase('postbattle');
 
+  // AI activates simple exhaust abilities in post-battle
+  await aiActivateAbilities();
+
   if (G.ai.bleed > 0) {
     const dmg = G.ai.bleed;
     G.ai.life -= dmg;
@@ -2324,7 +2298,7 @@ async function aiPlayCards() {
       addMana('ai', land.produces, 1);
       land.exhaustState = 'exhausted';
     } else {
-      // Dual/any: pick based on faction need
+      // Dual/any: pick AI faction color
       const color = aiFactionColor();
       addMana('ai', color, 1);
       land.exhaustState = 'exhausted';
@@ -2333,28 +2307,170 @@ async function aiPlayCards() {
 
   updateUI();
 
-  // Play affordable creatures (cheapest first)
-  const playable = ai.hand.filter(inst =>
-    inst.type === 'Creature' && canPayCost('ai', inst.cost)
-  ).sort((a,b) => (a.cost||'').length - (b.cost||'').length);
+  // Sort hand: relics first (persistent value), then creatures (cheapest first), then spells
+  const relics = ai.hand.filter(i => i.type==='Relic' && canPayCost('ai',i.cost))
+    .sort((a,b)=>(a.cost||'').length-(b.cost||'').length);
+  const creatures = ai.hand.filter(i => i.type==='Creature' && canPayCost('ai',i.cost))
+    .sort((a,b)=>(a.cost||'').length-(b.cost||'').length);
+  const spells = ai.hand.filter(i => i.type==='Spell' && canPayCost('ai',i.cost))
+    .sort((a,b)=>(a.cost||'').length-(b.cost||'').length);
 
-  for (const inst of playable.slice(0, 3)) {
+  // Play up to 1 relic, up to 3 creatures, up to 1 spell per turn
+  const toPlay = [
+    ...relics.slice(0,1),
+    ...creatures.slice(0,3),
+    ...spells.slice(0,1),
+  ];
+
+  for (const inst of toPlay) {
     if (!canPayCost('ai', inst.cost)) continue;
     payCost('ai', inst.cost);
     ai.hand = ai.hand.filter(i => i.instId !== inst.instId);
-    inst.newlyTurned = true;
-    ai.battlefield.push(inst);
-    sfx('card_play', 0.4);
-    log(`AI plays ${inst.name} (${inst.power} power).`, '');
-    fireEnterTrigger(inst, 'ai');
-    await delay(350);
+
+    if (inst.type === 'Creature') {
+      inst.newlyTurned = true;
+      inst.exhaustState = 'renewed';
+      ai.battlefield.push(inst);
+      sfx('card_play', 0.4);
+      log(`AI plays ${inst.name} (power ${inst.power}).`, '');
+      fireEnterTrigger(inst, 'ai');
+    } else if (inst.type === 'Relic') {
+      inst.newlyTurned = false;
+      inst.exhaustState = 'renewed';
+      ai.battlefield.push(inst);
+      sfx('card_play', 0.4);
+      log(`AI plays ${inst.name} [Relic].`, '');
+      fireEnterTrigger(inst, 'ai');
+    } else if (inst.type === 'Spell') {
+      sfx('card_play', 0.4);
+      log(`AI casts ${inst.name}.`, '');
+      // Resolve simple spell effects for AI: damage, destroy, tokens
+      aiResolveSpell(inst);
+      ai.discard.push(inst);
+    }
+
+    await delay(400);
     updateUI();
   }
+}
+
+function aiResolveSpell(inst) {
+  const txt = (inst.abilities || '').toLowerCase();
+  const opp = 'player';
+
+  // Destroy target creature — pick the strongest player creature
+  if (txt.includes('destroy') && txt.includes('target creature')) {
+    const targets = G[opp].battlefield.filter(i => i.type==='Creature')
+      .sort((a,b) => getEffectivePower(b) - getEffectivePower(a));
+    if (targets.length) {
+      destroyCreature(targets[0], opp);
+      log(`AI: ${inst.name} destroys ${targets[0].name}.`, 'damage');
+    }
+    return;
+  }
+  // Deal damage to all player creatures
+  if (txt.includes('deal') && txt.includes('damage') && txt.includes('all creature')) {
+    const dmg = parseInt(txt.match(/deal (\d+) damage/)?.[1] || '1');
+    const toDestroy = G[opp].battlefield.filter(i => i.type==='Creature' && getEffectivePower(i) <= dmg);
+    toDestroy.forEach(c => destroyCreature(c, opp));
+    log(`AI: ${inst.name} deals ${dmg} to all player creatures.`, 'damage');
+    return;
+  }
+  // Gain life
+  if (txt.includes('gain') && txt.includes('life') && !txt.includes('target')) {
+    const n = parseInt(txt.match(/gain (\d+) life/)?.[1] || '2');
+    G.ai.life += n;
+    updateLifeDisplay('ai');
+    log(`AI: ${inst.name} — gained ${n} life.`, 'heal');
+    return;
+  }
+  // Token creation
+  if (txt.includes('create') && txt.includes('token')) {
+    resolveSpell(inst, 'ai');
+    return;
+  }
+  // Exhaust target
+  if (txt.includes('exhaust') && txt.includes('target')) {
+    const targets = G[opp].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed')
+      .sort((a,b) => getEffectivePower(b) - getEffectivePower(a));
+    if (targets.length) {
+      targets[0].exhaustState = 'exhausted';
+      log(`AI: ${inst.name} exhausts ${targets[0].name}.`, '');
+    }
+    return;
+  }
+  // Add bleed to player
+  if (txt.includes('bleed') && txt.includes('target player')) {
+    const n = parseInt(txt.match(/(\d+) bleed/)?.[1] || '1');
+    G[opp].bleed += n;
+    updateLifeDisplay(opp);
+    log(`AI: ${inst.name} — player gains ${n} Bleed.`, 'bleed');
+    return;
+  }
+  log(`AI: ${inst.name} resolved.`, '');
 }
 
 function aiFactionColor() {
   const map = {Red:'R', White:'W', Black:'B', Purple:'P'};
   return map[G.aiFaction] || 'G';
+}
+
+// AI activates simple exhaust abilities if beneficial
+async function aiActivateAbilities() {
+  const ai = G.ai;
+  const renewedPermanents = ai.battlefield.filter(i =>
+    (i.type === 'Creature' || i.type === 'Relic') &&
+    i.exhaustState === 'renewed' && !i.newlyTurned &&
+    (i.abilities || '').toLowerCase().includes('{exhaust}')
+  );
+
+  for (const inst of renewedPermanents) {
+    const txt = (inst.abilities || '').toLowerCase();
+    const seg = getEffectSeg(txt, 'exhaust');
+
+    // Only activate abilities that are clearly beneficial for AI with no targeting needed
+    const worthActivating =
+      (seg.includes('add {') && seg.includes('}')) || // mana ramp
+      (seg.includes('gain') && seg.includes('life')) || // life gain
+      (seg.includes('create') && seg.includes('token')) || // token creation
+      (seg.includes('draw')) || // draw
+      (seg.includes('bleed') && seg.includes('target player')); // bleed opponent
+
+    if (!worthActivating) continue;
+
+    // Check mana cost before exhaust tag
+    const actCost = parseActivationCost(txt, 'exhaust');
+    if (actCost && !canPayCost('ai', actCost)) continue;
+    if (actCost) payCost('ai', actCost);
+
+    // Resolve the effect
+    if (seg.includes('create') && seg.includes('token')) {
+      const tokenMatch = seg.match(/create (\d+)? ?(bat|wolf|zombie|raven) token/);
+      if (tokenMatch) {
+        const n = parseInt(tokenMatch[1] || '1');
+        const name = tokenMatch[2].charAt(0).toUpperCase() + tokenMatch[2].slice(1) + ' Token';
+        for (let k = 0; k < n; k++) createToken(name, 'ai');
+        log(`AI: ${inst.name} creates ${n} ${name}.`, '');
+      }
+    } else if (seg.includes('gain') && seg.includes('life')) {
+      const n = parseInt(seg.match(/gain (\d+) life/)?.[1] || '2');
+      ai.life += n;
+      updateLifeDisplay('ai');
+      log(`AI: ${inst.name} — gained ${n} life.`, 'heal');
+    } else if (seg.includes('draw')) {
+      drawFromDeck('ai', ai.main.length > 0 ? 'main' : 'land');
+      log(`AI: ${inst.name} — drew a card.`, '');
+    } else if (seg.includes('bleed') && seg.includes('target player')) {
+      const n = parseInt(seg.match(/(\d+) bleed/)?.[1] || '1');
+      G.player.bleed += n;
+      updateLifeDisplay('player');
+      log(`AI: ${inst.name} — player gains ${n} Bleed.`, 'bleed');
+    }
+
+    applyExhaustForAbility(inst, 'exhaust');
+    await delay(300);
+    updateUI();
+  }
 }
 
 // Player blocker assignments during AI attack
@@ -4892,7 +5008,7 @@ function endDrag(e) {
     const affordable = canPayCost('player', inst.cost);
     const isLand = inst.type === 'Land';
     if (!affordable && !isLand) {
-      const handEl = document.getElementById('hand-player');
+      const handEl = document.getElementById('hand-player-cards');
       if (handEl) { handEl.classList.add('drop-reject'); setTimeout(() => handEl.classList.remove('drop-reject'), 350); }
       log(`Not enough mana for ${inst.name}.`, '');
       return;
@@ -5259,7 +5375,8 @@ function log(msg, type='') {
 function toggleLog() {
   logOpen = !logOpen;
   document.getElementById('log-panel').classList.toggle('open', logOpen);
-  document.getElementById('log-toggle').textContent = logOpen ? 'LOG ◀' : 'LOG ▶';
+  const toggleBtn = document.getElementById('log-toggle');
+  if (toggleBtn) toggleBtn.textContent = logOpen ? 'LOG ◀' : 'LOG ▶';
 }
 
 // ── CARD PREVIEW ──────────────────────────────────────────────
@@ -5278,88 +5395,44 @@ const KW_STYLES = {
 
 function showCardDetail(inst, triggerEl) {
   const el = document.getElementById('card-preview');
-  const base = CARD_MAP[inst.cardId] || inst;
-  const color = COLOR_HEX[inst.color] || '#888';
+  const previewW = 352;
+  const previewH = 492;
 
-  document.getElementById('cp-color-bar').style.background = color;
-  document.getElementById('cp-color-bar').style.display = 'block';
-  const imgEl = document.getElementById('cp-img');
-  imgEl.src = inst.image || '';
-  imgEl.style.display = inst.image ? 'block' : 'none';
-  document.getElementById('cp-body').style.display = 'block';
-  document.getElementById('cp-name').textContent = inst.name;
-  document.getElementById('cp-meta').textContent =
-    `${inst.color} · ${inst.type}${inst.subtype ? ' — '+inst.subtype : ''} · ${inst.rarity || ''}`;
+  // Build a fresh card element clone at preview size
+  el.innerHTML = '';
+  const cardClone = createCardElement(inst, false);
+  cardClone.style.width  = '100%';
+  cardClone.style.height = '100%';
+  cardClone.style.cursor = 'default';
 
-  const costEl = document.getElementById('cp-cost');
-  costEl.innerHTML = '';
-  if (inst.cost) {
-    const label = document.createElement('span');
-    label.style.cssText = 'font-size:11px;color:var(--text-dim);margin-right:4px;';
-    label.textContent = 'Cost:';
-    costEl.appendChild(label);
-    costEl.appendChild(renderCostPips(inst.cost, 'md'));
-  } else {
-    costEl.textContent = 'No cost';
+  // Add abilities overlay on top of the art
+  if (inst.abilities) {
+    const abl = document.createElement('div');
+    abl.className = 'preview-abilities';
+    abl.textContent = inst.abilities;
+    cardClone.appendChild(abl);
   }
 
-  const powerEl = document.getElementById('cp-power-line');
-  if (inst.type === 'Creature' && inst.power !== null) {
-    const eff = getEffectivePower(inst);
-    powerEl.textContent = eff !== inst.power ? `⚔ ${eff}  (base ${inst.power})` : `⚔ ${eff}`;
-    powerEl.style.display = 'block';
-  } else {
-    powerEl.style.display = 'none';
-  }
+  el.appendChild(cardClone);
 
-  const kwEl = document.getElementById('cp-keywords');
-  kwEl.innerHTML = '';
-  const kw = inst.keywords || {};
-  Object.entries(KW_STYLES).forEach(([key, style]) => {
-    if (kw[key]) {
-      const badge = document.createElement('span');
-      badge.className = 'cp-kw';
-      badge.style.background = style.bg;
-      badge.style.color = style.color;
-      badge.textContent = key === 'bleed' ? `Bleed ${kw.bleed}` : style.label;
-      kwEl.appendChild(badge);
-    }
-  });
-
-  document.getElementById('cp-abilities').textContent = inst.abilities || '—';
-  const flavorEl = document.getElementById('cp-flavor');
-  flavorEl.textContent = base.flavor || '';
-  flavorEl.style.display = base.flavor ? 'block' : 'none';
-
-  // Position on the opposite side of the screen from the hovered card
-  const previewW = 320;
-  const previewH = Math.min(620, window.innerHeight - 20);
-  const margin   = 12;
-
+  // Position opposite the hovered card
+  const margin = 14;
   if (triggerEl) {
     const rect = triggerEl.getBoundingClientRect();
     const cardCenterX = rect.left + rect.width / 2;
-    const screenMidX  = window.innerWidth / 2;
 
     let left, top;
-
-    // Place preview on opposite horizontal side from the card
-    if (cardCenterX > screenMidX) {
-      // Card is on right side — preview goes to the LEFT of the card
+    if (cardCenterX > window.innerWidth / 2) {
       left = Math.max(margin, rect.left - previewW - margin);
     } else {
-      // Card is on left side — preview goes to the RIGHT of the card
       left = Math.min(window.innerWidth - previewW - margin, rect.right + margin);
     }
-
-    // Vertically: align top of preview with top of card, clamp to viewport
     top = rect.top;
     if (top + previewH > window.innerHeight - margin) top = window.innerHeight - previewH - margin;
     if (top < margin) top = margin;
 
     el.style.top  = top  + 'px';
     el.style.left = left + 'px';
-    el.style.maxHeight = previewH + 'px';
   }
 
   el.classList.add('visible');
