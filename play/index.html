@@ -154,7 +154,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   scrollbar-width:thin; position:relative;
 }
 .bf-row.main-row  { flex:1; min-height:0; align-items:center; overflow:visible; }
-.bf-row.lands-row { min-height:138px; flex-shrink:0; }
+.bf-row.lands-row { min-height:118px; flex-shrink:0; }
 
 /* Creatures group — centered, fills available width */
 .creatures-group {
@@ -197,7 +197,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   gap:2px; flex-shrink:0; padding:0 4px; align-self:center; margin-left:auto;
 }
 .discard-stack {
-  width:100px; height:140px; border-radius:5px;
+  width:82px; height:116px; border-radius:5px;
   background:rgba(0,0,0,0.4); border:1px dashed var(--border-dim);
   display:flex; align-items:center; justify-content:center;
   flex-direction:column; gap:2px; cursor:pointer; position:relative; transition:border-color 0.15s;
@@ -215,7 +215,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   position:relative; overflow:hidden;
   transition:transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   flex-shrink:0; display:flex; flex-direction:column;
-  width:176px; height:246px;
+  width:148px; height:208px;
 }
 .card:hover { transform:translateY(-14px) scale(1.05); z-index:50; }
 .card.selected { border-color:var(--gold)!important; box-shadow:0 0 18px var(--gold-glow)!important; transform:translateY(-18px) scale(1.10)!important; z-index:60; }
@@ -223,7 +223,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .card.blockable  { border-color:#30a0e0; box-shadow:0 0 8px rgba(48,160,224,0.3); animation:pulse-blue 1.2s infinite; }
 
 /* 90° exhausted */
-.card.exhausted { opacity:0.78; transform:rotate(90deg); margin:46px 16px; }
+.card.exhausted { opacity:0.78; transform:rotate(90deg); margin:38px 13px; }
 .card.exhausted:hover { transform:rotate(90deg) scale(1.07); z-index:50; }
 /* 180° overexhausted */
 .card.overexhausted { opacity:0.45; transform:rotate(180deg); margin:0 12px; }
@@ -235,17 +235,17 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .card.tap-hint  { box-shadow:0 0 9px rgba(212,160,32,0.65); }
 
 /* Relics — smaller than creatures, sit on same row */
-.relics-group .card { width:144px; height:202px; }
-.relics-group .card.exhausted { margin:36px 14px; }
+.relics-group .card { width:120px; height:168px; }
+.relics-group .card.exhausted { margin:30px 11px; }
 
 /* Land cards — full art, taller */
-.lands-row .card { width:120px; height:128px; }
+.lands-row .card { width:100px; height:108px; }
 .lands-row .card .card-img { display:block; object-position:center; }
 .lands-row .card .card-img-placeholder { font-size:28px; }
 .lands-row .card .card-name-mini { font-size:9px; max-width:100px; }
 .lands-row .card .card-power { display:none; }
 .lands-row .kw-badges { display:none; }
-.lands-row .card.exhausted { transform:rotate(90deg); margin:28px 12px; opacity:0.72; }
+.lands-row .card.exhausted { transform:rotate(90deg); margin:22px 10px; opacity:0.72; }
 .lands-row .card.exhausted:hover { transform:rotate(90deg) scale(1.08); }
 .card-img-placeholder { width:100%; flex:1; display:flex; align-items:center; justify-content:center; background:var(--bg-panel); font-size:40px; min-height:0; }
 .card-footer { display:flex; align-items:center; justify-content:space-between; padding:5px 6px; background:rgba(0,0,0,0.82); font-size:11px; font-weight:600; letter-spacing:0.5px; flex-shrink:0; }
@@ -272,12 +272,12 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .hand-zone {
   display: flex; align-items: stretch;
   padding: 0; overflow: visible;
-  min-height: 240px; max-height: 260px;
+  min-height: 218px; max-height: 234px;
   background: rgba(0,0,0,0.15); position: relative; z-index: 80;
 }
 #hand-ai {
   filter: brightness(0.75); cursor: default;
-  min-height: 140px; max-height: 152px;
+  min-height: 120px; max-height: 132px;
 }
 /* Vitals panel — left side of hand zone */
 .hand-vitals {
@@ -291,12 +291,12 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 }
 .hand-vital-val {
   font-family: 'Cinzel Decorative', serif;
-  font-size: 32px; font-weight: 700; line-height: 1;
+  font-size: 28px; font-weight: 700; line-height: 1;
 }
 .hand-vital-val.life  { color: var(--life-green); text-shadow: 0 0 16px rgba(80,220,80,0.5); }
 .hand-vital-val.bleed { color: var(--bleed-red);  text-shadow: 0 0 16px rgba(220,48,48,0.5); }
 .hand-vital-label { font-size: 8px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); }
-.hand-vital-icon { font-size: 16px; }
+.hand-vital-icon { font-size: 14px; }
 /* Cards scroll area — center of hand zone */
 .hand-cards-scroll {
   flex: 1; display: flex; align-items: flex-end; justify-content: center;
@@ -329,9 +329,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 }
 .hand-deck-label { font-size: 8px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); }
 
-.hand-card { width:160px; height:224px; }
-.hand-card:hover { transform:translateY(-36px) scale(1.10); z-index:50; }
-.hand-card.selected { transform:translateY(-42px) scale(1.13)!important; border-color:var(--gold)!important; box-shadow:0 0 18px var(--gold-glow)!important; }
+.hand-card { width:148px; height:208px; }
+.hand-card:hover { transform:translateY(-20px) scale(1.08); z-index:50; }
+.hand-card.selected { transform:translateY(-24px) scale(1.10)!important; border-color:var(--gold)!important; box-shadow:0 0 18px var(--gold-glow)!important; }
 .hand-card.playable   { border-color:rgba(212,160,32,0.55); }
 .hand-card.unplayable { opacity:0.35; }
 .hand-card.targeting  { border-color:#30e0ff!important; box-shadow:0 0 14px rgba(48,224,255,0.5)!important; }
@@ -380,35 +380,34 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.12s ease;
-  /* Size: 2× battlefield card size (176×246 → 352×492) */
-  width: 352px; height: 492px;
+  /* Size: ~3× battlefield card (148×208 → 480×672) */
+  width: 480px; height: 672px;
   filter: drop-shadow(0 12px 40px rgba(0,0,0,0.9));
 }
 #card-preview.visible { opacity: 1; }
 /* The inner .card clone fills the preview div exactly */
 #card-preview .card {
   width: 100% !important; height: 100% !important;
-  border-radius: 10px !important;
-  font-size: 1.6em;
+  border-radius: 12px !important;
   pointer-events: none;
   cursor: default !important;
   transform: none !important;
 }
 #card-preview .card:hover { transform: none !important; }
-#card-preview .card-footer { padding: 7px 9px !important; }
-#card-preview .card-name-mini { font-size: 13px !important; max-width: 200px !important; }
-#card-preview .card-power { font-size: 18px !important; }
-#card-preview .card-cost-row { padding: 3px 6px !important; }
-#card-preview .mana-pip { width: 18px !important; height: 18px !important; }
-#card-preview .kw-badge { font-size: 11px !important; padding: 3px 7px !important; }
-#card-preview .color-bar { height: 7px !important; }
-/* Abilities overlay — shown on the preview only */
+#card-preview .card-footer { padding: 9px 12px !important; }
+#card-preview .card-name-mini { font-size: 16px !important; max-width: 280px !important; }
+#card-preview .card-power { font-size: 22px !important; }
+#card-preview .card-cost-row { padding: 4px 8px !important; }
+#card-preview .mana-pip { width: 22px !important; height: 22px !important; }
+#card-preview .kw-badge { font-size: 13px !important; padding: 4px 9px !important; }
+#card-preview .color-bar { height: 9px !important; }
+/* Abilities overlay */
 #card-preview .preview-abilities {
-  position: absolute; bottom: 36px; left: 0; right: 0;
-  background: rgba(0,0,0,0.88);
-  padding: 8px 10px;
-  font-size: 11px; color: var(--text-mid); line-height: 1.55;
-  max-height: 120px; overflow-y: auto;
+  position: absolute; bottom: 44px; left: 0; right: 0;
+  background: rgba(0,0,0,0.91);
+  padding: 10px 14px;
+  font-size: 13px; color: var(--text-mid); line-height: 1.6;
+  max-height: 180px; overflow-y: auto;
   scrollbar-width: thin;
   border-top: 1px solid var(--border-dim);
   pointer-events: none;
@@ -5395,8 +5394,8 @@ const KW_STYLES = {
 
 function showCardDetail(inst, triggerEl) {
   const el = document.getElementById('card-preview');
-  const previewW = 352;
-  const previewH = 492;
+  const previewW = 480;
+  const previewH = 672;
 
   // Build a fresh card element clone at preview size
   el.innerHTML = '';
