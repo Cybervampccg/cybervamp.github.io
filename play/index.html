@@ -277,7 +277,25 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 }
 #hand-ai {
   filter: brightness(0.75); cursor: default;
-  min-height: 120px; max-height: 132px;
+  min-height: 84px; max-height: 96px;
+}
+#hand-ai .hand-vitals {
+  /* Let life/bleed overflow — numbers are intentionally bigger than the zone */
+  overflow: visible;
+  justify-content: center;
+  min-width: 90px;
+  padding: 4px 10px;
+}
+#hand-ai .hand-decks {
+  padding: 4px 10px;
+  gap: 6px;
+  min-width: 80px;
+}
+#hand-ai .hand-deck-card {
+  width: 38px; height: 54px;
+}
+#hand-ai .hand-cards-scroll {
+  padding: 4px 8px;
 }
 /* Vitals panel — left side of hand zone */
 .hand-vitals {
@@ -303,7 +321,10 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   gap: 8px; padding: 6px 12px; overflow-x: auto; overflow-y: visible;
   scrollbar-width: thin;
 }
-#hand-ai .hand-cards-scroll { align-items: flex-start; }
+#hand-ai .hand-cards-scroll .card,
+#hand-ai .hand-cards-scroll .hand-card {
+  width: 60px !important; height: 84px !important;
+}
 /* Decks panel — right side of hand zone */
 .hand-decks {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -2162,9 +2183,10 @@ async function runAITurn() {
   if (G.ai.bleed > 0) {
     const dmg = G.ai.bleed;
     G.ai.life -= dmg;
+    G.ai.bleed = 0;
     sfx('bleed');
     log(`AI takes ${dmg} Bleed damage.`, 'bleed');
-    G.ai.bleed = 0;
+    updateLifeDisplay('ai');
     if (checkWin()) return;
   }
 
