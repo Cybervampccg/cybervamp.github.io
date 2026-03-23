@@ -323,7 +323,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 }
 #hand-ai .hand-cards-scroll .card,
 #hand-ai .hand-cards-scroll .hand-card {
-  width: 60px !important; height: 84px !important;
+  width: 36px !important; height: 50px !important;
+  border-radius: 3px !important; overflow: hidden !important;
 }
 /* Decks panel — right side of hand zone */
 .hand-decks {
@@ -857,11 +858,11 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 }
 .chooser-title { font-family: 'Cinzel Decorative', serif; font-size: 32px; color: var(--red); letter-spacing: 4px; }
 .chooser-subtitle { font-size: 14px; color: var(--text-mid); letter-spacing: 2px; }
-.faction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.faction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; max-width: 1260px; }
 
 /* Banner-style faction button */
 .faction-btn {
-  position: relative; width: 200px; height: 120px;
+  position: relative; width: 600px; height: 360px;
   border-radius: 8px; overflow: hidden; cursor: pointer;
   border: 2px solid transparent;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
@@ -879,13 +880,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 }
 .faction-btn .fb-name {
   font-family: 'Cinzel Decorative', serif;
-  font-size: 20px; font-weight: 700; color: #fff;
-  letter-spacing: 2px;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+  font-size: 48px; font-weight: 700; color: #fff;
+  letter-spacing: 4px;
+  text-shadow: 0 4px 16px rgba(0,0,0,0.9);
 }
 .faction-btn .fb-sub {
-  font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
-  color: rgba(255,255,255,0.65);
+  font-size: 16px; letter-spacing: 4px; text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
 }
 .faction-btn.red   { border-color: rgba(224,48,48,0.5); }
 .faction-btn.white { border-color: rgba(200,192,240,0.5); }
@@ -988,7 +989,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
       <div class="fb-overlay"><span class="fb-name">PURPLE</span><span class="fb-sub">Control &amp; Glimpse</span></div>
     </div>
   </div>
-  <button onclick="openDeckbuilder()" style="margin-top:8px;padding:10px 32px;border-radius:5px;border:1px solid var(--border-bright);background:transparent;color:var(--text-mid);font-family:'Cinzel Decorative',serif;font-size:12px;letter-spacing:2px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--border-bright)';this.style.color='var(--text-mid)'">⚙ DECKBUILDER</button>
+  <button onclick="openDeckbuilder()" style="margin-top:8px;padding:16px 56px;border-radius:7px;border:2px solid var(--border-bright);background:transparent;color:var(--text-mid);font-family:'Cinzel Decorative',serif;font-size:18px;letter-spacing:3px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--border-bright)';this.style.color='var(--text-mid)'">⚙ DECKBUILDER</button>
   <div style="font-size:11px;color:var(--text-dim);text-align:center;max-width:440px;line-height:1.6;">
     Solo vs AI — build custom decks or use defaults
   </div>
@@ -1952,26 +1953,52 @@ function setPhase(phase) {
   });
 
   // Update action bar visibility
-  const attackBtn = document.getElementById('btn-attack');
+  const attackBtn    = document.getElementById('btn-attack');
   const endCombatBtn = document.getElementById('btn-end-combat');
+  const nextPhaseBtn = document.getElementById('btn-next-phase');
   const isPlayerBattle = phase === 'battle' && G && G.activePlayer === 'player';
 
   if (!isPlayerBattle) {
     attackBtn.style.display = 'none';
     endCombatBtn.style.display = 'none';
+    nextPhaseBtn.style.display = 'block';
+    nextPhaseBtn.disabled = false;
   } else if (combatPhase === null) {
+    // Battle phase, no combat declared yet
     attackBtn.textContent = 'DECLARE ATTACK';
     attackBtn.onclick = declareAttack;
     attackBtn.style.display = 'block';
+    endCombatBtn.textContent = 'SKIP COMBAT';
+    endCombatBtn.onclick = endCombatPhase;
     endCombatBtn.style.display = 'block';
+    // NEXT PHASE hidden — use SKIP COMBAT or DECLARE ATTACK
+    nextPhaseBtn.style.display = 'none';
   } else if (combatPhase === 'declare') {
+    // Attackers declared — lock down navigation, show only confirm/cancel
     attackBtn.textContent = 'CONFIRM ATTACK';
     attackBtn.onclick = confirmAttack;
     attackBtn.style.display = 'block';
+    endCombatBtn.textContent = 'CANCEL ATTACK';
+    endCombatBtn.onclick = () => {
+      // Un-declare all attackers and reset
+      attackers.forEach(id => {
+        const inst = G.player.battlefield.find(i => i.instId === id);
+        if (inst) { inst.attacking = false; }
+      });
+      attackers = [];
+      combatPhase = null;
+      log('Attack cancelled.', '');
+      updateUI();
+    };
     endCombatBtn.style.display = 'block';
+    // Hide NEXT PHASE entirely during declare — must confirm or cancel
+    nextPhaseBtn.style.display = 'none';
   } else {
     attackBtn.style.display = 'none';
+    endCombatBtn.textContent = 'END COMBAT';
+    endCombatBtn.onclick = endCombatPhase;
     endCombatBtn.style.display = 'block';
+    nextPhaseBtn.style.display = 'none';
   }
 
   const mulliganBtn = document.getElementById('btn-mulligan');
