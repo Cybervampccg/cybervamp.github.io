@@ -75,12 +75,26 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 /* Player info strips — bigger, more prominent */
 #ai-info-strip, #player-info-strip {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 4px 16px; flex-shrink: 0;
-  z-index: 90; position: relative; min-height: 36px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 16px; flex-shrink: 0;
+  z-index: 90; position: relative; min-height: 38px;
 }
 #ai-info-strip { background: rgba(20,10,50,0.95); border-bottom: 2px solid var(--border-dim); }
 #player-info-strip { background: rgba(30,10,10,0.95); border-top: 2px solid var(--border-dim); }
+
+/* Resource pool label */
+.pool-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text-dim); flex-shrink: 0;
+}
+/* Push pool to the right of the strip */
+.pool-spacer { flex: 1; }
+/* Mana pip wrapper */
+#ai-mana-display, #player-mana-display {
+  display: flex; gap: 3px; align-items: center; flex-wrap: wrap;
+  min-width: 24px; min-height: 24px;
+}
 
 /* Deck visual — card back with count badge */
 /* old vital/deck CSS removed */
@@ -1053,7 +1067,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
     <!-- AI MANA BAR -->
     <div id="ai-info-strip">
-      <span id="ai-faction-label" style="font-family:'Cinzel Decorative',serif;font-size:10px;letter-spacing:2px;color:var(--text-dim);margin-right:8px;"></span>
+      <span id="ai-faction-label" style="font-family:'Cinzel Decorative',serif;font-size:10px;letter-spacing:2px;color:var(--text-dim);"></span>
+      <span class="pool-spacer"></span>
+      <span class="pool-label">POOL:</span>
       <div class="resource-row" id="ai-mana-display"></div>
     </div>
 
@@ -1103,7 +1119,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
     <!-- PLAYER MANA BAR -->
     <div id="player-info-strip">
-      <span id="player-faction-label" style="font-family:'Cinzel Decorative',serif;font-size:10px;letter-spacing:2px;color:var(--text-dim);margin-right:8px;"></span>
+      <span id="player-faction-label" style="font-family:'Cinzel Decorative',serif;font-size:10px;letter-spacing:2px;color:var(--text-dim);"></span>
+      <span class="pool-spacer"></span>
+      <span class="pool-label">POOL:</span>
       <div class="resource-row" id="player-mana-display"></div>
     </div>
 
@@ -1318,7 +1336,7 @@ const CARDS_RAW = [
   {id:216,color:"Black",type:"Creature",subtype:"Unique",name:"Fenlily Seraphine",rarity:"Mythic Rare",cost:"GGBBB",power:5,abilities:"While in the field, Zombie tokens under your control gain Siphon and the ability {Exhaust}: Destroy this token creature to deal 3 damage to target creature and gain 3 life",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Fenlily_Seraphine.png?raw=true",flavor:"With a lover's caress, she stirs the murk\u2014and the drowned rise to adore her.",produces:null},
   {id:217,color:"Black",type:"Creature",subtype:"Unique",name:"Lyssara, Witch of the Apex",rarity:"Mythic Rare",cost:"GBBBBB",power:7,abilities:"Breach, anytime this creature destroys another creature in combat create 1 Bat token, 1 Wolf token, and 1 Zombie token under your control.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Lyssara__Witch_of_the_Apex.png?raw=true",flavor:"Her slight frame hides the storm\u2014but with a whisper the apex awakens.",produces:null},
   {id:218,color:"Black",type:"Creature",subtype:"Unique",name:"Valthor, the Eternal Cadaver",rarity:"Mythic Rare",cost:"CCBBBB",power:6,abilities:"Siphon, When this creature is destroyed, create 2 Zombie tokens under your control",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Valthor__the_Eternal_Cadaver.png?raw=true",flavor:"One death is but the prelude; the cadaver commands an endless funeral march.",produces:null},
-  {id:219,color:"Black",type:"Creature",subtype:"Unique",name:"Korzathrax, Marrow Sovereign",rarity:"Mythic Rare",cost:"GGGBB",power:5,abilities:"Siphon, Zombie, Raven, and Bat tokens you control get +1 power\\n{B}{B}{B}{Overexhaust}: Return one creature card from the discard pile to your hand",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/__Korzathrax__Marrow_Sovereign.png?raw=true",flavor:"From one corpse, a thousand crowns.",produces:null},
+  {id:219,color:"Black",type:"Creature",subtype:"Unique",name:"Korzathrax, Marrow Sovereign",rarity:"Mythic Rare",cost:"GGGBB",power:5,abilities:"Siphon, Zombie, Raven, and Bat tokens you control get +1 power\\n{B}{B}{B}{Overexhaust}: Return one creature card from the discard pile to your hand",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Korzathrax__Marrow_Sovereign.png?raw=true",flavor:"From one corpse, a thousand crowns.",produces:null},
   {id:220,color:"Black",type:"Creature",subtype:null,name:"Werewolf Hierophant",rarity:"Mythic Rare",cost:"GGBBBB",power:6,abilities:"{B}{B}{B}{B}{Exhaust}: Create 2 Wolf tokens under your control\\n{Overexhaust}: Remove all creature cards from your discard pile from the game and create 1 Wolf token under your control for every card removed from the game this way.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Werewolf_Hierophant.png?raw=true",flavor:null,produces:null},
   {id:221,color:"Black",type:"Creature",subtype:"Unique",name:"Salizer Shade",rarity:"Mythic Rare",cost:"GGBBB",power:5,abilities:"Tireless, Lose 1 life when this card attacks. Any creature blocking this card becomes exhausted and does not renew during the next renewal step.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Salizer_Shade.png?raw=true",flavor:"It felt like the fight would never end.",produces:null},
   {id:222,color:"Black",type:"Relic",subtype:null,name:"Muckmouth Bauble",rarity:"Uncommon",cost:"GB",power:null,abilities:"{Exhaust}: Lose 2 life, add {B}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Muckmouth_Bauble.png?raw=true",flavor:"It hungers always\u2014feed it your vein, reap the abyss.",produces:null},
@@ -1359,7 +1377,7 @@ const CARDS_RAW = [
   {id:316,color:"Purple",type:"Creature",subtype:null,name:"Runed Pageweaver",rarity:"Mythic Rare",cost:"GPP",power:2,abilities:"{P}{Overexhaust}: Take one card from your discard pile and shuffle it back into your main deck.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Runed_Pageweaver.png?raw=true",flavor:null,produces:null},
   {id:317,color:"Purple",type:"Creature",subtype:null,name:"Mystic Trapper",rarity:"Mythic Rare",cost:"GGPP",power:3,abilities:"{Exhaust}: exhaust target creature.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Mystic_Trapper.png?raw=true",flavor:null,produces:null},
   {id:318,color:"Purple",type:"Creature",subtype:null,name:"Quantum Oracle",rarity:"Mythic Rare",cost:"GPPP",power:2,abilities:"{Exhaust}: Destroy target relic you control, draw a card from your main deck.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Quantum_Oracle.png?raw=true",flavor:null,produces:null},
-  {id:319,color:"Purple",type:"Creature",subtype:"Unique",name:"Isolde, Veil Sovereign",rarity:"Mythic Rare",cost:"GGPPP",power:5,abilities:"When this creature is declared as an attacker, you may exhaust up to 2 target creature cards. If you do so in this way, overexhaust this card at the end of combat.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/____Isolde__Veil_Sovereign.png?raw=true",flavor:"Beauty is the sharpest veil\u2014lift it, and empires kneel.",produces:null},
+  {id:319,color:"Purple",type:"Creature",subtype:"Unique",name:"Isolde, Veil Sovereign",rarity:"Mythic Rare",cost:"GGPPP",power:5,abilities:"When this creature is declared as an attacker, you may exhaust up to 2 target creature cards. If you do so in this way, overexhaust this card at the end of combat.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Isolde__Veil_Sovereign.png?raw=true",flavor:"Beauty is the sharpest veil\u2014lift it, and empires kneel.",produces:null},
   {id:320,color:"Purple",type:"Creature",subtype:"Unique",name:"Elias Veyr",rarity:"Mythic Rare",cost:"PPPPPP",power:6,abilities:"Blocker damage dealt to this card is reduced by 2. If this card is the target of any spell: Gain +3 power, Breach until end of turn",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Elias_Veyr.png?raw=true",flavor:"An extraordinarily gifted student. The silence before the storm is his natural state.",produces:null},
   {id:321,color:"Purple",type:"Creature",subtype:"Unique",name:"Akane Chishiki",rarity:"Mythic Rare",cost:"GGGPPP",power:5,abilities:"Tireless, Breach, Bleed 2, Haste. When this card enters play Glimpse 2",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Akane_Chishiki.png?raw=true",flavor:"It\u2019s as if she\u2019s spent 1000 years perfecting every skill possible.",produces:null},
   {id:322,color:"Purple",type:"Relic",subtype:null,name:"Astral Archive",rarity:"Uncommon",cost:"GPPP",power:null,abilities:"{Exhaust}: Reverse Glimpse 3",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Astral_Archive.png?raw=true",flavor:null,produces:null},
@@ -1407,10 +1425,10 @@ const CARDS_RAW = [
   {id:603,color:"Land",type:"Land",subtype:"Core",name:"Black Land",rarity:"Common",cost:"",power:null,abilities:"{Exhaust}: Add {B}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Black_Land.png?raw=true",flavor:null,produces:"B"},
   {id:604,color:"Land",type:"Land",subtype:"Core",name:"Purple Land",rarity:"Common",cost:"",power:null,abilities:"{Exhaust}: Add {P}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Purple_Land.png?raw=true",flavor:null,produces:"P"},
   {id:605,color:"Land",type:"Land",subtype:"Core",name:"Gold Land",rarity:"Common",cost:"",power:null,abilities:"{Exhaust}: Add {G}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Gold_Land.png?raw=true",flavor:null,produces:"G"},
-  {id:606,color:"Land",type:"Land",subtype:null,name:"Crypto Mining Monolith",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust} Add {G} or {R}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Crypto_Mining_Monolith.png?raw=true",flavor:null,produces:"R"},
-  {id:607,color:"Land",type:"Land",subtype:null,name:"Vault of Eternal Coins",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust} Add {G} or {W}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Vault_of_Eternal_Coins.png?raw=true",flavor:null,produces:"W"},
-  {id:608,color:"Land",type:"Land",subtype:null,name:"Reliquary Cache",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust} Add {G} or {B}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Reliquary_Cache.png?raw=true",flavor:null,produces:"B"},
-  {id:609,color:"Land",type:"Land",subtype:null,name:"Golden Shard Requiem",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust} Add {G} or {P}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Golden_Shard_Requiem.png?raw=true",flavor:null,produces:"P"},
+  {id:606,color:"Land",type:"Land",subtype:null,name:"Crypto Mining Monolith",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust} Add {G} or {R}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Crypto_Mining_Monolith.png?raw=true",flavor:null,produces:"GR"},
+  {id:607,color:"Land",type:"Land",subtype:null,name:"Vault of Eternal Coins",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust} Add {G} or {W}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Vault_of_Eternal_Coins.png?raw=true",flavor:null,produces:"GW"},
+  {id:608,color:"Land",type:"Land",subtype:null,name:"Reliquary Cache",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust} Add {G} or {B}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Reliquary_Cache.png?raw=true",flavor:null,produces:"GB"},
+  {id:609,color:"Land",type:"Land",subtype:null,name:"Golden Shard Requiem",rarity:"Uncommon",cost:"",power:null,abilities:"{Overexhaust} Add {G} or {P}",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Golden_Shard_Requiem.png?raw=true",flavor:null,produces:"GP"},
   {id:610,color:"Land",type:"Land",subtype:null,name:"The Promised Land",rarity:"Rare",cost:"",power:null,abilities:"{Exhaust}: Take 1 damage and add {G}\\n{Exhaust}: Take 1 damage and add Blood of any color able to be produced by land you control",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/The_Promised_Land.png?raw=true",flavor:null,produces:"any"},
   {id:700,color:"Black",type:"Creature",subtype:"Token",name:"Raven Token",rarity:"",cost:"",power:1,abilities:"",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Raven_Token.png?raw=true",flavor:null,produces:null},
   {id:701,color:"Black",type:"Creature",subtype:"Token",name:"Bat Token",rarity:"",cost:"",power:1,abilities:"Bleed 1",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Bat_Token.png?raw=true",flavor:null,produces:null},
@@ -1826,6 +1844,10 @@ function startGame(faction) {
 
   // Set faction banners on info strips
   setBanners(faction, aiFaction);
+
+  // Initialize resource pool display (shows — placeholder until lands tapped)
+  updateManaDisplay('player');
+  updateManaDisplay('ai');
 
   // Reset BGM for clean restart on replay
   if (_bgm) { _bgm.pause(); _bgm.currentTime = 0; }
@@ -3569,6 +3591,30 @@ function autoTapForCost(who, costStr) {
 function resolveSpell(inst, caster) {
   const txt = (inst.abilities || '').toLowerCase();
 
+  // ── PRISMATIC ACCORD — add {P} + 1 any-color + draw from land deck ─
+  if (txt.includes('add {p}') && txt.includes('any color') && txt.includes('land deck')) {
+    addMana(caster, 'P', 1);
+    log(`${inst.name}: Added {P} to your pool.`, 'heal');
+    // Draw from land deck first
+    if (G[caster].land.length > 0) {
+      drawFromDeck(caster, 'land');
+      log(`${inst.name}: Drew a card from your land deck.`, '');
+    } else {
+      log(`${inst.name}: Land deck is empty — no card drawn.`, '');
+    }
+    // Then show mana choice for the free any-color blood
+    if (caster === 'player') {
+      showManaChoice({ name: inst.name, owner: caster }, null, () => {
+        updateUI();
+      });
+    } else {
+      // AI just takes Gold
+      addMana(caster, 'G', 1);
+      log(`${inst.name}: AI adds Gold.`, '');
+      updateUI();
+    }
+    return;
+  }
   // ── TOKEN CREATION ──────────────────────────────────────────
   if (txt.includes('create') && txt.includes('token')) {
     const counts = {
@@ -5421,11 +5467,19 @@ function updateManaDisplay(who) {
   el.innerHTML = '';
   const mana = G[who].mana;
   const order = ['R','W','B','P','G','C'];
+  let total = 0;
   for (const color of order) {
     const amt = mana[color] || 0;
+    total += amt;
     for (let i = 0; i < amt; i++) {
       el.appendChild(manaSymbol(color, 'md'));
     }
+  }
+  if (total === 0) {
+    const empty = document.createElement('span');
+    empty.textContent = '—';
+    empty.style.cssText = 'color:var(--text-dim);font-size:11px;font-family:"Share Tech Mono",monospace;';
+    el.appendChild(empty);
   }
 }
 
