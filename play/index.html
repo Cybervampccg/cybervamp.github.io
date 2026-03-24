@@ -596,7 +596,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 /* ── GLIMPSE PANEL ── */
 #glimpse-panel {
-  position: fixed; top: 0; right: 0; width: 320px; height: 100vh;
+  position: fixed; top: 0; right: 0; width: 480px; height: 100vh;
   background: rgba(8,4,24,0.97);
   border-left: 2px solid var(--purple);
   z-index: 10000; display: none; flex-direction: column;
@@ -627,9 +627,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 /* Two drop zones */
 .glimpse-zone {
-  flex: 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: flex-start;
-  padding: 10px 8px; gap: 6px;
+  flex: 1; display: flex; flex-direction: row; flex-wrap: wrap;
+  align-items: flex-start; justify-content: flex-start;
+  padding: 10px 8px; gap: 8px;
   border: 2px dashed transparent;
   border-radius: 6px; margin: 4px 8px;
   transition: border-color 0.15s, background 0.15s;
@@ -664,7 +664,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 /* Cards inside the Glimpse panel */
 .glimpse-card {
-  width: 110px; height: 154px;
+  width: 180px; height: 252px;
   border-radius: 6px; overflow: hidden;
   border: 1px solid var(--border-dim);
   cursor: grab; flex-shrink: 0;
@@ -677,14 +677,14 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .glimpse-card img { width: 100%; height: 80%; object-fit: cover; object-position: top; display: block; }
 .glimpse-card-footer {
   position: absolute; bottom: 0; left: 0; right: 0;
-  background: rgba(0,0,0,0.88); padding: 3px 5px;
-  font-size: 8px; color: var(--text-bright);
+  background: rgba(0,0,0,0.88); padding: 5px 8px;
+  font-size: 11px; color: var(--text-bright);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .glimpse-card-power {
-  position: absolute; top: 4px; right: 4px;
-  background: rgba(0,0,0,0.75); border-radius: 3px;
-  font-size: 11px; font-weight: 700; color: var(--gold);
+  position: absolute; top: 6px; right: 6px;
+  background: rgba(0,0,0,0.80); border-radius: 4px;
+  font-size: 15px; font-weight: 700; color: var(--gold);
   padding: 1px 4px; font-family: 'Share Tech Mono', monospace;
 }
 
@@ -1713,6 +1713,8 @@ function parseKeywords(txt) {
   if (t.includes('cannot be blocked by walls')) kw.noWallBlock = true;
   // "While [this/on battlefield], your attacking creatures gain X"
   if (t.includes('while') && t.includes('attacking') && t.includes('gain')) kw.whileAttackingAura = true;
+  // Glimpse tag — any card that mentions Glimpse is considered a Glimpse creature/card
+  if (t.includes('glimpse')) kw.glimpse = true;
   return kw;
 }
 
@@ -3048,6 +3050,13 @@ function fireDirectDamageTrigger(inst, attackingSide, damage) {
     log(`${inst.name}: deals damage directly — drew a card.`, '');
   }
 
+  // Augur's Signet buff — creature flagged to draw on direct damage
+  if (inst._augurDraw) {
+    inst._augurDraw = false;
+    drawFromDeck(attackingSide, G[attackingSide].main.length > 0 ? 'main' : 'land');
+    log(`${inst.name}: dealt damage directly — Augur's Signet draws a card!`, 'heal');
+  }
+
   // "Whenever this deals damage directly, target player gains X bleed"
   if (txt.includes('deals damage') && txt.includes('bleed')) {
     const n = parseInt(txt.match(/(\d+) bleed/)?.[1] || '1');
@@ -4086,6 +4095,8 @@ function activateAbility(inst, mode) {
     const valid = allCreatures.filter(({inst:t, owner}) => {
       if (targetMode === 'opponent-creature') return owner === 'ai';
       if (targetMode === 'own-creature')      return owner === 'player';
+      // Augur's Signet: only target creatures with Glimpse
+      if (txt.includes('with glimpse')) return t.keywords && t.keywords.glimpse;
       return true;
     });
 
@@ -4152,8 +4163,14 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
       destroyCreature(target, targetOwner);
       log(`${inst.name}: ${target.name} destroyed.`, 'damage');
     } else if (seg.includes('+1 power') || seg.includes('gains +1')) {
-      target.power = (target.power || 0) + 1;
-      log(`${inst.name}: ${target.name} gets +1 power.`, 'heal');
+      target.powerMods.push({ amount: 1, until: 'eot' });
+      // Augur's Signet special: if it deals combat damage this turn, draw a card
+      if (seg.includes('deals combat damage') && seg.includes('draw a card')) {
+        target._augurDraw = true;
+        log(`${inst.name}: ${target.name} gets +1 power — if it deals damage this turn, draw a card!`, 'heal');
+      } else {
+        log(`${inst.name}: ${target.name} gets +1 power.`, 'heal');
+      }
     } else if (seg.includes('+2 power') || seg.includes('gains +2')) {
       target.power = (target.power || 0) + 2;
       log(`${inst.name}: ${target.name} gets +2 power.`, 'heal');
@@ -4572,6 +4589,7 @@ function clearEotEffects(who) {
   G[who].battlefield.forEach(inst => {
     inst.powerMods = inst.powerMods.filter(m => m.until !== 'eot');
     inst.tempKeywords = {};
+    if (inst._augurDraw) inst._augurDraw = false;
   });
 }
 
