@@ -1325,7 +1325,7 @@ const CARDS_RAW = [
   {id:205,color:"Black",type:"Creature",subtype:null,name:"Werewolf Shaman",rarity:"Common",cost:"BBB",power:3,abilities:"Bleed 1, If this creature inflicts Bleed, put a Wolf token into the field under your control.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Werewolf_Shaman.png?raw=true",flavor:null,produces:null},
   {id:206,color:"Black",type:"Creature",subtype:null,name:"Nightwing Defiler",rarity:"Uncommon",cost:"GB",power:2,abilities:"When this creature is declared as an attacker, you may give +1 power to target Bat token.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Nightwing_Defiler.png?raw=true",flavor:"To finally become one with that which you once shunned is an embrace like that which is long forgotten",produces:null},
   {id:207,color:"Black",type:"Creature",subtype:null,name:"Ironmaw Butcher",rarity:"Uncommon",cost:"GBB",power:3,abilities:"Breach, gains +1 power until end of turn when blocked by a creature with power of 2 or less",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Ironmaw_Butcher.png?raw=true",flavor:"The wicked lie in wait for the weak.",produces:null},
-  {id:208,color:"Black",type:"Creature",subtype:null,name:"Gravehorde Hierophant",rarity:"Uncommon",cost:"GCBB",power:2,abilities:"{B}{Exhaust}: Create 1 Zombie token (3 power token creature that must overexhaust to attack and has the ability {Exhaust}: destroy this token creature to deal 2 damage to target creature)",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Gravehorde_Hierophant.png?raw=true",flavor:"The chant is heard; the horde obeys",produces:null},
+  {id:208,color:"Black",type:"Creature",subtype:null,name:"Gravehorde Hierophant",rarity:"Uncommon",cost:"GCBB",power:2,abilities:"{B}{Exhaust}: Create 1 Zombie token",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Gravehorde_Hierophant.png?raw=true",flavor:"The chant is heard; the horde obeys",produces:null},
   {id:209,color:"Black",type:"Creature",subtype:null,name:"Shadowpack Mistress",rarity:"Uncommon",cost:"GGBB",power:4,abilities:"{B}{Exhaust}: Create 1 Wolf token (2 power token creature with Bleed 1)",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Shadowpack_Mistress.png?raw=true",flavor:"Her howl awakens the pack from eternal slumber.",produces:null},
   {id:210,color:"Black",type:"Creature",subtype:null,name:"Grimbeak Summoner",rarity:"Uncommon",cost:"GBBB",power:3,abilities:"{Exhaust}: Create 1 Raven token",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Grimbeak_Summoner.png?raw=true",flavor:"His call stirs the shades\u2014wings of forgotten prophecies descend.",produces:null},
   {id:211,color:"Black",type:"Creature",subtype:null,name:"Bogveil Packwitch",rarity:"Rare",cost:"GBBB",power:3,abilities:"{Exhaust}: Wolf tokens you control gain Siphon and Bleed 1 until end of turn\\n{Overexhaust}: Wolf tokens you control gain Siphon and +2 power until end of turn and then are destroyed at end of turn.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Bogveil_Packwitch.png?raw=true",flavor:"In the glowing mire she weaves her curse",produces:null},
@@ -1702,7 +1702,10 @@ function parseKeywords(txt) {
   const kw = {};
   if (t.includes('haste')) kw.haste = true;
   if (t.includes('tireless')) kw.tireless = true;
-  if (t.includes('wall')) kw.wall = true;
+  // Wall: only a standalone keyword — NOT 'cannot be blocked by walls',
+  // 'destroy a wall', 'target wall', etc.
+  // Match: starts with 'wall', or ', wall', or '\nwall'
+  if (/(?:^|,\s*|\n)wall(?:\s*,|\s*$|\s*\n|\s*\.|\s*;)/m.test(t)) kw.wall = true;
   if (t.includes('breach')) kw.breach = true;
   if (t.includes('siphon')) kw.siphon = true;
   const bm = t.match(/bleed (\d+)/); if (bm) kw.bleed = parseInt(bm[1]);
@@ -1715,6 +1718,8 @@ function parseKeywords(txt) {
   if (t.includes('while') && t.includes('attacking') && t.includes('gain')) kw.whileAttackingAura = true;
   // Glimpse tag — any card that mentions Glimpse is considered a Glimpse creature/card
   if (t.includes('glimpse')) kw.glimpse = true;
+  // Token flag — set from subtype, NOT from ability text
+  // (handled in makeInst below, not here)
   return kw;
 }
 
@@ -1752,9 +1757,12 @@ function makeInst(cardId, owner) {
     // runtime state
     exhaustState: 'renewed', // 'renewed' | 'exhausted' | 'overexhausted'
     newlyTurned: false,
+    isToken: false,   // set true by createToken
     powerMods: [], // [{amount, until:'eot'}]
     keywords: { ...kw },
     tempKeywords: {},
+    // permMods: permanent power modifiers that persist until card leaves battlefield
+    permMods: 0,
     attacking: false,
     blocking: false,
     blockTarget: null,
@@ -3232,6 +3240,15 @@ function combatResolutionMulti(atk, blockerInsts, defendingSide) {
   destroyedBlockers.forEach(b => removeFromBattlefield(b, defendingSide));
   if (destroyedBlockers.length > 0) sfx('destroy');
 
+  // Wall rule: surviving walls that blocked get -1 permanent power counter
+  wallBlockers.forEach(blk => {
+    const stillAlive = G[defendingSide].battlefield.find(i => i.instId === blk.instId);
+    if (stillAlive) {
+      stillAlive.permMods = (stillAlive.permMods || 0) - 1;
+      log(`${stillAlive.name} (Wall): -1 power counter from blocking.`, '');
+    }
+  });
+
   // Salizer Shade: surviving blockers become exhausted
   if (atk._exhaustBlockers) {
     blockerInsts.forEach(b => {
@@ -3335,7 +3352,11 @@ function dealDamageToPlayer(who, amount, source) {
   if (kw.siphon) { G[source.owner].life += amount; updateLifeDisplay(source.owner); log(`Siphon: +${amount} life.`, 'heal'); }
 }
 
-function destroyCreature(inst, owner) {
+function destroyCreature(inst, owner, bySpell = false) {
+  if (bySpell && inst._spellProtect) {
+    log(`${inst.name} is protected from spells this turn — not destroyed.`, 'heal');
+    return;
+  }
   removeFromBattlefield(inst, owner);
   sfx('destroy', 0.5);
   updateUI();
@@ -4094,7 +4115,13 @@ function activateAbility(inst, mode) {
     ];
     const valid = allCreatures.filter(({inst:t, owner}) => {
       if (targetMode === 'opponent-creature') return owner === 'ai';
-      if (targetMode === 'own-creature')      return owner === 'player';
+      if (targetMode === 'own-creature') {
+        if (owner !== 'player') return false;
+        // "target token creature" — restrict to tokens only
+        const seg2 = getEffectSeg(txt, mode);
+        if (seg2.includes('target token')) return t.isToken === true;
+        return true;
+      }
       // Augur's Signet: only target creatures with Glimpse
       if (txt.includes('with glimpse')) return t.keywords && t.keywords.glimpse;
       return true;
@@ -4160,8 +4187,18 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
       target.exhaustState = 'overexhausted';
       log(`${inst.name}: ${target.name} overexhausted.`, '');
     } else if (seg.includes('destroy') && seg.includes('target')) {
-      destroyCreature(target, targetOwner);
+      destroyCreature(target, targetOwner, true);
       log(`${inst.name}: ${target.name} destroyed.`, 'damage');
+    } else if (seg.includes('cannot be destroyed by spells') || seg.includes('cannot be destroyed by spell')) {
+      // Fleshwoven Lurker — token gets spell protection this turn
+      target._spellProtect = true;
+      log(`${inst.name}: ${target.name} cannot be destroyed by spells this turn.`, 'heal');
+    } else if (seg.includes('+1 power counter') || seg.includes('+1 permanent power')) {
+      target.permMods = (target.permMods || 0) + 1;
+      log(`${inst.name}: ${target.name} gets a permanent +1 power counter.`, 'heal');
+    } else if (seg.includes('-1 power counter') || seg.includes('-1 permanent power')) {
+      target.permMods = (target.permMods || 0) - 1;
+      log(`${inst.name}: ${target.name} gets a permanent -1 power counter.`, '');
     } else if (seg.includes('+1 power') || seg.includes('gains +1')) {
       target.powerMods.push({ amount: 1, until: 'eot' });
       // Augur's Signet special: if it deals combat damage this turn, draw a card
@@ -4278,14 +4315,16 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
 function createToken(tokenName, who) {
   const idMap = { 'Raven Token':700, 'Bat Token':701, 'Wolf Token':702, 'Zombie Token':703 };
   const id = idMap[tokenName];
-  if (!id) { log(`Unknown token: ${tokenName}`, ''); return; }
+  if (!id) { log(`Unknown token: ${tokenName}`, ''); return null; }
   const token = makeInst(id, who);
-  if (!token) { log(`createToken: CARD_MAP missing id ${id}`, ''); return; }
+  if (!token) { log(`createToken: CARD_MAP missing id ${id}`, ''); return null; }
   token.newlyTurned = false; // tokens enter ready
   token.subtype = 'Token';
+  token.isToken = true;
   G[who].battlefield.push(token);
   log(`${tokenName} created for ${who}.`, 'heal');
   updateUI();
+  return token;
 }
 
 // Create a custom token not in the card database
@@ -4306,6 +4345,8 @@ function createTokenCustom(name, power, abilities, who) {
     produces: null,
     exhaustState: 'renewed',
     newlyTurned: false,
+    isToken: true,
+    permMods: 0,
     powerMods: [],
     keywords: parseKeywords(abilities),
     tempKeywords: {},
@@ -4582,6 +4623,7 @@ function hasKeyword(inst, kw) {
 function getEffectivePower(inst) {
   let p = inst.power || 0;
   inst.powerMods.forEach(m => p += m.amount);
+  p += (inst.permMods || 0);
   return Math.max(0, p);
 }
 
@@ -4590,6 +4632,7 @@ function clearEotEffects(who) {
     inst.powerMods = inst.powerMods.filter(m => m.until !== 'eot');
     inst.tempKeywords = {};
     if (inst._augurDraw) inst._augurDraw = false;
+    if (inst._spellProtect) inst._spellProtect = false;
   });
 }
 
@@ -5454,6 +5497,17 @@ function createCardElement(inst, isHand) {
     pow.className = 'card-power';
     pow.textContent = getEffectivePower(inst);
     footer.appendChild(pow);
+    // Show permanent counter badge if any
+    if (inst.permMods && inst.permMods !== 0) {
+      const ctr = document.createElement('span');
+      ctr.className = 'perm-counter-badge';
+      ctr.textContent = (inst.permMods > 0 ? '+' : '') + inst.permMods;
+      ctr.style.cssText = `color:${inst.permMods > 0 ? '#4eff8a' : '#ff4a4a'};` +
+        'font-size:9px;font-family:"Share Tech Mono",monospace;font-weight:700;' +
+        'position:absolute;top:4px;left:4px;background:rgba(0,0,0,0.75);' +
+        'padding:1px 3px;border-radius:3px;';
+      card.appendChild(ctr);
+    }
   }
   // Cost pip row above the footer
   if (inst.cost && inst.type !== 'Land') {
