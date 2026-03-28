@@ -1718,6 +1718,8 @@ function parseKeywords(txt) {
   if (t.includes('while') && t.includes('attacking') && t.includes('gain')) kw.whileAttackingAura = true;
   // Glimpse tag — any card that mentions Glimpse is considered a Glimpse creature/card
   if (t.includes('glimpse')) kw.glimpse = true;
+  // mustOverexhaust — creature must be overexhausted (not just exhausted) to attack
+  if (t.includes('must overexhaust to attack')) kw.mustOverexhaust = true;
   // Token flag — set from subtype, NOT from ability text
   // (handled in makeInst below, not here)
   return kw;
@@ -2132,6 +2134,7 @@ function payCost(who, costStr) {
 
 function clearMana(who) {
   G[who].mana = {R:0,W:0,B:0,P:0,G:0,C:0};
+  G[who]._butlerShield = false; // clear unused shield at turn end
   updateManaDisplay(who);
 }
 
@@ -2273,6 +2276,8 @@ async function runAITurn() {
 }
 
 function renewPhase(who) {
+  // Refresh mana display at start of each side's turn
+  updateManaDisplay(who);
   const s = G[who];
   s.battlefield.forEach(inst => {
     // Two-step renewal:
@@ -2611,7 +2616,9 @@ async function aiDeclareAttack() {
 
   // Now exhaust non-Tireless attackers
   myAttackers.forEach(inst => {
-    if (!hasKeyword(inst,'tireless')) inst.exhaustState = 'exhausted';
+    if (!hasKeyword(inst,'tireless')) {
+      inst.exhaustState = hasKeyword(inst,'mustOverexhaust') ? 'overexhausted' : 'exhausted';
+    }
   });
 
   // Apply "while attacking" auras from AI's battlefield
@@ -2748,7 +2755,21 @@ function handleBlockingClick(inst, who) {
       return;
     }
 
-    playerBlockers[inst.instId] = playerBlockTarget;
+    // Multi-block: if this creature can block 2+ attackers, allow second assignment
+    const blkAbil = (inst.abilities || '').toLowerCase();
+    const canBlockTwo = blkAbil.includes('can block two') || blkAbil.includes('block two creatures');
+    if (playerBlockers[inst.instId] !== undefined && !canBlockTwo) {
+      // Already blocking — reassign
+      playerBlockers[inst.instId] = playerBlockTarget;
+    } else if (canBlockTwo && playerBlockers[inst.instId] !== undefined &&
+               playerBlockers[inst.instId] !== playerBlockTarget) {
+      // Second block assignment — store as 'first|second' string
+      const existing = String(playerBlockers[inst.instId]).split('|')[0];
+      playerBlockers[inst.instId] = existing + '|' + playerBlockTarget;
+      log(`${inst.name} blocking a second attacker!`, 'important');
+    } else {
+      playerBlockers[inst.instId] = playerBlockTarget;
+    }
     inst.blocking = true;
     log(`${inst.name}[${getEffectivePower(inst)}] → blocks ${atk?.name||'?'}[${atk?getEffectivePower(atk):'?'}].`, 'important');
     playerBlockTarget = null;
@@ -2783,7 +2804,12 @@ function toggleAttacker(inst) {
   if (combatPhase !== 'declare') return;
   if (inst.type !== 'Creature') return;
   if (inst.newlyTurned && !hasKeyword(inst,'haste')) { log(`${inst.name} is Newly Turned.`,''); return; }
-  if (inst.exhaustState !== 'renewed') { log(`${inst.name} is exhausted.`,''); return; }
+  // mustOverexhaust creatures can attack normally but exhaust to overexhausted (2-turn recovery)
+  if (hasKeyword(inst,'mustOverexhaust')) {
+    if (inst.exhaustState !== 'renewed') { log(`${inst.name} is exhausted.`,''); return; }
+  } else if (inst.exhaustState !== 'renewed') {
+    log(`${inst.name} is exhausted.`,''); return;
+  }
   if (hasKeyword(inst,'wall')) { log('Walls cannot attack.',''); return; }
 
   const idx = attackers.indexOf(inst.instId);
@@ -2840,7 +2866,10 @@ function confirmAttack() {
   runCombatAnimation(atkInsts, blockers, 'up', 'ai').then(() => {
     // Now exhaust non-Tireless attackers
     atkInsts.forEach(inst => {
-      if (!hasKeyword(inst,'tireless')) inst.exhaustState = 'exhausted';
+      if (!hasKeyword(inst,'tireless')) {
+        // mustOverexhaust creatures go to overexhausted (2-turn recovery) instead of exhausted
+        inst.exhaustState = hasKeyword(inst,'mustOverexhaust') ? 'overexhausted' : 'exhausted';
+      }
     });
 
     // Apply "while attacking" auras from creatures on battlefield
@@ -2869,6 +2898,7 @@ function confirmAttack() {
     btn.onclick = declareAttack;
     btn.style.display = 'none';
 
+    if (!G) return;
     updateUI();
     updateLifeDisplay('ai');
     updateLifeDisplay('player');
@@ -3021,12 +3051,23 @@ function fireDestroyTrigger(inst, owner) {
     for (let i = 0; i < n; i++) createToken('Zombie Token', owner);
     log(`${inst.name}: ${n} Zombie Token(s) created on death.`, 'heal');
   }
-  // "When this card is destroyed, gain 1 life" (id:101)
+  // "When this card is destroyed, gain 1 life; if another White creature in the field, gain 1 more"
   if (txt.includes('destroyed') && txt.includes('gain') && txt.includes('life')) {
     const n = parseInt(txt.match(/gain (\d+) life/)?.[1] || '1');
     G[owner].life += n;
     updateLifeDisplay(owner);
     log(`${inst.name}: Gained ${n} life on death.`, 'heal');
+    // Conditional bonus — another White creature in the field
+    if (txt.includes('another') && txt.includes('white') && txt.includes('additional')) {
+      const hasOtherWhite = G[owner].battlefield.some(i =>
+        i.type === 'Creature' && i.color === 'White' && i.instId !== inst.instId
+      );
+      if (hasOtherWhite) {
+        G[owner].life += 1;
+        updateLifeDisplay(owner);
+        log(`${inst.name}: +1 additional life (another White creature in the field).`, 'heal');
+      }
+    }
   }
   // "When destroyed, return to hand"
   if (txt.includes('destroyed') && txt.includes('return') && txt.includes('hand')) {
@@ -3150,9 +3191,10 @@ function fireCombatTriggers(atkInsts, blkMap, defendingSide) {
       }
 
       // "+1 power when blocking" on blocker (e.g. Snowfleece Elder)
-      if (blkTxt.includes('+1 power when blocking') || blkTxt.includes('gains +1 power when blocking')) {
-        blk.power = (blk.power || 0) + 1;
-        log(`${blk.name}: +1 power (blocking).`, '');
+      // Text may have 'until end of turn' between '+1 power' and 'when blocking'
+      if (blkTxt.includes('+1 power') && blkTxt.includes('when blocking')) {
+        blk.powerMods.push({ amount: 1, until: 'eot' });
+        log(`${blk.name}: +1 power when blocking (eot).`, '');
       }
 
       // Ironmaw Butcher: "+1 power when blocked by creature with power 2 or less"
@@ -3263,10 +3305,15 @@ function combatResolutionMulti(atk, blockerInsts, defendingSide) {
 
   // Breach: excess attacker damage beyond killing all blockers hits defending player
   if (!atkDealsNoDamage && hasKeyword(atk, 'breach') && atkDmgRemaining > 0) {
-    G[defendingSide].life -= atkDmgRemaining;
-    sfx('damage');
-    log(`→ Breach: ${atkDmgRemaining} excess to ${defendingSide}.`, 'damage');
-    updateLifeDisplay(defendingSide);
+    if (G[defendingSide]._butlerShield) {
+      G[defendingSide]._butlerShield = false;
+      log(`Loyal Butler absorbs Breach damage from ${atk.name}!`, 'heal');
+    } else {
+      G[defendingSide].life -= atkDmgRemaining;
+      sfx('damage');
+      log(`→ Breach: ${atkDmgRemaining} excess to ${defendingSide}.`, 'damage');
+      updateLifeDisplay(defendingSide);
+    }
   }
 
   // Attacker destroyed by combined non-wall blocker power
@@ -3293,7 +3340,10 @@ function resolveCombat(atkInsts, blkMap, defendingSide) {
     if (!atk) return;
 
     // ── Collect all blockers for this attacker ─────────────────
-    const blockerEntries = Object.entries(blkSnap).filter(([,aid]) => aid === atk.instId);
+    // Expand multi-block entries (stored as 'atkId1|atkId2')
+    const blockerEntries = Object.entries(blkSnap).filter(([bid, aid]) => {
+      return String(aid).split('|').includes(String(atk.instId));
+    });
     const blockerInsts = blockerEntries
       .map(([bid]) => G[defendingSide].battlefield.find(i => i.instId === parseInt(bid)))
       .filter(Boolean);
@@ -3315,7 +3365,13 @@ function resolveCombat(atkInsts, blkMap, defendingSide) {
     } else {
       // Unblocked — deal damage directly to defending player
       const pow = getEffectivePower(atk);
-      G[defendingSide].life -= pow;
+      // Loyal Butler shield — absorbs one damage source
+      if (G[defendingSide]._butlerShield) {
+        G[defendingSide]._butlerShield = false;
+        log(`Loyal Butler's sacrifice absorbs ${atk.name}'s attack!`, 'heal');
+      } else {
+        G[defendingSide].life -= pow;
+      }
       sfx('damage');
       log(`${atk.name}[${pow}] hits ${defendingSide} directly.`, 'damage');
       if (atk.keywords && atk.keywords.bleed) {
@@ -3336,6 +3392,7 @@ function resolveCombat(atkInsts, blkMap, defendingSide) {
     atk.noCombatDamage = false;
   });
 
+  if (!G) return;
   updateUI();
   updateLifeDisplay(defendingSide);
   updateLifeDisplay(attackingSide);
@@ -3724,6 +3781,7 @@ function resolveSpell(inst, caster) {
   // ── GLIMPSE ──────────────────────────────────────────────────
   else if (txt.includes('glimpse')) {
     const n = parseInt(txt.match(/glimpse (\d+)/)?.[1] || '1');
+    // Always glimpse the caster's OWN deck
     doGlimpse(caster, n, inst.name);
   }
   // ── LIFE GAIN ────────────────────────────────────────────────
@@ -3891,6 +3949,36 @@ function tryActivateAbility(inst) {
   }
 
   // Exhaust / overexhaust abilities
+  // Parse each ability line separately to handle cards with multiple exhaust lines (e.g. Hypeflux)
+  // Card data stores newlines as literal \n (two chars), split on either real newline or \n
+  const abilityLines = (inst.abilities || '').split(/\\n|\n/);
+  const exhaustLines = abilityLines.filter(l => l.toLowerCase().includes('{exhaust}') && !l.toLowerCase().includes('{overexhaust}'));
+  const overExhaustLines = abilityLines.filter(l => l.toLowerCase().includes('{overexhaust}'));
+  const hasOE = overExhaustLines.length > 0;
+
+  // Multiple distinct exhaust lines → show a pick menu
+  if (exhaustLines.length > 1) {
+    showModal(inst.name, inst.abilities,
+      exhaustLines.map(line => {
+        const costMatch = line.toLowerCase().match(/^(\{[rgbpwc]\})+/);
+        const costStr = costMatch ? costMatch[0].replace(/[{}]/g,'').toUpperCase() : '';
+        const desc = line.replace(/^\{[^}]+\}/g,'').replace(/\{Exhaust\}:/i,'').trim().substring(0, 60);
+        return {
+          label: (costStr ? costStr+' + ' : '') + 'EXHAUST: ' + desc,
+          cls: 'btn-secondary',
+          action: () => activateAbilityLine(inst, line)
+        };
+      }).concat(
+        hasOE ? overExhaustLines.map(line => ({
+          label: 'OVEREXHAUST: ' + line.replace(/^\{[^}]+\}/g,'').replace(/\{Overexhaust\}:/i,'').trim().substring(0,60),
+          cls: 'btn-danger',
+          action: () => activateAbilityLine(inst, line)
+        })) : []
+      ).concat([{ label: 'CANCEL', cls: 'btn-muted', action: () => { if(G) updateUI(); } }])
+    );
+    return;
+  }
+
   const exhaustDesc     = hasExhaust     ? parseAbilityDescription(txt, 'exhaust')     : null;
   const overExhaustDesc = hasOverExhaust ? parseAbilityDescription(txt, 'overexhaust') : null;
 
@@ -4019,6 +4107,85 @@ function activatePayAbility(inst, pa) {
 }
 
 // Short label for ability modal buttons
+// Activate a specific ability line (for cards with multiple exhaust lines like Hypeflux)
+function activateAbilityLine(inst, line) {
+  const lower = line.toLowerCase().trim();
+  const isOverexhaust = lower.includes('{overexhaust}');
+  const mode = isOverexhaust ? 'overexhaust' : 'exhaust';
+
+  // Extract mana cost
+  const costMatches = lower.match(/^(\{[rgbpwc]\})+/);
+  const costStr = costMatches ? costMatches[0].replace(/[{}]/g,'').toUpperCase() : '';
+  if (costStr) {
+    autoTapForCost('player', costStr);
+    if (!canPayCost('player', costStr)) {
+      log(`${inst.name}: Needs ${costStr} — tap lands first.`, ''); return;
+    }
+    payCost('player', costStr);
+  }
+
+  // Build a synthetic ability text with just this line so resolveAbilityEffect can parse it
+  const synth = makeInst(inst.cardId, inst.owner ? inst.owner : 'player');
+  if (synth) synth.abilities = line;  // single line only
+  const synthInst = synth || inst;
+  synthInst.abilities = line;
+
+  // Check if this line needs a target
+  const seg = lower.includes('{exhaust}')
+    ? lower.substring(lower.indexOf('{exhaust}') + '{exhaust}'.length)
+    : lower.substring(lower.indexOf('{overexhaust}') + '{overexhaust}'.length);
+
+  const needsTarget = seg.includes('target') || seg.includes('gain control');
+
+  if (needsTarget) {
+    // Determine target mode from the line
+    let targetMode = 'any-creature';
+    if (seg.includes('gain control') && seg.includes('token')) targetMode = 'opponent-creature';
+    else if (seg.includes('gain control')) targetMode = 'opponent-creature';
+    else if (seg.includes('+1 power') || seg.includes('+2 power') || seg.includes('gains ')) targetMode = 'own-creature';
+    else if (seg.includes('exhaust target') || seg.includes('destroy') || seg.includes('-1 power')) targetMode = 'opponent-creature';
+
+    const allCreatures = [
+      ...G.player.battlefield.filter(i => i.type==='Creature').map(i => ({inst:i, owner:'player'})),
+      ...G.ai.battlefield.filter(i    => i.type==='Creature').map(i => ({inst:i, owner:'ai'})),
+    ];
+    const valid = allCreatures.filter(({inst:t, owner}) => {
+      if (targetMode === 'opponent-creature') return owner !== 'player';
+      if (targetMode === 'own-creature')      return owner === 'player';
+      return true;
+    });
+
+    if (valid.length === 0) {
+      log(`${inst.name}: No valid targets.`, '');
+      // Refund cost
+      if (costStr) costStr.split('').forEach(c => { G.player.mana[c] = (G.player.mana[c]||0)+1; });
+      updateManaDisplay('player');
+      return;
+    }
+
+    applyExhaustForAbility(inst, mode);
+
+    const doEffect = (target, targetOwner) => {
+      // Reuse resolveAbilityEffect with the line as ability text
+      const fakeInst = { ...inst, abilities: line };
+      resolveAbilityEffect(fakeInst, mode, 'player', target, targetOwner);
+    };
+
+    if (valid.length === 1) {
+      doEffect(valid[0].inst, valid[0].owner);
+    } else {
+      log(`${inst.name}: Choose a target.`, 'important');
+      beginTargeting({ name: inst.name, abilities: line }, 'player', targetMode,
+        (target, targetOwner) => doEffect(target, targetOwner)
+      );
+    }
+  } else {
+    applyExhaustForAbility(inst, mode);
+    const fakeInst = { ...inst, abilities: line };
+    resolveAbilityEffect(fakeInst, mode, 'player', null, null);
+  }
+}
+
 function parseAbilityDescription(txt, mode) {
   const seg = mode === 'overexhaust'
     ? (txt.split('{overexhaust}')[1] || txt)
@@ -4064,7 +4231,7 @@ function abilityNeedsTarget(txt, mode) {
   return seg.includes('target creature') || seg.includes('target player') ||
          seg.includes('target token')    || seg.includes('target attacking') ||
          seg.includes('target blocking') || seg.includes('target wolf') ||
-         seg.includes('target relic');
+         seg.includes('target relic')    || seg.includes('gain control');
 }
 
 function getAbilityTargetMode(txt, mode, caster) {
@@ -4073,6 +4240,8 @@ function getAbilityTargetMode(txt, mode, caster) {
   if (seg.includes('exhaust target') || seg.includes('overexhaust target') ||
       (seg.includes('damage') && seg.includes('target')) ||
       seg.includes('destroy') || seg.includes('-1 power')) return 'opponent-creature';
+  // Control effects — target opponent's creatures
+  if (seg.includes('gain control')) return 'opponent-creature';
   // Token-specific → own side
   if (seg.includes('target wolf') || seg.includes('target bat') ||
       seg.includes('target token'))                         return 'own-creature';
@@ -4189,6 +4358,44 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     } else if (seg.includes('destroy') && seg.includes('target')) {
       destroyCreature(target, targetOwner, true);
       log(`${inst.name}: ${target.name} destroyed.`, 'damage');
+    } else if (seg.includes('gain control') && seg.includes('token')) {
+      // Permanently steal target token — move from opponent to player
+      if (targetOwner !== who && target.isToken) {
+        const oppKey = targetOwner;
+        G[oppKey].battlefield = G[oppKey].battlefield.filter(i => i.instId !== target.instId);
+        target.owner = who;
+        target.attacking = false; target.blocking = false;
+        target.newlyTurned = false;
+        G[who].battlefield.push(target);
+        log(`${inst.name}: Permanently took control of ${target.name}!`, 'heal');
+      } else if (!target.isToken) {
+        log(`${inst.name}: Can only permanently steal token creatures.`, '');
+      }
+    } else if (seg.includes('gain control') && (seg.includes('3 power or less') || seg.includes('power 3 or less') || seg.includes('power or less'))) {
+      // Temporarily control any creature ≤3 power until end of turn
+      const effP = getEffectivePower(target);
+      if (effP > 3) { log(`${inst.name}: Target has ${effP} power — can only steal 3 or less.`, ''); }
+      else if (targetOwner !== who) {
+        const oppKey = targetOwner;
+        G[oppKey].battlefield = G[oppKey].battlefield.filter(i => i.instId !== target.instId);
+        target._tempControlOwner = oppKey;  // remember original owner
+        target.owner = who;
+        target.attacking = false; target.blocking = false;
+        target.newlyTurned = false;
+        G[who].battlefield.push(target);
+        log(`${inst.name}: Temporarily controlling ${target.name} until end of turn!`, 'heal');
+        // Apply Self Bleed 2 (Ghostjacker's cost)
+        G[who].bleed += 2;
+        updateLifeDisplay(who);
+        log(`${inst.name}: Self Bleed 2 on activation.`, 'bleed');
+      }
+    } else if (seg.includes('reduce all damage') && seg.includes('0')) {
+      // Loyal Butler — destroy self to negate one damage source this turn
+      G[who]._butlerShield = true;
+      removeFromBattlefield(inst, who);
+      log(`${inst.name}: Sacrificed — next damage source dealt to you is reduced to 0!`, 'heal');
+      updateUI();
+      return;
     } else if (seg.includes('cannot be destroyed by spells') || seg.includes('cannot be destroyed by spell')) {
       // Fleshwoven Lurker — token gets spell protection this turn
       target._spellProtect = true;
@@ -4628,11 +4835,22 @@ function getEffectivePower(inst) {
 }
 
 function clearEotEffects(who) {
+  const toReturn = [];
   G[who].battlefield.forEach(inst => {
     inst.powerMods = inst.powerMods.filter(m => m.until !== 'eot');
     inst.tempKeywords = {};
     if (inst._augurDraw) inst._augurDraw = false;
     if (inst._spellProtect) inst._spellProtect = false;
+    // Return temp-controlled creatures to their original owner
+    if (inst._tempControlOwner) toReturn.push({ inst, origOwner: inst._tempControlOwner });
+  });
+  toReturn.forEach(({ inst, origOwner }) => {
+    G[who].battlefield = G[who].battlefield.filter(i => i.instId !== inst.instId);
+    inst._tempControlOwner = null;
+    inst.owner = origOwner;
+    inst.attacking = false; inst.blocking = false;
+    G[origOwner].battlefield.push(inst);
+    log(`${inst.name} returns to ${origOwner}.`, '');
   });
 }
 
@@ -4650,9 +4868,11 @@ function checkWin() {
 
 function showWinLoss(playerWon, reason) {
   bgmPause(); // stop music at the dramatic moment
+  const pLife = G.player.life; const aLife = G.ai.life;
+  G = null; // stop all game processing immediately
   showModal(
     playerWon ? '⚡ VICTORY' : '💀 DEFEAT',
-    `${reason}\n\nYou ended with ${G.player.life} life. AI had ${G.ai.life} life.`,
+    `${reason}\n\nYou ended with ${pLife} life. AI had ${aLife} life.`,
     [
       { label: 'PLAY AGAIN', action: () => location.reload(), cls: 'btn-primary' },
     ]
