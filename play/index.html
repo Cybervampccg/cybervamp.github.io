@@ -722,8 +722,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 /* Cards inside the Glimpse panel */
 .glimpse-card {
-  width: 180px; height: 252px;
-  border-radius: 6px; overflow: hidden;
+  width: 240px; height: 336px;
+  border-radius: 8px; overflow: hidden;
   border: 1px solid var(--border-dim);
   cursor: grab; flex-shrink: 0;
   position: relative;
@@ -732,12 +732,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 }
 .glimpse-card:hover { transform: scale(1.04); box-shadow: 0 4px 16px rgba(0,0,0,0.6); }
 .glimpse-card.dragging-glimpse { opacity: 0.3; cursor: grabbing; }
-.glimpse-card img { width: 100%; height: 80%; object-fit: cover; object-position: top; display: block; }
+.glimpse-card img { width: 100%; height: 78%; object-fit: cover; object-position: top; display: block; }
 .glimpse-card-footer {
   position: absolute; bottom: 0; left: 0; right: 0;
-  background: rgba(0,0,0,0.88); padding: 5px 8px;
-  font-size: 11px; color: var(--text-bright);
+  background: rgba(0,0,0,0.92); padding: 6px 10px;
+  font-size: 13px; color: var(--text-bright);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: 'Cinzel', serif; letter-spacing: 0.3px;
 }
 .glimpse-card-power {
   position: absolute; top: 6px; right: 6px;
@@ -876,7 +877,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   from { opacity:0; transform: translateX(40px) scale(0.88); }
   to   { opacity:1; transform: translateX(0) scale(1); }
 }
-.glimpse-card { animation: glimpse-card-in 0.22s ease-out both; }
+.glimpse-card { animation: glimpse-card-in 0.22s ease-out both; width: 240px !important; height: 336px !important; }
 .glimpse-card:nth-child(1) { animation-delay: 0.04s; }
 .glimpse-card:nth-child(2) { animation-delay: 0.10s; }
 .glimpse-card:nth-child(3) { animation-delay: 0.16s; }
@@ -3049,7 +3050,7 @@ function openSpellCaster() {
         label: `${sp.name} (${sp.cost || 'free'})`,
         cls: 'btn-secondary',
         action: () => {
-          autoTapForCost('player', sp.cost);
+          // No auto-tap for spells — player taps manually
           if (!canPayCost('player', sp.cost)) { log(`Not enough mana for ${sp.name}.`, ''); return; }
           payCost('player', sp.cost);
           G.player.hand = G.player.hand.filter(i => i.instId !== sp.instId);
@@ -3156,6 +3157,7 @@ function toggleAttacker(inst) {
     log(`${inst.name} is exhausted.`,''); return;
   }
   if (hasKeyword(inst,'wall')) { log('Walls cannot attack.',''); return; }
+  if (inst._cannotAttack) { log(`${inst.name} cannot attack this turn (warded).`,''); return; }
 
   const idx = attackers.indexOf(inst.instId);
   if (idx >= 0) {
@@ -3884,11 +3886,13 @@ function playCard(inst) {
     }
   }
 
-  // Auto-tap affordable lands
-  autoTapForCost('player', effectiveCost);
-
+  // Cannot cast restriction (e.g. Estate Grounds Keeper retrieval)
+  if (inst._cannotCastThisTurn) {
+    log(`${inst.name} cannot be cast this turn.`, ''); return;
+  }
+  // No auto-tap — player must manually exhaust lands to build their pool
   if (!canPayCost('player', effectiveCost)) {
-    log(`Not enough mana for ${inst.name} (needs ${effectiveCost}). Tap lands first.`, '');
+    log(`Not enough mana for ${inst.name} (needs ${effectiveCost}). Tap your lands first to add blood to your pool.`, '');
     return;
   }
 
@@ -3910,10 +3914,12 @@ function playCard(inst) {
     });
   } else if (inst.type === 'Relic') {
     inst.newlyTurned = false;
-    inst.exhaustState = 'renewed';
+    // 'Enters play exhausted' keyword (e.g. Eternal Archive)
+    const ablLow2 = (inst.abilities || '').toLowerCase();
+    inst.exhaustState = ablLow2.includes('enters play exhausted') ? 'exhausted' : 'renewed';
     G.player.battlefield.push(inst);
     sfx('card_play');
-    log(`You play ${inst.name} [Relic].`, 'important');
+    log(`You play ${inst.name} [Relic].${inst.exhaustState==='exhausted'?' (enters exhausted)':''}`, 'important');
     fireEnterTrigger(inst, 'player');
     updateUI();
     requestAnimationFrame(() => {
@@ -3961,6 +3967,8 @@ function castSpellWithTargeting(inst, caster, onDone) {
   let mode = 'any-creature';
   if (isAttackTarget) mode = 'attacking-creature';
   else if (isBlockTarget) mode = 'blocking-creature';
+  // 'target exhausted/overexhausted creature' — any creature with that state (no side restriction)
+  else if (txt.includes('target exhausted') || txt.includes('target overexhausted')) mode = 'any-creature';
   else if (isNegative && !isPositive) mode = 'opponent-creature';
   else if (isPositive && !isNegative) mode = 'own-creature';
   // If ambiguous (e.g. "target creature gains X or Y") → let player pick any
@@ -4026,9 +4034,37 @@ function resolveSpellOnTarget(inst, caster, target, targetOwner) {
   } else if (txt.includes('no combat damage') || txt.includes('deals no')) {
     target.noCombatDamage = true;
     log(`${inst.name}: ${target.name} deals no combat damage this turn.`, '');
+  } else if (txt.includes('prevent') && txt.includes('damage') && txt.includes('target')) {
+    // Estate Grounds Keeper, Gilded Rebuke, Hemotech Patch
+    target.noCombatDamage = true;
+    log(`${inst.name}: ${target.name} deals no combat damage this turn.`, 'heal');
+    const lifeLossM = txt.match(/controller loses (\d+) life/);
+    if (lifeLossM) {
+      const loss = parseInt(lifeLossM[1]);
+      G[targetOwner].life -= loss; updateLifeDisplay(targetOwner);
+      log(`${inst.name}: ${targetOwner} loses ${loss} life.`, 'bleed');
+    }
+    if (txt.includes('bleed') && txt.includes('remove')) {
+      G[targetOwner].bleed = Math.max(0, G[targetOwner].bleed - 1);
+      updateLifeDisplay(targetOwner);
+      log(`${inst.name}: 1 Bleed counter removed.`, 'heal');
+    }
   } else if (txt.includes('-1 power')) {
     target.power = Math.max(0, (target.power||0) - 1);
     log(`${inst.name}: ${target.name} gets -1 power.`, '');
+  } else if (txt.includes('cannot attack') && txt.includes('+2 power')) {
+    // Marble Ward: cannot attack this turn, gains +2 power, controller gains 2 life
+    target.noCombatDamage = true;
+    target._cannotAttack = true;
+    target.powerMods.push({ amount: 2, until: 'eot' });
+    const lifeGainM = txt.match(/gain (\d+) life/);
+    if (lifeGainM) {
+      G[caster].life += parseInt(lifeGainM[1]);
+      updateLifeDisplay(caster);
+      log(`${inst.name}: ${target.name} warded — cannot attack, +2 power. Gained ${lifeGainM[1]} life.`, 'heal');
+    } else {
+      log(`${inst.name}: ${target.name} warded — cannot attack, +2 power.`, 'heal');
+    }
   } else if (txt.includes('+2 power')) {
     target.power = (target.power||0) + 2;
     log(`${inst.name}: ${target.name} gets +2 power.`, 'heal');
@@ -4068,12 +4104,52 @@ function resolveSpellOnTarget(inst, caster, target, targetOwner) {
   } else if (txt.includes('exhaust') && txt.includes('target')) {
     target.exhaustState = 'exhausted';
     log(`${inst.name}: ${target.name} exhausted.`, '');
+  } else if (seg.includes('wall') && seg.includes('discard') && seg.includes('hand')) {
+    // Estate Grounds Keeper overexhaust: get wall from discard to hand
+    const wallsInDiscard = G[who].discard.filter(i => i.type==='Creature' && hasKeyword(i,'wall'));
+    if (wallsInDiscard.length === 0) { log(`${inst.name}: No wall creatures in discard.`, ''); }
+    else {
+      const picked = wallsInDiscard[wallsInDiscard.length - 1];
+      G[who].discard = G[who].discard.filter(i => i.instId !== picked.instId);
+      picked._cannotCastThisTurn = true; // cannot be cast this turn
+      G[who].hand.push(picked);
+      log(`${inst.name}: ${picked.name} retrieved from discard (cannot be cast this turn).`, 'heal');
+    }
   } else if (txt.includes('returned to') || (txt.includes('return') && txt.includes('hand'))) {
     const arr = G[targetOwner].battlefield;
     const idx = arr.findIndex(i => i.instId === target.instId);
     if (idx !== -1) arr.splice(idx, 1);
     G[targetOwner].hand.push(target);
     log(`${inst.name}: ${target.name} returned to hand.`, '');
+  } else if (txt.includes('power is doubled') || txt.includes("power doubled")) {
+    // Demolition Expert: double power if blocked by wall
+    if (!target.attacking) { log(`${inst.name}: Target must be attacking.`,''); }
+    else {
+      const blockedByWall = Object.entries(blockers||{}).some(([bid,aid])=>{
+        if (String(aid)!==String(target.instId)) return false;
+        const blkInst = G['ai'].battlefield.find(i=>i.instId===parseInt(bid)) ||
+                        G['player'].battlefield.find(i=>i.instId===parseInt(bid));
+        return blkInst && hasKeyword(blkInst,'wall');
+      });
+      if (blockedByWall) {
+        target.powerMods.push({amount: getEffectivePower(target), until:'eot'});
+        log(`${inst.name}: ${target.name} power doubled while blocked by a wall!`, 'heal');
+      } else {
+        log(`${inst.name}: ${target.name} is not blocked by a wall — no effect.`, '');
+      }
+    }
+  } else if (txt.includes('prevent') && (txt.includes('combat damage') || txt.includes('damage dealt'))) {
+    // Gilded Rebuke / Estate Grounds Keeper: creature deals no combat damage this turn
+    target.noCombatDamage = true;
+    log(`${inst.name}: ${target.name} deals no combat damage this turn.`, 'heal');
+    // If 'controller loses N life'
+    const lifeLossMatch = txt.match(/controller loses (\d+) life/);
+    if (lifeLossMatch) {
+      const loss = parseInt(lifeLossMatch[1]);
+      G[targetOwner].life -= loss;
+      updateLifeDisplay(targetOwner);
+      log(`${inst.name}: ${targetOwner} loses ${loss} life.`, 'bleed');
+    }
   } else {
     log(`${inst.name} targets ${target.name}.`, '');
   }
@@ -4110,6 +4186,18 @@ function autoTapForCost(who, costStr) {
     addMana(who, 'G', 1);
     gNeeded--;
   });
+}
+
+function aetherCopyCreature(inst, caster, source) {
+  const copyInst = makeInst(source.cardId, caster);
+  if (!copyInst) return;
+  copyInst.isToken = true;
+  copyInst.exhaustState = 'renewed';
+  copyInst.newlyTurned = true; // newly turned (no haste)
+  copyInst.permMods = -1; // permanent -1 power counter
+  G[caster].battlefield.push(copyInst);
+  log(`${inst.name}: Copied ${source.name} as a token with -1 permanent power!`, 'heal');
+  updateUI();
 }
 
 function resolveSpell(inst, caster) {
@@ -4200,6 +4288,161 @@ function resolveSpell(inst, caster) {
     log(`${inst.name}: Wolf tokens gain Haste and Tireless.`, 'heal');
   }
   // ── RETURN FROM DISCARD ──────────────────────────────────────
+  // ── LOOK AT TOP N CARDS OF DECK ──────────────────────────────
+  else if ((txt.includes('look at the top') || txt.includes('look at top')) && txt.includes('deck')) {
+    const n = parseInt(txt.match(/top (\d+) cards?/)?.[1] || '1');
+    const isRelic = txt.includes('relic');
+    const deck = txt.includes('land deck') ? G[caster].land : G[caster].main;
+    if (deck.length === 0) { log(`${inst.name}: Deck is empty.`, ''); }
+    else {
+      const topIds = deck.slice(0, n);
+      const topCards = topIds.map(id => CARD_MAP[id]).filter(Boolean);
+      // Vault Keeper: if relic, put in hand, else put back
+      if (isRelic && txt.includes('put it into your hand')) {
+        const relicCard = topCards.find(c => c.type === 'Relic');
+        if (relicCard) {
+          const relicIdx = deck.indexOf(relicCard.id || topIds.find(id => CARD_MAP[id]===relicCard));
+          const relicId = topIds.find(id => CARD_MAP[id] && CARD_MAP[id].type==='Relic');
+          if (relicId !== undefined) {
+            deck.splice(deck.indexOf(relicId), 1);
+            const ri = makeInst(relicId, caster);
+            if (ri) G[caster].hand.push(ri);
+            log(`${inst.name}: Found ${CARD_MAP[relicId].name} — drawn to hand!`, 'heal');
+          }
+        } else {
+          log(`${inst.name}: No relic in top ${n} — put back on top.`, '');
+        }
+      } else if (txt.includes('put one into your hand') || txt.includes('put it in your hand')) {
+        // Echo of Ages / Search: pick one to hand, rest to bottom
+        const cardNames = topCards.map((c,i) => c ? c.name : 'Unknown');
+        showModal(inst.name, `Choose one card to put in your hand:`,
+          topCards.map((c,i) => ({
+            label: c ? c.name : 'Unknown',
+            cls: 'btn-secondary',
+            action: () => {
+              const chosenId = topIds[i];
+              deck.splice(deck.indexOf(chosenId), 1);
+              const ci = makeInst(chosenId, caster);
+              if (ci) G[caster].hand.push(ci);
+              // Put rest at bottom
+              topIds.filter(id=>id!==chosenId).forEach(id=>{
+                const idx=deck.indexOf(id); if(idx!==-1){deck.splice(idx,1); deck.push(id);}
+              });
+              log(`${inst.name}: Drew ${c ? c.name : '?'}, others sent to bottom.`, 'heal');
+              updateUI();
+            }
+          }))
+        );
+        return;
+      } else if (txt.includes('switch') && txt.includes('hand')) {
+        // Info Brokers: look top 3, swap one with a card in hand, rest back on top in any order
+        if (G[caster].hand.length === 0) { log(`${inst.name}: No cards in hand to switch.`, ''); }
+        else {
+          showModal(inst.name, `Choose a top-deck card to take into your hand (you\'ll put one back):`,
+            topCards.map((c,i) => ({
+              label: c ? c.name : 'Unknown',
+              cls: 'btn-secondary',
+              action: () => {
+                const takenId = topIds[i];
+                deck.splice(deck.indexOf(takenId), 1);
+                const takenInst = makeInst(takenId, caster);
+                if (!takenInst) return;
+                // Pick a hand card to send back
+                showModal(inst.name, 'Choose a hand card to put back on top of your deck:',
+                  G[caster].hand.map(hc => ({
+                    label: hc.name,
+                    cls: 'btn-muted',
+                    action: () => {
+                      G[caster].hand = G[caster].hand.filter(h => h.instId !== hc.instId);
+                      deck.unshift(hc.cardId); // put back on top
+                      G[caster].hand.push(takenInst);
+                      // Put remaining top cards back on top
+                      topIds.filter(id=>id!==takenId).reverse().forEach(id => deck.unshift(id));
+                      log(`${inst.name}: Swapped ${c?c.name:'?'} for ${hc.name}.`, 'heal');
+                      updateUI();
+                    }
+                  }))
+                );
+              }
+            }))
+          );
+          return;
+        }
+      } else {
+        // Basic look — show cards, put back on top
+        const cardNames = topCards.map(c => c ? c.name : 'Unknown').join('\n');
+        showModal(inst.name, `Top ${n} cards of your deck:\n${cardNames}`,
+          [{label:'OK (put back on top)', cls:'btn-muted', action:()=>{ log(`${inst.name}: Looked at top ${n} card(s).`,''); updateUI(); }}]
+        );
+        return;
+      }
+    }
+  }
+  // ── SEARCH DECK ───────────────────────────────────────────
+  else if (txt.includes('search your') && txt.includes('deck') && txt.includes('hand')) {
+    const isLandDeck = txt.includes('land deck');
+    const isRelic2 = txt.includes('relic');
+    const searchDeck = isLandDeck ? G[caster].land : G[caster].main;
+    const pool = searchDeck.map(id=>CARD_MAP[id]).filter(c=>c && (isRelic2 ? c.type==='Relic' : true));
+    if (pool.length === 0) { log(`${inst.name}: No valid cards in deck.`, ''); }
+    else {
+      showModal(inst.name, 'Search deck — choose a card:',
+        pool.slice(0, 12).map(c => ({
+          label: c.name,
+          cls: 'btn-secondary',
+          action: () => {
+            const foundId = searchDeck.find(id => CARD_MAP[id] === c);
+            if (foundId !== undefined) {
+              searchDeck.splice(searchDeck.indexOf(foundId), 1);
+              // Shuffle rest
+              for(let i=searchDeck.length-1;i>0;i--){
+                const j=Math.floor(Math.random()*(i+1));
+                [searchDeck[i],searchDeck[j]]=[searchDeck[j],searchDeck[i]];
+              }
+              if (txt.includes('field') || txt.includes('in play')) {
+                // Eternal Archive: put land directly into field
+                const fieldInst = makeInst(foundId, caster);
+                if (fieldInst) { fieldInst.exhaustState='renewed'; G[caster].battlefield.push(fieldInst); }
+                log(`${inst.name}: ${c.name} put into play!`, 'heal');
+              } else {
+                const fi = makeInst(foundId, caster);
+                if (fi) G[caster].hand.push(fi);
+                log(`${inst.name}: ${c.name} searched to hand. Deck shuffled.`, 'heal');
+              }
+              updateUI();
+            }
+          }
+        }))
+      );
+      return;
+    }
+  }
+  // ── SHUFFLE DISCARD BACK INTO DECK ───────────────────────
+  else if (txt.includes('discard pile') && txt.includes('shuffle') && txt.includes('deck') && !txt.includes('hand')) {
+    // Runed Pageweaver: pick a card from discard and shuffle into deck
+    const validDiscard = G[caster].discard.filter(i => i.type !== 'Land');
+    if (validDiscard.length === 0) { log(`${inst.name}: Discard pile is empty.`, ''); }
+    else {
+      showModal(inst.name, 'Choose a card to shuffle back into your deck:',
+        validDiscard.map(c => ({
+          label: c.name,
+          cls: 'btn-secondary',
+          action: () => {
+            G[caster].discard = G[caster].discard.filter(i=>i.instId!==c.instId);
+            const pos = Math.floor(Math.random() * (G[caster].main.length + 1));
+            G[caster].main.splice(pos, 0, c.cardId);
+            log(`${inst.name}: ${c.name} shuffled back into deck.`, 'heal');
+            updateUI();
+          }
+        }))
+      );
+      return;
+    }
+  }
+  // ── PREVENT DAMAGE ────────────────────────────────────────
+  // Gilded Rebuke: prevent all combat damage target creature would deal, owner loses 2 life
+  // Handled in resolveSpellOnTarget (needs target) — already routes via 'no combat damage'
+
   else if (txt.includes('discard pile') && txt.includes('hand')) {
     // 'wall creature' filter — Ancient Reclamation only returns walls
     const needsWall = txt.includes('wall creature') || txt.includes('wall') && txt.includes('discard');
@@ -4241,17 +4484,67 @@ function resolveSpell(inst, caster) {
     const targets = G[opp].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed').slice(0,2);
     targets.forEach(t => { t.exhaustState = 'exhausted'; log(`${inst.name}: ${t.name} exhausted.`, ''); });
   }
+  // ── LOOK AT OPPONENT'S HAND (Surveiling Eye) ────────────────
+  else if (txt.includes('look at') && txt.includes('hand')) {
+    const opp = caster === 'player' ? 'ai' : 'player';
+    const oppHand = G[opp].hand;
+    if (oppHand.length === 0) {
+      log(`${inst.name}: Opponent's hand is empty.`, '');
+    } else {
+      // Show opponent hand as a read-only modal card list
+      const cardList = oppHand.map(c => c.name + (c.type !== 'Land' ? ` [${c.cost || '?'}]` : ' (Land)')).join('\n');
+      showModal(
+        `${inst.name} — Opponent\'s Hand (${oppHand.length} cards)`,
+        cardList,
+        [{ label: 'CLOSE', cls: 'btn-muted', action: () => {
+          // After closing, also Glimpse if the spell says so
+          if (txt.includes('glimpse')) {
+            const n = parseInt(txt.match(/glimpse (\d+)/)?.[1] || '1');
+            doGlimpse(caster, n, inst.name);
+          } else { updateUI(); }
+        }}]
+      );
+      log(`${inst.name}: You see the opponent's ${oppHand.length} card(s).`, 'important');
+      return; // don't fall through to Glimpse — handled in modal close
+    }
+    // Still Glimpse if requested and hand was empty
+    if (txt.includes('glimpse')) {
+      const n = parseInt(txt.match(/glimpse (\d+)/)?.[1] || '1');
+      doGlimpse(caster, n, inst.name);
+    }
+  }
   // ── GLIMPSE ──────────────────────────────────────────────────
   else if (txt.includes('glimpse')) {
     const n = parseInt(txt.match(/glimpse (\d+)/)?.[1] || '1');
-    // Always glimpse the caster's OWN deck
-    doGlimpse(caster, n, inst.name);
+    // If 'then draw a card' follows Glimpse (Veilcataclysm), fire draw after confirm
+    const drawAfter = txt.includes('then draw a card') || txt.includes('then draw one card');
+    doGlimpse(caster, n, inst.name, false, drawAfter ? () => {
+      drawFromDeck(caster, G[caster].main.length > 0 ? 'main' : 'land');
+      log(`${inst.name}: Drew a card after Glimpse.`, 'heal');
+    } : null);
   }
   // ── LIFE GAIN ────────────────────────────────────────────────
   else if (txt.includes('gain') && txt.includes('life') && !txt.includes('target')) {
     const n = parseInt(txt.match(/gain (\d+) life/)?.[1] || '2');
     G[caster].life += n; updateLifeDisplay(caster);
     log(`${inst.name}: Gained ${n} life.`, 'heal');
+  }
+  // ── AETHER COPY ──────────────────────────────────────────────
+  else if (txt.includes('copy of a creature') || (txt.includes('copy of') && txt.includes('opponent controls'))) {
+    const opp = caster === 'player' ? 'ai' : 'player';
+    const oppCreatures = G[opp].battlefield.filter(i => i.type === 'Creature');
+    if (oppCreatures.length === 0) { log(`${inst.name}: No opponent creatures to copy.`, ''); }
+    else if (oppCreatures.length === 1) {
+      aetherCopyCreature(inst, caster, oppCreatures[0]);
+    } else {
+      showModal(inst.name, 'Choose a creature to copy:',
+        oppCreatures.map(c => ({
+          label: `${c.name} [${getEffectivePower(c)}]`,
+          cls: 'btn-secondary',
+          action: () => aetherCopyCreature(inst, caster, c)
+        }))
+      );
+    }
   }
   // Eternal Subterfuge — handled in resolveSpellOnTarget (needs a target creature)
   else {
@@ -4726,7 +5019,10 @@ function getAbilityTargetMode(txt, mode, caster) {
   if (seg.includes('gain control')) return 'opponent-creature';
   // Relic-targeting — renew target relic → own side
   if (seg.includes('target relic') && (seg.includes('renew') || seg.includes('heal') || seg.includes('+1'))) return 'own-creature';
-  if (seg.includes('target relic') && (seg.includes('destroy') || seg.includes('exhaust'))) return 'opponent-creature';
+  if (seg.includes('target relic') && (seg.includes('destroy') || seg.includes('exhaust')) &&
+      !seg.includes('you control')) return 'opponent-creature';
+  if (seg.includes('target relic') && (seg.includes('destroy') || seg.includes('exhaust')) &&
+      seg.includes('you control')) return 'own-creature';
   // Token-specific → own side
   if (seg.includes('target wolf') || seg.includes('target bat') ||
       seg.includes('target token'))                         return 'own-creature';
@@ -4770,23 +5066,31 @@ function activateAbility(inst, mode) {
      seg0.match(/one gets/g) && seg0.match(/one gets/g).length >= 2);
   if (isTwoTarget && needsTarget) {
     applyExhaustForAbility(inst, mode);
+    updateUI();
     const allC = [
       ...G.player.battlefield.filter(i=>i.type==='Creature').map(i=>({inst:i,owner:'player'})),
       ...G.ai.battlefield.filter(i=>i.type==='Creature').map(i=>({inst:i,owner:'ai'})),
     ];
-    if (allC.length < 2) { log(`${inst.name}: Need at least 2 creatures on the field.`,''); return; }
-    // Step 1: pick the creature that gets BUFF (+1)
-    log(`${inst.name}: Choose a creature to get +1 power (your own).`, 'important');
-    beginTargeting({ name: inst.name, abilities: inst.abilities }, 'player', 'any-creature',
-      (buffTarget, buffOwner) => {
+    if (allC.length < 1) { log(`${inst.name}: Need at least 1 creature on the field.`,''); return; }
+    const instName = inst.name;
+    // Step 1: pick the creature that gets +1 power
+    log(`${instName}: Choose a creature to get +1 power until end of turn.`, 'important');
+    beginTargeting({ name: instName, abilities: inst.abilities }, 'player', 'any-creature',
+      (buffTarget) => {
         buffTarget.powerMods.push({ amount: 1, until: 'eot' });
-        log(`${inst.name}: ${buffTarget.name} gets +1 power.`, 'heal');
-        // Step 2: pick the creature that gets DEBUFF (-1)
-        log(`${inst.name}: Choose a creature to get -1 power (opponent's).`, 'important');
-        beginTargeting({ name: inst.name, abilities: inst.abilities }, 'player', 'any-creature',
-          (debuffTarget, debuffOwner) => {
+        log(`${instName}: ${buffTarget.name} gets +1 power.`, 'heal');
+        updateUI();
+        // Step 2: pick the creature that gets -1 power
+        const allC2 = [
+          ...G.player.battlefield.filter(i=>i.type==='Creature').map(i=>({inst:i,owner:'player'})),
+          ...G.ai.battlefield.filter(i=>i.type==='Creature').map(i=>({inst:i,owner:'ai'})),
+        ];
+        if (allC2.length < 1) return;
+        log(`${instName}: Now choose a creature to get -1 power until end of turn.`, 'important');
+        beginTargeting({ name: instName, abilities: inst.abilities }, 'player', 'any-creature',
+          (debuffTarget) => {
             debuffTarget.powerMods.push({ amount: -1, until: 'eot' });
-            log(`${inst.name}: ${debuffTarget.name} gets -1 power.`, '');
+            log(`${instName}: ${debuffTarget.name} gets -1 power.`, '');
             updateUI();
           }
         );
@@ -4894,6 +5198,11 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     } else if (seg.includes('destroy') && seg.includes('target')) {
       destroyCreature(target, targetOwner, true);
       log(`${inst.name}: ${target.name} destroyed.`, 'damage');
+      // Draw a card if the ability also says 'draw a card'
+      if (seg.includes('draw a card') || seg.includes('draw one card')) {
+        drawFromDeck(who, G[who].main.length > 0 ? 'main' : 'land');
+        log(`${inst.name}: Drew a card.`, 'heal');
+      }
     } else if (seg.includes('gain control') && seg.includes('token')) {
       // Permanently steal target token — move from opponent to player
       if (targetOwner !== who && target.isToken) {
@@ -4979,6 +5288,14 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     // target is set — handled in target block, but if no target given, prompt for one
     // This is handled as a targeted ability via abilityNeedsTarget catching 'creature'
   }
+  // Crystal Ward Guardian: walls take no damage this turn
+  if (seg.includes('walls') && seg.includes('take no damage')) {
+    G[who].battlefield.filter(i => i.type === 'Creature' && hasKeyword(i, 'wall'))
+      .forEach(wall => { wall.noCombatDamage = true; });
+    log(`${inst.name}: Your walls take no damage this turn!`, 'heal');
+    updateUI();
+    return;
+  }
   // Loyal Butler — destroy self to shield against one damage source
   if (seg.includes('reduce all damage') && seg.includes('0')) {
     G[who]._butlerShield = true;
@@ -5049,6 +5366,11 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
   else if (seg.includes('create') && seg.includes('raven token')) {
     createToken('Raven Token', who);
   }
+  // Eternal Archive: play an additional land this turn
+  else if (seg.includes('play an additional land') || seg.includes('additional land this turn')) {
+    G[who].landPlayedThisTurn = false; // reset so they can play another land
+    log(`${inst.name}: You may play an additional land this turn!`, 'heal');
+  }
   // Gain bleed counter (standalone, not combined with bat token)
   else if ((seg.includes('gain') && seg.includes('bleed counter')) && !seg.includes('bat token')) {
     const bleedN = parseInt(seg.match(/gain (\d+) bleed/)?.[1] || '1');
@@ -5061,13 +5383,24 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     log(`${inst.name}: Drew a card.`, '');
   }
   // (lose-life-add-mana handled above)
-  else if (seg.includes('glimpse')) {
-    const n = parseInt(seg.match(/glimpse (\d+)/)?.[1] || '1');
-    doGlimpse(who, n, inst.name);
-  }
   else if (seg.includes('reverse glimpse')) {
     const n = parseInt(seg.match(/reverse glimpse (\d+)/)?.[1] || '3');
     doReverseGlimpse(who, n, inst.name);
+  }
+  else if (seg.includes('glimpse')) {
+    let n;
+    const nMatch = seg.match(/glimpse (\d+)/);
+    if (nMatch) {
+      n = parseInt(nMatch[1]);
+    } else if (seg.includes('glimpse x') || (seg.includes('glimpse') && seg.includes('number of relic'))) {
+      // Prophecy Foretold: Glimpse X = number of relics you control
+      n = G[who].battlefield.filter(i => i.type === 'Relic').length;
+      log(`${inst.name}: Glimpse ${n} (${n} relic(s) in play).`, 'important');
+    } else {
+      n = 1;
+    }
+    n = Math.max(1, n || 1);
+    doGlimpse(who, n, inst.name);
   }
   else if (seg.includes('self bleed')) {
     const n = parseInt(seg.match(/self bleed (\d+)/)?.[1] || '1');
@@ -5162,13 +5495,13 @@ function applyWhileAttackingAuras(who, attackingInsts) {
 let _glimpseState = null; // { who, topIds, cards, decisions, canPutInHand, isReverse, onDone }
 let _glimpseDrag  = null; // { cardEl, cardIdx, startZone }
 
-function doGlimpse(who, n, sourceName, canPutInHand) {
-  if (G[who].main.length === 0) { log(`${sourceName}: Glimpse ${n} — deck empty.`, ''); return; }
+function doGlimpse(who, n, sourceName, canPutInHand, onComplete) {
+  if (G[who].main.length === 0) { log(`${sourceName}: Glimpse ${n} — deck empty.`, ''); if(onComplete)onComplete(); return; }
   const count  = Math.min(n, G[who].main.length);
   const topIds = G[who].main.slice(0, count);
   const cards  = topIds.map(id => CARD_MAP[id]).filter(Boolean);
   log(`${sourceName}: Glimpse ${count} — drag cards to choose their fate.`, 'important');
-  openGlimpsePanel(who, topIds, cards, false, canPutInHand);
+  openGlimpsePanel(who, topIds, cards, false, canPutInHand, onComplete);
 }
 
 function doReverseGlimpse(who, n, sourceName) {
@@ -5181,8 +5514,8 @@ function doReverseGlimpse(who, n, sourceName) {
   openGlimpsePanel(who, botIds, cards, true, false);
 }
 
-function openGlimpsePanel(who, ids, cards, isReverse, canPutInHand) {
-  _glimpseState = { who, ids, cards, isReverse, canPutInHand,
+function openGlimpsePanel(who, ids, cards, isReverse, canPutInHand, onComplete) {
+  _glimpseState = { who, ids, cards, isReverse, canPutInHand, onComplete: onComplete || null,
                     decisions: new Array(cards.length).fill(isReverse ? 'bottom' : 'top') };
 
   // Title
@@ -5379,9 +5712,11 @@ function confirmGlimpse() {
   // Close panel
   document.getElementById('glimpse-panel').classList.remove('visible');
   document.getElementById('card-preview').style.display = '';
+  const _onComplete = state.onComplete;
   _glimpseState = null;
   updateUI();
   log('Glimpse complete.', '');
+  if (_onComplete) _onComplete();
 }
 
 // ── HELPERS ───────────────────────────────────────────────────
@@ -5421,10 +5756,16 @@ function clearEotEffects(who) {
   G[who].battlefield.forEach(inst => {
     inst.powerMods = inst.powerMods.filter(m => m.until !== 'eot');
     inst.tempKeywords = {};
+    if (inst._cannotAttack) inst._cannotAttack = false;
+    if (inst._cannotCastThisTurn) inst._cannotCastThisTurn = false;
     if (inst._augurDraw) inst._augurDraw = false;
     if (inst._spellProtect) inst._spellProtect = false;
     // Return temp-controlled creatures to their original owner
     if (inst._tempControlOwner) toReturn.push({ inst, origOwner: inst._tempControlOwner });
+  });
+  // Clear hand-card restrictions (e.g. Estate Grounds Keeper retrieval)
+  if (G[who].hand) G[who].hand.forEach(inst => {
+    if (inst._cannotCastThisTurn) inst._cannotCastThisTurn = false;
   });
   // Destroy Elara copies at end of turn
   const toDestroy = [];
