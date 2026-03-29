@@ -422,6 +422,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   filter: drop-shadow(0 12px 40px rgba(0,0,0,0.9));
 }
 #card-preview.visible { opacity: 1; }
+#modal-overlay.visible ~ * #card-preview,
+.modal-active #card-preview { display: none !important; }
 /* The inner .card clone fills the preview div exactly */
 #card-preview .card {
   width: 100% !important; height: 100% !important;
@@ -456,7 +458,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 /* ── MODAL ── */
 #modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.75);
-  z-index: 500; display: flex; align-items: center; justify-content: center;
+  z-index: 10200; display: flex; align-items: center; justify-content: center;
   opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
 }
 #modal-overlay.visible { opacity: 1; pointer-events: all; }
@@ -4610,6 +4612,17 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     updateLifeDisplay(who);
     log(`${inst.name}: Removed ${n} Bleed counter(s).`, 'heal');
   }
+  // Lose life + add mana (e.g. Muckmouth Bauble) — must come BEFORE plain add {b}
+  else if (seg.includes('lose') && seg.includes('life') && seg.includes('add')) {
+    const lifeLoss = parseInt(seg.match(/lose (\d+) life/)?.[1] || '2');
+    G[who].life -= lifeLoss; updateLifeDisplay(who);
+    // Determine which mana to add from the seg
+    const manaMatch = seg.match(/add \{([rgbpwc])\}/i);
+    const manaColor = manaMatch ? manaMatch[1].toUpperCase() : 'B';
+    addMana(who, manaColor, 1);
+    log(`${inst.name}: Lost ${lifeLoss} life, added 1 ${manaColor} mana.`, 'bleed');
+    if (who === 'player') damageVignette();
+  }
   else if (seg.includes('add {b}') || (seg.includes('add') && seg.includes('{b}'))) {
     const n = mode === 'overexhaust' ? 2 : 1;
     addMana(who, 'B', n);
@@ -4632,7 +4645,14 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     log(`${inst.name}: +1 Purple mana.`, '');
   }
   else if (seg.includes('create') && seg.includes('bat token')) {
-    createToken('Bat Token', who);
+    // Gain bleed counter if mentioned alongside bat token (e.g. Sanguine Batspring)
+    if (seg.includes('bleed counter') || seg.includes('gain 1 bleed')) {
+      G[who].bleed += 1;
+      updateLifeDisplay(who);
+      log(`${inst.name}: Gained 1 Bleed counter.`, 'bleed');
+    }
+    const batN = parseInt(seg.match(/(\d+) bat token/)?.[1] || '1');
+    for (let i = 0; i < batN; i++) createToken('Bat Token', who);
   }
   else if (seg.includes('create') && seg.includes('wolf token')) {
     createToken('Wolf Token', who);
@@ -4643,16 +4663,18 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
   else if (seg.includes('create') && seg.includes('raven token')) {
     createToken('Raven Token', who);
   }
+  // Gain bleed counter (standalone, not combined with bat token)
+  else if ((seg.includes('gain') && seg.includes('bleed counter')) && !seg.includes('bat token')) {
+    const bleedN = parseInt(seg.match(/gain (\d+) bleed/)?.[1] || '1');
+    G[who].bleed += bleedN;
+    updateLifeDisplay(who);
+    log(`${inst.name}: Gained ${bleedN} Bleed counter(s).`, 'bleed');
+  }
   else if (seg.includes('draw a card') || seg.includes('draw one card')) {
     drawFromDeck(who, G[who].main.length > 0 ? 'main' : 'land');
     log(`${inst.name}: Drew a card.`, '');
   }
-  else if (seg.includes('lose') && seg.includes('life') && seg.includes('add')) {
-    const lifeLoss = parseInt(seg.match(/lose (\d+) life/)?.[1] || '2');
-    G[who].life -= lifeLoss; updateLifeDisplay(who);
-    addMana(who, 'B', 1);
-    log(`${inst.name}: Lost ${lifeLoss} life, added 1 Black mana.`, 'bleed');
-  }
+  // (lose-life-add-mana handled above)
   else if (seg.includes('glimpse')) {
     const n = parseInt(seg.match(/glimpse (\d+)/)?.[1] || '1');
     doGlimpse(who, n, inst.name);
@@ -4985,6 +5007,26 @@ function getEffectivePower(inst) {
   let p = inst.power || 0;
   inst.powerMods.forEach(m => p += m.amount);
   p += (inst.permMods || 0);
+  // Static auras: scan battlefield for 'while in the field' token power buffs
+  if (G && inst.isToken && inst.type === 'Creature') {
+    const owner = inst.owner || 'player';
+    if (G[owner]) {
+      G[owner].battlefield.forEach(aura => {
+        if (aura.instId === inst.instId) return; // skip self
+        const at = (aura.abilities || '').toLowerCase();
+        // 'while in the field/play, all token creatures...gain +1 power'
+        if ((at.includes('while') || at.includes('while in')) &&
+            at.includes('token') && at.includes('+1 power')) {
+          p += 1;
+        }
+        // Korzathrax: 'zombie, raven, and bat tokens...get +1 power'
+        if (at.includes('tokens you control get +1 power') ||
+            at.includes('tokens you control gain +1 power')) {
+          p += 1;
+        }
+      });
+    }
+  }
   return Math.max(0, p);
 }
 
@@ -6107,10 +6149,16 @@ function showModal(title, body, actions) {
     actEl.appendChild(btn);
   });
   document.getElementById('modal-overlay').classList.add('visible');
+  // Hide card preview while modal is open
+  const _cp = document.getElementById('card-preview');
+  if (_cp) _cp.style.display = 'none';
 }
 
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('visible');
+  // Restore card preview
+  const _cp2 = document.getElementById('card-preview');
+  if (_cp2) _cp2.style.display = '';
   // Actions handle their own updateUI — do NOT call it here to avoid
   // re-rendering before the action fires (breaks dual land mana choice etc.)
 }
