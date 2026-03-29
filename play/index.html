@@ -706,6 +706,132 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 @keyframes damage-flash { 0%,100%{background:transparent} 50%{background:rgba(255,32,48,0.3)} }
 @keyframes heal-flash { 0%,100%{background:transparent} 50%{background:rgba(48,200,80,0.3)} }
 
+/* ── SCREEN SHAKE ── */
+@keyframes screen-shake {
+  0%,100%{transform:translate(0,0) rotate(0deg)}
+  15%{transform:translate(-6px,4px) rotate(-0.4deg)}
+  30%{transform:translate(6px,-4px) rotate(0.4deg)}
+  45%{transform:translate(-4px,6px) rotate(-0.2deg)}
+  60%{transform:translate(4px,-2px) rotate(0.2deg)}
+  75%{transform:translate(-2px,4px) rotate(-0.1deg)}
+}
+.screen-shake { animation: screen-shake 0.35s cubic-bezier(.36,.07,.19,.97) forwards; }
+
+/* ── DAMAGE EDGE FLASH ── */
+#damage-vignette {
+  position:fixed; inset:0; pointer-events:none; z-index:9999;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(220,20,20,0.55) 100%);
+  opacity:0; transition:opacity 0.1s;
+}
+#damage-vignette.flash { animation: vignette-flash 0.5s ease-out forwards; }
+@keyframes vignette-flash {
+  0%{opacity:1} 30%{opacity:0.8} 100%{opacity:0}
+}
+
+/* ── PARTICLE CANVAS ── */
+#particle-canvas {
+  position:fixed; inset:0; pointer-events:none; z-index:0;
+  opacity:0.55;
+}
+
+/* ── FACTION BATTLEFIELD TINT ── */
+#faction-tint {
+  position:absolute; inset:0; pointer-events:none; z-index:1;
+  transition: background 1.2s ease;
+}
+
+/* ── CARD 3D TILT (applied via JS) ── */
+.card-3d-tilt {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transform-style: preserve-3d;
+}
+
+/* ── RARITY GLOW — border faction color inner glow ── */
+.card[data-rarity="Mythic Rare"] {
+  box-shadow: 0 0 0 1px rgba(212,160,32,0.6), inset 0 0 18px rgba(212,160,32,0.12) !important;
+}
+.card[data-rarity="Rare"] {
+  box-shadow: inset 0 0 12px rgba(160,120,255,0.1);
+}
+
+/* ── FOIL SHIMMER on Mythic/Rare cards ── */
+@keyframes foil-sweep {
+  0%   { background-position: -200% center; }
+  100% { background-position: 300% center; }
+}
+.card-foil::after {
+  content:''; position:absolute; inset:0; border-radius:6px;
+  background: linear-gradient(105deg,
+    transparent 30%,
+    rgba(255,255,255,0.07) 40%,
+    rgba(212,160,32,0.13) 48%,
+    rgba(255,255,255,0.09) 55%,
+    transparent 65%
+  );
+  background-size: 300% 100%;
+  animation: foil-sweep 3.5s linear infinite;
+  pointer-events:none; z-index:5;
+}
+
+/* ── MANA PIP PULSE on add ── */
+@keyframes pip-added {
+  0%  {transform:scale(1)}
+  40% {transform:scale(1.5)}
+  100%{transform:scale(1)}
+}
+.pip-pop { animation: pip-added 0.25s ease-out forwards; }
+
+/* ── GLIMPSE PANEL GLOW ── */
+#glimpse-panel.visible {
+  box-shadow: -8px 0 60px rgba(160,32,240,0.35), -2px 0 20px rgba(160,32,240,0.2);
+}
+
+/* ── GLIMPSE CARD STAGGER REVEAL ── */
+@keyframes glimpse-card-in {
+  from { opacity:0; transform: translateX(40px) scale(0.88); }
+  to   { opacity:1; transform: translateX(0) scale(1); }
+}
+.glimpse-card { animation: glimpse-card-in 0.22s ease-out both; }
+.glimpse-card:nth-child(1) { animation-delay: 0.04s; }
+.glimpse-card:nth-child(2) { animation-delay: 0.10s; }
+.glimpse-card:nth-child(3) { animation-delay: 0.16s; }
+.glimpse-card:nth-child(4) { animation-delay: 0.22s; }
+.glimpse-card:nth-child(5) { animation-delay: 0.28s; }
+
+/* ── FACTION CHOOSER KEN BURNS ── */
+.faction-btn img.fb-banner {
+  width:100%; height:100%; object-fit:cover; object-position:center;
+  display:block;
+  animation: ken-burns 18s ease-in-out infinite alternate;
+  transform-origin: center center;
+}
+@keyframes ken-burns {
+  0%   { transform: scale(1.0)   translate(0%,    0%);    }
+  25%  { transform: scale(1.06)  translate(-1.5%, -1%);   }
+  50%  { transform: scale(1.03)  translate(1%,    1.5%);  }
+  75%  { transform: scale(1.07)  translate(-0.5%, 1%);    }
+  100% { transform: scale(1.04)  translate(1.5%,  -0.5%);}
+}
+/* Each banner drifts at a different phase */
+.faction-btn:nth-child(1) img { animation-delay: 0s;   animation-duration: 18s; }
+.faction-btn:nth-child(2) img { animation-delay: -6s;  animation-duration: 20s; }
+.faction-btn:nth-child(3) img { animation-delay: -11s; animation-duration: 17s; }
+.faction-btn:nth-child(4) img { animation-delay: -4s;  animation-duration: 22s; }
+
+/* ── CARD NAME FACTION TEXT SHADOW ── */
+.card[data-color="Red"]    .card-name-mini { text-shadow: 0 0 8px rgba(224,48,48,0.5); }
+.card[data-color="White"]  .card-name-mini { text-shadow: 0 0 8px rgba(200,192,240,0.4); }
+.card[data-color="Black"]  .card-name-mini { text-shadow: 0 0 8px rgba(96,48,192,0.5); }
+.card[data-color="Purple"] .card-name-mini { text-shadow: 0 0 8px rgba(160,32,240,0.5); }
+
+/* ── DESTROY BURST ── */
+@keyframes destroy-burst {
+  0%   { opacity:1; transform:scale(1); filter:brightness(1); }
+  30%  { opacity:1; transform:scale(1.25); filter:brightness(2.5) saturate(2); }
+  100% { opacity:0; transform:scale(1.6); filter:brightness(3); }
+}
+.card-destroying { animation: destroy-burst 0.35s ease-out forwards; pointer-events:none; }
+
 /* ── DRAG & DROP ── */
 /* Ghost card that follows the cursor */
 #drag-ghost {
@@ -1028,6 +1154,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   </div>
 
   <!-- ARENA -->
+  <canvas id="particle-canvas"></canvas>
+  <div id="damage-vignette"></div>
   <div id="arena">
     <!-- AI HAND -->
     <div class="hand-zone" id="hand-ai">
@@ -1075,6 +1203,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
     <!-- BATTLEFIELD WRAPPER -->
     <div id="bf-wrapper">
+      <div id="faction-tint"></div>
       <div id="bf-overlay" style="position:absolute;inset:0;background:rgba(0,0,0,0.52);pointer-events:none;z-index:0;"></div>
 
       <!-- AI SIDE -->
@@ -1820,7 +1949,10 @@ function startGame(faction) {
   document.getElementById('faction-chooser').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
 
-  const aiFaction = FACTION_OPPOSITES[faction] || 'Black';
+  // Pick AI faction randomly — any faction except the player's
+  const allFactions = ['Red','White','Black','Purple'];
+  const aiChoices = allFactions.filter(f => f !== faction);
+  const aiFaction = aiChoices[Math.floor(Math.random() * aiChoices.length)];
   const pDecks = getPlayerDeck(faction);         // uses custom deck if saved, else default
   const aDecks = FACTION_DECKS[aiFaction];       // AI always uses default
 
@@ -1856,6 +1988,8 @@ function startGame(faction) {
 
   // Set faction banners on info strips
   setBanners(faction, aiFaction);
+  // Apply faction battlefield tint
+  setFactionTint(faction);
 
   // Initialize resource pool display (shows — placeholder until lands tapped)
   updateManaDisplay('player');
@@ -2080,6 +2214,14 @@ function addMana(who, color, amount) {
   const s = G[who];
   s.mana[color] = (s.mana[color] || 0) + amount;
   updateManaDisplay(who);
+  // Visual: pulse the newly added pip
+  requestAnimationFrame(() => {
+    const el = document.getElementById(`${who}-mana-display`);
+    if (!el) return;
+    const pips = el.querySelectorAll('.mana-pip');
+    const lastPip = pips[pips.length - 1];
+    if (lastPip) { lastPip.classList.remove('pip-pop'); void lastPip.offsetWidth; lastPip.classList.add('pip-pop'); }
+  });
 }
 
 function canPayCost(who, costStr) {
@@ -2908,6 +3050,12 @@ function confirmAttack() {
 
 // Remove from battlefield without calling updateUI (batch updates)
 function removeFromBattlefield(inst, owner) {
+  // Visual: burst animation on the card element before removing
+  const cardEl = document.querySelector(`[data-inst="${inst.instId}"]`);
+  if (cardEl) {
+    cardEl.classList.add('card-destroying');
+    screenShake(2);
+  }
   const idx = G[owner].battlefield.findIndex(i => i.instId === inst.instId);
   if (idx !== -1) {
     G[owner].battlefield.splice(idx, 1);
@@ -3371,6 +3519,7 @@ function resolveCombat(atkInsts, blkMap, defendingSide) {
         log(`Loyal Butler's sacrifice absorbs ${atk.name}'s attack!`, 'heal');
       } else {
         G[defendingSide].life -= pow;
+        if (defendingSide === 'player') { damageVignette(); if (pow >= 3) screenShake(2); }
       }
       sfx('damage');
       log(`${atk.name}[${pow}] hits ${defendingSide} directly.`, 'damage');
@@ -3404,6 +3553,11 @@ function dealDamageToPlayer(who, amount, source) {
   G[who].life -= amount;
   sfx('damage', 0.5);
   updateLifeDisplay(who);
+  // Visual: edge flash + shake for player
+  if (who === 'player') {
+    damageVignette();
+    if (amount >= 3) screenShake(2);
+  }
   const kw = parseKeywords(source.abilities || '');
   if (kw.bleed) { G[who].bleed += kw.bleed; updateLifeDisplay(who); log(`+${kw.bleed} Bleed on ${who}.`, 'bleed'); }
   if (kw.siphon) { G[source.owner].life += amount; updateLifeDisplay(source.owner); log(`Siphon: +${amount} life.`, 'heal'); }
@@ -5738,6 +5892,13 @@ function createCardElement(inst, isHand) {
   }
 
   card.appendChild(footer);
+
+  // Visual: faction data attribute for CSS text-shadow, rarity foil + 3D tilt
+  card.dataset.color  = inst.color  || '';
+  card.dataset.rarity = inst.rarity || '';
+  applyFoilToCard(card, inst.rarity);
+  if (!isHand) attachCardTilt(card);
+
   return card;
 }
 
@@ -6033,7 +6194,133 @@ function showBanner(text) {
 // Keep for backward compatibility
 function playSelectedLand() { playSelectedCard(); }
 
-// ── KEYBOARD SHORTCUTS ────────────────────────────────────────
+// ── VISUAL EFFECTS SYSTEM ────────────────────────────────────────
+
+// ── Particle background ──────────────────────────────────────────
+(function initParticles() {
+  const canvas = document.getElementById('particle-canvas');
+  if (!canvas || typeof canvas.getContext !== 'function') return;
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function mkParticle() {
+    return {
+      x: Math.random() * W,
+      y: H + 10,
+      vy: -(0.15 + Math.random() * 0.35),
+      vx: (Math.random() - 0.5) * 0.2,
+      size: 1 + Math.random() * 2.5,
+      alpha: 0.3 + Math.random() * 0.4,
+      color: Math.random() < 0.5 ? '180,30,30' : '120,20,180',
+      life: 0, maxLife: 200 + Math.random() * 300,
+    };
+  }
+
+  for (let i = 0; i < 60; i++) {
+    const p = mkParticle();
+    p.y = Math.random() * H;
+    p.life = Math.random() * p.maxLife;
+    particles.push(p);
+  }
+
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach((p, i) => {
+      p.x += p.vx; p.y += p.vy; p.life++;
+      const fade = Math.min(p.life / 40, 1) * Math.min((p.maxLife - p.life) / 40, 1);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${p.color},${p.alpha * fade})`;
+      ctx.fill();
+      if (p.life >= p.maxLife || p.y < -10) {
+        particles[i] = mkParticle();
+      }
+    });
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+// ── Screen shake ─────────────────────────────────────────────────
+function screenShake(intensity = 1) {
+  const el = document.getElementById('arena');
+  if (!el) return;
+  el.classList.remove('screen-shake');
+  void el.offsetWidth; // reflow
+  if (intensity >= 2) el.classList.add('screen-shake');
+}
+
+// ── Damage edge vignette ─────────────────────────────────────────
+function damageVignette() {
+  const el = document.getElementById('damage-vignette');
+  if (!el) return;
+  el.classList.remove('flash');
+  void el.offsetWidth;
+  el.classList.add('flash');
+}
+
+// ── Faction battlefield tint ─────────────────────────────────────
+const FACTION_TINT = {
+  Red:    'rgba(180,20,20,0.06)',
+  White:  'rgba(180,170,220,0.05)',
+  Black:  'rgba(60,20,140,0.07)',
+  Purple: 'rgba(120,0,200,0.07)',
+};
+function setFactionTint(playerFaction) {
+  const el = document.getElementById('faction-tint');
+  if (!el || !playerFaction) return;
+  const color = FACTION_TINT[playerFaction] || 'transparent';
+  el.style.background = color;
+  el.style.position = 'absolute';
+  el.style.inset = '0';
+  el.style.pointerEvents = 'none';
+  el.style.zIndex = '1';
+  el.style.transition = 'background 1.2s ease';
+}
+
+// ── Foil shimmer on Mythic/Rare cards ────────────────────────────
+function applyFoilToCard(cardEl, rarity) {
+  if (!cardEl) return;
+  if (rarity === 'Mythic Rare' || rarity === 'Rare') {
+    cardEl.classList.add('card-foil');
+  }
+}
+
+// ── Card 3D tilt on mouse move ────────────────────────────────────
+function attachCardTilt(cardEl) {
+  if (!cardEl || cardEl._tiltAttached) return;
+  cardEl._tiltAttached = true;
+  cardEl.addEventListener('mousemove', (e) => {
+    const rect = cardEl.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top  + rect.height / 2;
+    const dx = (e.clientX - cx) / (rect.width / 2);
+    const dy = (e.clientY - cy) / (rect.height / 2);
+    const tiltX = dy * -8;
+    const tiltY = dx *  8;
+    cardEl.style.transform = `perspective(600px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.04)`;
+    cardEl.style.transition = 'transform 0.08s ease';
+    cardEl.style.zIndex = '60';
+  });
+  cardEl.addEventListener('mouseleave', () => {
+    cardEl.style.transform = '';
+    cardEl.style.zIndex = '';
+  });
+}
+
+// ── Mana pip pulse (injected into addMana directly below) ─────────
+// ── Destroy burst, card tilt, foil, damage flash ──────────────────
+// All visual hooks injected directly into their respective functions above.
+
+// end visual effects
+
 document.addEventListener('keydown', e => {
   if (!G) return;
   if (e.key === 'n' || e.key === 'N') nextPhase();
