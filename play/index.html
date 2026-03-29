@@ -224,15 +224,44 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 /* ── CARD BASE (creature size — fills the main row) ── */
 .card {
-  border-radius:6px; border:1px solid var(--border-dim);
+  border-radius:8px; border:1px solid var(--border-dim);
   background:var(--bg-card); cursor:pointer;
   position:relative; overflow:hidden;
   transition:transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   flex-shrink:0; display:flex; flex-direction:column;
   width:148px; height:208px;
+  /* Depth: soft drop shadow behind every card */
+  box-shadow: 0 4px 16px rgba(0,0,0,0.7), 0 1px 3px rgba(0,0,0,0.9);
 }
-.card:hover { transform:translateY(-14px) scale(1.05); z-index:50; }
-.card.selected { border-color:var(--gold)!important; box-shadow:0 0 18px var(--gold-glow)!important; transform:translateY(-18px) scale(1.10)!important; z-index:60; }
+
+/* Inner vignette — darkens card edges over the art, adds depth */
+.card::before {
+  content:''; position:absolute; inset:0; border-radius:8px;
+  background: radial-gradient(ellipse at 50% 40%,
+    transparent 45%,
+    rgba(0,0,0,0.55) 100%
+  );
+  pointer-events:none; z-index:3;
+}
+
+/* Faction inner glow — colored light bleeding from the bottom edge */
+.card[data-color="Red"]::after    { content:''; position:absolute; inset:0; border-radius:8px; pointer-events:none; z-index:4; box-shadow:inset 0 -3px 18px rgba(224,48,48,0.22), inset 0 0 0 1px rgba(224,48,48,0.18); }
+.card[data-color="White"]::after  { content:''; position:absolute; inset:0; border-radius:8px; pointer-events:none; z-index:4; box-shadow:inset 0 -3px 18px rgba(200,192,240,0.2), inset 0 0 0 1px rgba(200,192,240,0.15); }
+.card[data-color="Black"]::after  { content:''; position:absolute; inset:0; border-radius:8px; pointer-events:none; z-index:4; box-shadow:inset 0 -3px 18px rgba(96,48,192,0.28), inset 0 0 0 1px rgba(96,48,192,0.2); }
+.card[data-color="Purple"]::after { content:''; position:absolute; inset:0; border-radius:8px; pointer-events:none; z-index:4; box-shadow:inset 0 -3px 18px rgba(160,32,240,0.25), inset 0 0 0 1px rgba(160,32,240,0.18); }
+.card[data-color="Colorless"]::after { content:''; position:absolute; inset:0; border-radius:8px; pointer-events:none; z-index:4; box-shadow:inset 0 -3px 12px rgba(160,160,160,0.15); }
+
+/* Hover: lift + faction glow expands */
+.card:hover {
+  transform:translateY(-14px) scale(1.05); z-index:50;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.85), 0 2px 6px rgba(0,0,0,0.9);
+}
+.card[data-color="Red"]:hover    { border-color:rgba(224,48,48,0.7) !important; box-shadow: 0 12px 40px rgba(0,0,0,0.85), 0 0 28px rgba(224,48,48,0.35) !important; }
+.card[data-color="White"]:hover  { border-color:rgba(200,192,240,0.7) !important; box-shadow: 0 12px 40px rgba(0,0,0,0.85), 0 0 28px rgba(200,192,240,0.3) !important; }
+.card[data-color="Black"]:hover  { border-color:rgba(96,48,192,0.7) !important; box-shadow: 0 12px 40px rgba(0,0,0,0.85), 0 0 28px rgba(96,48,192,0.4) !important; }
+.card[data-color="Purple"]:hover { border-color:rgba(160,32,240,0.7) !important; box-shadow: 0 12px 40px rgba(0,0,0,0.85), 0 0 28px rgba(160,32,240,0.4) !important; }
+
+.card.selected { border-color:var(--gold)!important; box-shadow:0 0 28px var(--gold-glow), 0 8px 32px rgba(0,0,0,0.8) !important; transform:translateY(-18px) scale(1.10)!important; z-index:60; }
 .card.attackable { border-color:var(--red); box-shadow:0 0 10px var(--red-glow); animation:pulse-red 1.2s infinite; }
 .card.blockable  { border-color:#30a0e0; box-shadow:0 0 8px rgba(48,160,224,0.3); animation:pulse-blue 1.2s infinite; }
 
@@ -244,7 +273,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .card.overexhausted:hover { transform:rotate(180deg) scale(1.07); z-index:50; }
 
 .card.newly-turned { outline:2px solid rgba(255,200,0,0.55); }
-.card.attacking { outline:3px solid var(--red)!important; animation:pulse-red 0.7s infinite; }
+.card.attacking { outline:3px solid var(--red)!important; animation:pulse-red 0.7s infinite; box-shadow: 0 0 24px rgba(224,48,48,0.5) !important; }
 .card.blocking  { outline:3px solid #30a0e0!important; }
 .card.tap-hint  { box-shadow:0 0 9px rgba(212,160,32,0.65); }
 
@@ -261,26 +290,47 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .lands-row .kw-badges { display:none; }
 .lands-row .card.exhausted { transform:rotate(90deg); margin:22px 10px; opacity:0.72; }
 .lands-row .card.exhausted:hover { transform:rotate(90deg) scale(1.08); }
-.card-img-placeholder { width:100%; flex:1; display:flex; align-items:center; justify-content:center; background:var(--bg-panel); font-size:40px; min-height:0; }
-.card-footer { display:flex; align-items:center; justify-content:space-between; padding:5px 6px; background:rgba(0,0,0,0.82); font-size:11px; font-weight:600; letter-spacing:0.5px; flex-shrink:0; }
-.card-name-mini { color:var(--text-bright); max-width:100px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-.card-power { color:var(--gold); font-family:'Share Tech Mono',monospace; font-size:14px; font-weight:700; }
+/* Card art fills available space */
+.card-img {
+  width:100%; flex:1; object-fit:cover; object-position:top center;
+  display:block; min-height:0;
+  /* Subtle bottom scrim drawn via card::before vignette above */
+}
 
-.kw-badges { position:absolute; top:4px; left:4px; display:flex; flex-direction:column; gap:1px; z-index:2; }
-.kw-badge { font-size:9px; padding:2px 5px; border-radius:2px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; }
-.kw-haste    { background:rgba(224,80,0,0.9);  color:#fff; }
-.kw-wall     { background:rgba(80,120,200,0.9); color:#fff; }
-.kw-breach   { background:rgba(200,60,0,0.9);   color:#fff; }
-.kw-tireless { background:rgba(0,160,80,0.9);   color:#fff; }
-.kw-siphon   { background:rgba(120,0,200,0.9);  color:#fff; }
+/* Art bottom scrim — darkens bottom of art where footer overlaps */
+.card-art-scrim {
+  position:absolute; bottom:28px; left:0; right:0; height:60px;
+  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%);
+  pointer-events:none; z-index:2;
+}
 
-.color-bar { height:5px; width:100%; flex-shrink:0; }
-.color-bar.Red      { background:var(--red); }
-.color-bar.White    { background:var(--white-c); }
-.color-bar.Black    { background:var(--black-c); }
-.color-bar.Purple   { background:var(--purple); }
-.color-bar.Colorless{ background:var(--colorless); }
-.color-bar.Land     { background:var(--gold); }
+/* Footer — stronger gradient + faction name glow already in place */
+.card-footer {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:5px 6px;
+  background: linear-gradient(to top, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.82) 100%);
+  font-size:11px; font-weight:600; letter-spacing:0.5px; flex-shrink:0;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.card-name-mini { color:var(--text-bright); max-width:100px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-family:'Cinzel',serif; font-size:9.5px; letter-spacing:0.3px; }
+.card-power { color:var(--gold); font-family:'Share Tech Mono',monospace; font-size:14px; font-weight:700; text-shadow: 0 0 8px rgba(212,160,32,0.6); }
+
+/* Color bar — taller, glowing, faction-colored gradient */
+.color-bar { height:3px; width:100%; flex-shrink:0; }
+.color-bar.Red      { background: linear-gradient(90deg, transparent, var(--red), transparent); box-shadow: 0 0 6px var(--red); }
+.color-bar.White    { background: linear-gradient(90deg, transparent, var(--white-c), transparent); box-shadow: 0 0 6px var(--white-c); }
+.color-bar.Black    { background: linear-gradient(90deg, transparent, var(--black-c), transparent); box-shadow: 0 0 6px var(--black-c); }
+.color-bar.Purple   { background: linear-gradient(90deg, transparent, var(--purple), transparent); box-shadow: 0 0 6px var(--purple); }
+.color-bar.Colorless{ background: linear-gradient(90deg, transparent, var(--colorless), transparent); }
+.color-bar.Land     { background: linear-gradient(90deg, transparent, var(--gold), transparent); box-shadow: 0 0 6px var(--gold); }
+
+.kw-badges { position:absolute; top:4px; left:4px; display:flex; flex-direction:column; gap:1px; z-index:5; }
+.kw-badge { font-size:9px; padding:2px 5px; border-radius:2px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; backdrop-filter:blur(2px); }
+.kw-haste    { background:rgba(224,80,0,0.88);  color:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.5); }
+.kw-wall     { background:rgba(80,120,200,0.88); color:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.5); }
+.kw-breach   { background:rgba(200,60,0,0.88);   color:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.5); }
+.kw-tireless { background:rgba(0,160,80,0.88);   color:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.5); }
+.kw-siphon   { background:rgba(120,0,200,0.88);  color:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.5); }
 
 /* ── HAND ── */
 .hand-zone {
@@ -756,23 +806,50 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   box-shadow: inset 0 0 12px rgba(160,120,255,0.1);
 }
 
-/* ── FOIL SHIMMER on Mythic/Rare cards ── */
+/* ── FOIL SHIMMER on Mythic/Rare cards — multicolor prismatic ── */
 @keyframes foil-sweep {
-  0%   { background-position: -200% center; }
-  100% { background-position: 300% center; }
+  0%   { background-position: -200% center; opacity: 0.7; }
+  50%  { opacity: 1; }
+  100% { background-position: 300% center; opacity: 0.7; }
 }
 .card-foil::after {
-  content:''; position:absolute; inset:0; border-radius:6px;
+  content:''; position:absolute; inset:0; border-radius:8px;
   background: linear-gradient(105deg,
-    transparent 30%,
-    rgba(255,255,255,0.07) 40%,
-    rgba(212,160,32,0.13) 48%,
-    rgba(255,255,255,0.09) 55%,
-    transparent 65%
+    transparent 25%,
+    rgba(255,120,120,0.08) 35%,
+    rgba(255,255,255,0.14) 43%,
+    rgba(212,160,32,0.18) 50%,
+    rgba(160,100,255,0.12) 57%,
+    rgba(255,255,255,0.10) 64%,
+    transparent 75%
   );
   background-size: 300% 100%;
-  animation: foil-sweep 3.5s linear infinite;
-  pointer-events:none; z-index:5;
+  animation: foil-sweep 4s linear infinite;
+  pointer-events:none; z-index:5; mix-blend-mode: screen;
+}
+
+/* ── IDLE FLOAT — subtle breathing animation on battlefield cards ── */
+@keyframes card-float {
+  0%,100% { transform: translateY(0px); }
+  50%     { transform: translateY(-3px); }
+}
+/* Apply to Mythic Rare cards only to keep it special */
+.card[data-rarity="Mythic Rare"]:not(.exhausted):not(.overexhausted):not(.attacking):not(.blocking) {
+  animation: card-float 4s ease-in-out infinite;
+}
+/* Stagger the float so they don't all move in sync */
+.card[data-rarity="Mythic Rare"]:nth-child(2) { animation-delay: -1.3s; }
+.card[data-rarity="Mythic Rare"]:nth-child(3) { animation-delay: -2.6s; }
+
+/* ── MYTHIC RARE border — gold animated pulse ── */
+.card[data-rarity="Mythic Rare"] {
+  border-color: rgba(212,160,32,0.5) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.7), 0 0 0 1px rgba(212,160,32,0.3), inset 0 0 22px rgba(212,160,32,0.08) !important;
+  animation: mythic-border 3s ease-in-out infinite !important;
+}
+@keyframes mythic-border {
+  0%,100% { box-shadow: 0 4px 20px rgba(0,0,0,0.7), 0 0 0 1px rgba(212,160,32,0.3), inset 0 0 22px rgba(212,160,32,0.08); }
+  50%     { box-shadow: 0 4px 20px rgba(0,0,0,0.7), 0 0 12px rgba(212,160,32,0.4), 0 0 0 1px rgba(212,160,32,0.6), inset 0 0 28px rgba(212,160,32,0.15); }
 }
 
 /* ── MANA PIP PULSE on add ── */
@@ -5864,7 +5941,7 @@ function createCardElement(inst, isHand) {
   card.className = 'card' + (isHand ? ' hand-card' : '');
   card.dataset.inst = inst.instId; // for block-line targeting
 
-  // Color bar
+  // Color bar — at TOP of card for premium look
   const bar = document.createElement('div');
   bar.className = `color-bar ${inst.color}`;
   card.appendChild(bar);
@@ -5889,6 +5966,11 @@ function createCardElement(inst, isHand) {
     ph.textContent = inst.type==='Creature'?'⚔':'🔮';
     card.appendChild(ph);
   }
+
+  // Art scrim — gradient over bottom of art
+  const scrim = document.createElement('div');
+  scrim.className = 'card-art-scrim';
+  card.appendChild(scrim);
 
   // Keyword badges
   const badges = document.createElement('div');
@@ -6345,21 +6427,43 @@ function applyFoilToCard(cardEl, rarity) {
 function attachCardTilt(cardEl) {
   if (!cardEl || cardEl._tiltAttached) return;
   cardEl._tiltAttached = true;
+
+  // Create specular highlight element
+  const spec = document.createElement('div');
+  spec.style.cssText = [
+    'position:absolute','inset:0','border-radius:8px','pointer-events:none',
+    'z-index:6','opacity:0','transition:opacity 0.15s ease',
+    'background:radial-gradient(circle at 50% 50%, rgba(255,255,255,0.18) 0%, transparent 65%)',
+    'background-size:200% 200%'
+  ].join(';');
+  cardEl.appendChild(spec);
+
   cardEl.addEventListener('mousemove', (e) => {
     const rect = cardEl.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
+    const cx = rect.left + rect.width  / 2;
     const cy = rect.top  + rect.height / 2;
-    const dx = (e.clientX - cx) / (rect.width / 2);
+    const dx = (e.clientX - cx) / (rect.width  / 2);
     const dy = (e.clientY - cy) / (rect.height / 2);
-    const tiltX = dy * -8;
-    const tiltY = dx *  8;
-    cardEl.style.transform = `perspective(600px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.04)`;
-    cardEl.style.transition = 'transform 0.08s ease';
+    const tiltX = dy * -10;
+    const tiltY = dx *  10;
+
+    // Specular position — light comes from top-left by default, shifts with tilt
+    const specX = 50 + dx * 30;
+    const specY = 50 + dy * 30;
+
+    cardEl.style.transform = `perspective(700px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.06)`;
+    cardEl.style.transition = 'transform 0.06s ease';
     cardEl.style.zIndex = '60';
+
+    spec.style.background = `radial-gradient(circle at ${specX}% ${specY}%, rgba(255,255,255,0.22) 0%, transparent 60%)`;
+    spec.style.opacity = '1';
   });
+
   cardEl.addEventListener('mouseleave', () => {
     cardEl.style.transform = '';
+    cardEl.style.transition = 'transform 0.25s ease';
     cardEl.style.zIndex = '';
+    spec.style.opacity = '0';
   });
 }
 
