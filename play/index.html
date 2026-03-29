@@ -2104,6 +2104,7 @@ function startGame(faction) {
       discard: [],
       mana: {R:0,W:0,B:0,P:0,G:0,C:0},
       landPlayedThisTurn: false,
+      hasAttackedThisTurn: false,
       drawnFirstTurn: false,
     },
     ai: {
@@ -2238,6 +2239,8 @@ function drawCard(who) {
 function setPhase(phase) {
   const prev = G ? G.phase : null;
   G.phase = phase;
+  // Clear any active targeting state on phase transition
+  if (targetingState && targetingState.active) cancelTargeting();
   // Play phase change sound when moving to a new phase (not on init)
   if (prev && prev !== phase) sfx('phase_change', 0.4);
   document.querySelectorAll('.phase-pip').forEach(el => {
@@ -2623,6 +2626,7 @@ function renewPhase(who) {
     inst.blockTarget = null;
     inst.payAbilityUsedThisTurn = false;
   });
+  if (who === 'player') G.player.hasAttackedThisTurn = false;
   updateUI();
 }
 
@@ -3122,6 +3126,7 @@ function declareAttack() {
   if (G.phase !== 'battle') { log('Not in battle phase.',''); return; }
   if (G.activePlayer !== 'player') { log('Not your turn.',''); return; }
   if (combatPhase === 'resolving') return;
+  if (G.player.hasAttackedThisTurn) { log('You have already attacked this turn.',''); return; }
 
   combatPhase = 'declare';
   attackers = [];
@@ -3192,6 +3197,16 @@ function confirmAttack() {
   // Render state (attackers still renewed so they render upright for animation)
   updateUI();
 
+  // Show response window for AI BEFORE lunge (after blockers declared)
+  // Player gets a window to cast instants/abilities before damage
+  combatPhase = 'response';
+  log('⚡ Response window — cast spells or use abilities before damage. Click RESOLVE COMBAT when ready.', 'important');
+  showActionOverlay('response');
+  updateUI();
+
+  new Promise(resolve => { _responseResolve = resolve; }).then(() => {
+  hideActionOverlay();
+  combatPhase = 'resolving';
   // Run lunge animation, THEN exhaust and resolve
   runCombatAnimation(atkInsts, blockers, 'up', 'ai').then(() => {
     // Now exhaust non-Tireless attackers
@@ -3220,6 +3235,7 @@ function confirmAttack() {
     attackers = [];
     blockers = {};
     combatPhase = null;
+    G.player.hasAttackedThisTurn = true; // lock out further attacks this turn
     G.player.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
     G.ai.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
 
@@ -3227,6 +3243,7 @@ function confirmAttack() {
     btn.textContent = 'DECLARE ATTACK';
     btn.onclick = declareAttack;
     btn.style.display = 'none';
+  }); // end response then
 
     if (!G) return;
     updateUI();
@@ -3769,6 +3786,7 @@ function endCombatPhase() {
   attackers = [];
   blockers = {};
   combatPhase = null;
+  G.player.hasAttackedThisTurn = true; // used or passed — no more attacks this turn
   G.player.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
   G.ai.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
   const btn = document.getElementById('btn-attack');
@@ -3814,15 +3832,31 @@ function playCard(inst) {
     updateUI(); return;
   }
 
-  // Auto-tap affordable lands
-  autoTapForCost('player', inst.cost);
+  // Relic Scribe discount — if renewed Relic Scribe in field, relics cost 1 {G} less
+  let effectiveCost = inst.cost || '';
+  if (inst.type === 'Relic') {
+    const hasScribe = G.player.battlefield.some(b =>
+      b.name === 'Relic Scribe' && b.exhaustState === 'renewed' && b.type === 'Creature'
+    );
+    if (hasScribe) {
+      // Remove one {G} from cost
+      const gIdx = effectiveCost.indexOf('G');
+      if (gIdx !== -1) {
+        effectiveCost = effectiveCost.slice(0, gIdx) + effectiveCost.slice(gIdx + 1);
+        log(`Relic Scribe: ${inst.name} costs 1 {G} less.`, 'heal');
+      }
+    }
+  }
 
-  if (!canPayCost('player', inst.cost)) {
-    log(`Not enough mana for ${inst.name} (needs ${inst.cost}). Tap lands first.`, '');
+  // Auto-tap affordable lands
+  autoTapForCost('player', effectiveCost);
+
+  if (!canPayCost('player', effectiveCost)) {
+    log(`Not enough mana for ${inst.name} (needs ${effectiveCost}). Tap lands first.`, '');
     return;
   }
 
-  payCost('player', inst.cost);
+  payCost('player', effectiveCost);
   G.player.hand = G.player.hand.filter(i => i.instId !== inst.instId);
   selectedCardId = null;
 
@@ -3967,7 +4001,7 @@ function resolveSpellOnTarget(inst, caster, target, targetOwner) {
     target.keywords.haste = true;
     target.newlyTurned = false;
     log(`${inst.name}: ${target.name} gains Haste.`, 'heal');
-  } else if (txt.includes('renew target')) {
+  } else if (txt.includes('renew target') || seg.includes('renew target')) {
     target.exhaustState = 'renewed';
     log(`${inst.name}: ${target.name} renewed.`, 'heal');
     updateUI();
@@ -4111,12 +4145,38 @@ function resolveSpell(inst, caster) {
   }
   // ── RETURN FROM DISCARD ──────────────────────────────────────
   else if (txt.includes('discard pile') && txt.includes('hand')) {
-    const pile = G[caster].discard.filter(i => i.type==='Creature');
+    // 'wall creature' filter — Ancient Reclamation only returns walls
+    const needsWall = txt.includes('wall creature') || txt.includes('wall') && txt.includes('discard');
+    const pile = G[caster].discard.filter(i => {
+      if (i.type !== 'Creature') return false;
+      if (needsWall) return hasKeyword(i, 'wall');
+      return true;
+    });
     if (pile.length > 0) {
-      const card = pile[pile.length - 1];
-      G[caster].discard = G[caster].discard.filter(i => i.instId !== card.instId);
-      G[caster].hand.push(card);
-      log(`${inst.name}: ${card.name} returned to hand.`, 'heal');
+      // Let player choose if multiple; otherwise auto-return last
+      if (pile.length === 1 || caster === 'ai') {
+        const card = pile[pile.length - 1];
+        G[caster].discard = G[caster].discard.filter(i => i.instId !== card.instId);
+        card.exhaustState = 'renewed';
+        G[caster].hand.push(card);
+        log(`${inst.name}: ${card.name} returned to hand.`, 'heal');
+      } else {
+        showModal(`${inst.name}`, 'Choose a creature to return:',
+          pile.map(c => ({
+            label: c.name,
+            cls: 'btn-secondary',
+            action: () => {
+              G[caster].discard = G[caster].discard.filter(i => i.instId !== c.instId);
+              c.exhaustState = 'renewed';
+              G[caster].hand.push(c);
+              log(`${inst.name}: ${c.name} returned to hand.`, 'heal');
+              updateUI();
+            }
+          }))
+        );
+      }
+    } else {
+      log(`${inst.name}: No valid creature in discard.`, '');
     }
   }
   // ── EXHAUST MULTIPLE TARGETS ─────────────────────────────────
@@ -4206,6 +4266,15 @@ function handleCardClick(inst, who) {
   if (inHand) {
     if (selectedCardId === inst.instId) playCard(inst);
     else { selectedCardId = inst.instId; updateUI(); }
+    return;
+  }
+
+  // During AI turn: allow ability activation in block/response windows
+  if (who === 'player' && G.activePlayer === 'ai' &&
+      (combatPhase === 'player-block' || combatPhase === 'response')) {
+    if (inst.type === 'Creature' || inst.type === 'Relic') {
+      tryActivateAbility(inst);
+    }
     return;
   }
 
@@ -4583,10 +4652,13 @@ function abilityNeedsTarget(txt, mode) {
 
 function getAbilityTargetMode(txt, mode, caster) {
   const seg = getEffectSeg(txt, mode);
-  // Negative → opponent
-  if (seg.includes('exhaust target') || seg.includes('overexhaust target') ||
+  // Negative → opponent (unless 'you control' specifies own side)
+  if ((seg.includes('exhaust target') || seg.includes('overexhaust target') ||
       (seg.includes('damage') && seg.includes('target')) ||
-      seg.includes('destroy') || seg.includes('-1 power')) return 'opponent-creature';
+      seg.includes('destroy') || seg.includes('-1 power')) &&
+      !seg.includes('you control')) return 'opponent-creature';
+  // 'exhaust target creature you control' → own side
+  if (seg.includes('exhaust target') && seg.includes('you control')) return 'own-creature';
   // Control effects — target opponent's creatures
   if (seg.includes('gain control')) return 'opponent-creature';
   // Relic-targeting — renew target relic → own side
@@ -4624,6 +4696,38 @@ function activateAbility(inst, mode) {
   }
 
   const needsTarget = abilityNeedsTarget(txt, mode);
+
+  // Special: two-target ability — 'select two target creatures, one gets X and one gets Y'
+  const seg0 = getEffectSeg(txt, mode);
+  const isTwoTarget = seg0.includes('select two target') ||
+    (seg0.includes('one gets') && seg0.includes('one gets') &&
+     seg0.match(/one gets/g) && seg0.match(/one gets/g).length >= 2);
+  if (isTwoTarget && needsTarget) {
+    applyExhaustForAbility(inst, mode);
+    const allC = [
+      ...G.player.battlefield.filter(i=>i.type==='Creature').map(i=>({inst:i,owner:'player'})),
+      ...G.ai.battlefield.filter(i=>i.type==='Creature').map(i=>({inst:i,owner:'ai'})),
+    ];
+    if (allC.length < 2) { log(`${inst.name}: Need at least 2 creatures on the field.`,''); return; }
+    // Step 1: pick the creature that gets BUFF (+1)
+    log(`${inst.name}: Choose a creature to get +1 power (your own).`, 'important');
+    beginTargeting({ name: inst.name, abilities: inst.abilities }, 'player', 'any-creature',
+      (buffTarget, buffOwner) => {
+        buffTarget.powerMods.push({ amount: 1, until: 'eot' });
+        log(`${inst.name}: ${buffTarget.name} gets +1 power.`, 'heal');
+        // Step 2: pick the creature that gets DEBUFF (-1)
+        log(`${inst.name}: Choose a creature to get -1 power (opponent's).`, 'important');
+        beginTargeting({ name: inst.name, abilities: inst.abilities }, 'player', 'any-creature',
+          (debuffTarget, debuffOwner) => {
+            debuffTarget.powerMods.push({ amount: -1, until: 'eot' });
+            log(`${inst.name}: ${debuffTarget.name} gets -1 power.`, '');
+            updateUI();
+          }
+        );
+      }
+    );
+    return;
+  }
 
   if (needsTarget) {
     const targetMode = getAbilityTargetMode(txt, mode, 'player');
@@ -4710,6 +4814,14 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     if (seg.includes('exhaust target') || (seg.includes('exhaust') && seg.includes('target creature'))) {
       target.exhaustState = 'exhausted';
       log(`${inst.name}: ${target.name} exhausted.`, '');
+      // Loyalty Badge: also add 1 Blood of any color
+      if (seg.includes('add 1 blood') || (seg.includes('add') && seg.includes('blood of any color'))) {
+        if (who === 'player') {
+          showManaChoice({ name: inst.name, owner: who }, null, () => updateUI());
+        } else {
+          addMana(who, 'G', 1);
+        }
+      }
     } else if (seg.includes('overexhaust target') || (seg.includes('overexhaust') && seg.includes('target'))) {
       target.exhaustState = 'overexhausted';
       log(`${inst.name}: ${target.name} overexhausted.`, '');
@@ -4747,13 +4859,6 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
         updateLifeDisplay(who);
         log(`${inst.name}: Self Bleed 2 on activation.`, 'bleed');
       }
-    } else if (seg.includes('reduce all damage') && seg.includes('0')) {
-      // Loyal Butler — destroy self to negate one damage source this turn
-      G[who]._butlerShield = true;
-      removeFromBattlefield(inst, who);
-      log(`${inst.name}: Sacrificed — next damage source dealt to you is reduced to 0!`, 'heal');
-      updateUI();
-      return;
     } else if (seg.includes('cannot be destroyed by spells') || seg.includes('cannot be destroyed by spell')) {
       // Fleshwoven Lurker — token gets spell protection this turn
       target._spellProtect = true;
@@ -4803,6 +4908,14 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
   }
 
   // ── SELF / GLOBAL EFFECTS (no target) ──────────────────────
+  // Loyal Butler — destroy self to shield against one damage source
+  if (seg.includes('reduce all damage') && seg.includes('0')) {
+    G[who]._butlerShield = true;
+    removeFromBattlefield(inst, who);
+    log(`${inst.name}: Sacrificed — next damage source dealt to you is reduced to 0!`, 'heal');
+    updateUI();
+    return;
+  }
   if (seg.includes('gain') && seg.includes('life')) {
     const n = parseInt(seg.match(/gain (\d+) life/)?.[1] || '1');
     G[who].life += n; updateLifeDisplay(who);
