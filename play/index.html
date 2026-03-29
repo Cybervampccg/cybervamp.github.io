@@ -80,6 +80,20 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   z-index: 90; position: relative; min-height: 38px;
 }
 #ai-info-strip { background: rgba(20,10,50,0.95); border-bottom: 2px solid var(--border-dim); }
+
+/* AI vitals inside the info strip */
+.strip-vitals {
+  display: flex; align-items: center; gap: 4px;
+  flex-shrink: 0;
+}
+.strip-vital-val {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 16px; font-weight: 700; line-height: 1;
+  min-width: 22px; text-align: center;
+}
+.strip-vital-val.life  { color: #80ff90; text-shadow: 0 0 8px rgba(80,255,100,0.5); }
+.strip-vital-val.bleed { color: #ff4444; text-shadow: 0 0 8px rgba(255,60,60,0.5); }
+.strip-vital-sep { font-size: 13px; opacity: 0.75; }
 #player-info-strip { background: rgba(30,10,10,0.95); border-top: 2px solid var(--border-dim); }
 
 /* Resource pool label */
@@ -342,14 +356,6 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 #hand-ai {
   filter: brightness(0.75); cursor: default;
   min-height: 84px; max-height: 96px;
-}
-#hand-ai .hand-vitals {
-  /* Let life/bleed overflow — numbers are intentionally bigger than the zone */
-  overflow: visible;
-  justify-content: center;
-  min-width: 90px;
-  padding: 4px 10px;
-  z-index: 85; position: relative;
 }
 #hand-ai .hand-decks {
   padding: 4px 10px;
@@ -1005,6 +1011,62 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 }
 .zone-hit { animation: zone-hit 0.35s ease-out forwards; }
 
+/* ── BLEED TICK — life number shakes red when bleed resolves ── */
+@keyframes bleed-tick {
+  0%   { transform: translate(0,0) scale(1);    color: inherit; }
+  15%  { transform: translate(-4px,0) scale(1.3); color: #ff2020; }
+  30%  { transform: translate(5px,0) scale(1.4);  color: #ff4040; }
+  50%  { transform: translate(-3px,0) scale(1.35); color: #ff3030; }
+  70%  { transform: translate(3px,0) scale(1.2);  color: #ff5050; }
+  100% { transform: translate(0,0) scale(1);    color: inherit; }
+}
+.bleed-tick { animation: bleed-tick 0.5s cubic-bezier(.36,.07,.19,.97) forwards; }
+
+/* ── LAND TAP RIPPLE ── */
+@keyframes land-ripple {
+  0%   { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.land-ripple-el {
+  position: absolute; inset: 0; border-radius: 8px;
+  pointer-events: none; z-index: 20;
+  animation: land-ripple 0.45s ease-out forwards;
+}
+
+/* ── FLYING PIP — mana pip travels from land to pool ── */
+@keyframes pip-fly {
+  0%   { opacity: 1; transform: scale(1); }
+  80%  { opacity: 1; transform: scale(0.85); }
+  100% { opacity: 0; transform: scale(0.6); }
+}
+.pip-flying {
+  position: fixed; pointer-events: none; z-index: 9500;
+  animation: pip-fly 0.38s cubic-bezier(.4,0,.6,1) forwards;
+  transition: left 0.38s cubic-bezier(.4,0,.6,1), top 0.38s cubic-bezier(.4,0,.6,1);
+}
+
+/* ── DRAW CARD SLIDE — new hand card slides in from deck ── */
+@keyframes card-draw-slide {
+  0%   { opacity: 0; transform: translateX(60px) scale(0.82) rotate(6deg); }
+  60%  { opacity: 1; transform: translateX(-6px) scale(1.04) rotate(-1deg); }
+  100% { opacity: 1; transform: translateX(0) scale(1) rotate(0deg); }
+}
+.card-draw-enter { animation: card-draw-slide 0.32s cubic-bezier(0.22,1,0.36,1) both; }
+
+/* ── CLASH IMPACT FLASH — white burst at collision point ── */
+.clash-impact {
+  position: fixed; pointer-events: none; z-index: 9800;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.92) 0%, rgba(255,80,80,0.5) 40%, transparent 70%);
+  transform: translate(-50%, -50%) scale(0);
+  animation: clash-burst 0.35s ease-out forwards;
+}
+@keyframes clash-burst {
+  0%   { transform: translate(-50%,-50%) scale(0);   opacity: 1; }
+  40%  { transform: translate(-50%,-50%) scale(1);   opacity: 1; }
+  100% { transform: translate(-50%,-50%) scale(1.6); opacity: 0; }
+}
+
 .damage-flash { animation: damage-flash 0.4s ease; }
 .heal-flash { animation: heal-flash 0.4s ease; }
 
@@ -1236,21 +1298,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   <canvas id="particle-canvas"></canvas>
   <div id="damage-vignette"></div>
   <div id="arena">
-    <!-- AI HAND -->
+    <!-- AI HAND — no vitals here, they moved to the info strip -->
     <div class="hand-zone" id="hand-ai">
-      <!-- Life/Bleed left -->
-      <div class="hand-vitals">
-        <div class="hand-vital-block">
-          <div class="hand-vital-icon">❤️</div>
-          <div class="hand-vital-val life" id="ai-life">20</div>
-          <div class="hand-vital-label">LIFE</div>
-        </div>
-        <div class="hand-vital-block">
-          <div class="hand-vital-icon">🩸</div>
-          <div class="hand-vital-val bleed" id="ai-bleed">0</div>
-          <div class="hand-vital-label">BLEED</div>
-        </div>
-      </div>
       <!-- Cards center -->
       <div class="hand-cards-scroll" id="hand-ai-cards"></div>
       <!-- Decks right -->
@@ -1272,9 +1321,16 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
       </div>
     </div>
 
-    <!-- AI MANA BAR -->
+    <!-- AI MANA BAR — vitals on left, pool on right -->
     <div id="ai-info-strip">
-      <span id="ai-faction-label" style="font-family:'Cinzel Decorative',serif;font-size:10px;letter-spacing:2px;color:var(--text-dim);"></span>
+      <!-- AI life/bleed now live here, always visible -->
+      <div class="strip-vitals">
+        <span class="strip-vital-val life" id="ai-life">20</span>
+        <span class="strip-vital-sep">❤️</span>
+        <span class="strip-vital-val bleed" id="ai-bleed">0</span>
+        <span class="strip-vital-sep" style="color:var(--bleed-red)">🩸</span>
+      </div>
+      <span id="ai-faction-label" style="font-family:'Cinzel Decorative',serif;font-size:10px;letter-spacing:2px;color:var(--text-dim);margin-left:8px;"></span>
       <span class="pool-spacer"></span>
       <span class="pool-label">POOL:</span>
       <div class="resource-row" id="ai-mana-display"></div>
@@ -2272,19 +2328,61 @@ function tapLandForMana(inst) {
     } else {
       exhaustCard(inst);
     }
+    // Land tap ripple + flying pip
+    requestAnimationFrame(() => {
+      const landEl = document.querySelector(`[data-inst="${inst.instId}"]`);
+      if (landEl) {
+        // Ripple on the land card
+        const ripple = document.createElement('div');
+        const factionColor = {
+          R: 'rgba(224,48,48,0.55)', W: 'rgba(200,192,240,0.5)',
+          B: 'rgba(96,48,192,0.6)', P: 'rgba(160,32,240,0.55)',
+          G: 'rgba(212,160,32,0.55)', any: 'rgba(212,160,32,0.5)'
+        }[prod] || 'rgba(212,160,32,0.5)';
+        ripple.className = 'land-ripple-el';
+        ripple.style.background = `radial-gradient(circle, ${factionColor} 0%, transparent 70%)`;
+        landEl.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 480);
+
+        // Flying pip from land to pool
+        flyPipToPool(landEl, prod || 'G', inst.owner || 'player');
+      }
+    });
   }
 
   if (!prod || prod === 'any') {
-    showManaChoice(inst, null, doExhaust);
+    // Check if this land deals damage to its controller on tap (e.g. Promised Land)
+    const abl = (inst.abilities || '').toLowerCase();
+    const takeDamage = abl.includes('take 1 damage') || abl.includes('takes 1 damage');
+    const origDoExhaust = doExhaust;
+    const doExhaustWithDamage = () => {
+      origDoExhaust();
+      if (takeDamage) {
+        G[inst.owner].life -= 1;
+        updateLifeDisplay(inst.owner);
+        if (inst.owner === 'player') damageVignette();
+        log(`${inst.name}: You take 1 damage.`, 'bleed');
+        checkWin();
+      }
+    };
+    showManaChoice(inst, null, doExhaustWithDamage);
     return;
   }
+  // Single-color land with take-damage cost
+  const ablSingle = (inst.abilities || '').toLowerCase();
+  const takeDamageSingle = ablSingle.includes('take 1 damage') || ablSingle.includes('takes 1 damage');
   if (prod.length === 1) {
-    // Single color — no choice needed
     addMana(inst.owner, prod, 1);
     doExhaust();
+    if (takeDamageSingle) {
+      G[inst.owner].life -= 1;
+      updateLifeDisplay(inst.owner);
+      if (inst.owner === 'player') damageVignette();
+      log(`${inst.name}: You take 1 damage.`, 'bleed');
+      checkWin();
+    }
     log(`${inst.name} → +1 ${prod}`, '');
   } else {
-    // Dual land — show choice
     showManaChoice(inst, prod.split(''), doExhaust);
   }
 }
@@ -2413,6 +2511,15 @@ function endPlayerTurn() {
     log(`Bleed resolves: you take ${dmg} damage from ${dmg} Bleed counters.`, 'bleed');
     G.player.bleed = 0;
     updateLifeDisplay('player');
+    // Animate life number shaking on bleed resolve
+    const lifeEl = document.getElementById('player-life');
+    if (lifeEl) {
+      lifeEl.classList.remove('bleed-tick');
+      void lifeEl.offsetWidth;
+      lifeEl.classList.add('bleed-tick');
+      setTimeout(() => lifeEl.classList.remove('bleed-tick'), 520);
+    }
+    damageVignette();
     if (checkWin()) return;
   }
 
@@ -2585,6 +2692,8 @@ function drawFromDeck(who, deckType) {
     log(`You drew ${inst.name} from your ${deckType === 'main' ? 'Main' : 'Land'} Deck.`, 'important');
   }
   updateUI();
+  // Animate the drawn card sliding into hand (player only — AI hand is hidden)
+  if (who === 'player') animateCardDraw(who);
 }
 
 function aiPlayLand() {
@@ -3317,7 +3426,11 @@ function fireDirectDamageTrigger(inst, attackingSide, damage) {
   if (txt.includes('deals damage') && txt.includes('directly') && txt.includes('glimpse')) {
     const n = parseInt(txt.match(/glimpse (\d+)/)?.[1] || '1');
     log(`${inst.name}: deals damage directly — Glimpse ${n}!`, 'important');
-    doGlimpse(attackingSide, n, inst.name);
+    // Only show Glimpse UI when the player controls this creature
+    // When AI has Lunara, skip the glimpse (AI has no UI to interact with)
+    if (attackingSide === 'player') {
+      doGlimpse('player', n, inst.name);
+    }
   }
 
   // "Whenever this deals damage directly, draw a card"
@@ -3857,6 +3970,7 @@ function resolveSpellOnTarget(inst, caster, target, targetOwner) {
   } else if (txt.includes('renew target')) {
     target.exhaustState = 'renewed';
     log(`${inst.name}: ${target.name} renewed.`, 'heal');
+    updateUI();
   } else if (txt.includes('overexhausted') && txt.includes('target')) {
     target.exhaustState = 'overexhausted';
     log(`${inst.name}: ${target.name} overexhausted.`, '');
@@ -4475,6 +4589,9 @@ function getAbilityTargetMode(txt, mode, caster) {
       seg.includes('destroy') || seg.includes('-1 power')) return 'opponent-creature';
   // Control effects — target opponent's creatures
   if (seg.includes('gain control')) return 'opponent-creature';
+  // Relic-targeting — renew target relic → own side
+  if (seg.includes('target relic') && (seg.includes('renew') || seg.includes('heal') || seg.includes('+1'))) return 'own-creature';
+  if (seg.includes('target relic') && (seg.includes('destroy') || seg.includes('exhaust'))) return 'opponent-creature';
   // Token-specific → own side
   if (seg.includes('target wolf') || seg.includes('target bat') ||
       seg.includes('target token'))                         return 'own-creature';
@@ -4510,11 +4627,19 @@ function activateAbility(inst, mode) {
 
   if (needsTarget) {
     const targetMode = getAbilityTargetMode(txt, mode, 'player');
+    const seg = getEffectSeg(txt, mode);
+    const targetingRelic = seg.includes('target relic');
 
-    const allCreatures = [
-      ...G.player.battlefield.filter(i => i.type==='Creature').map(i => ({inst:i, owner:'player'})),
-      ...G.ai.battlefield.filter(i    => i.type==='Creature').map(i => ({inst:i, owner:'ai'})),
-    ];
+    // Build candidate pool: creatures, or relics if 'target relic'
+    const allCreatures = targetingRelic
+      ? [
+          ...G.player.battlefield.filter(i => i.type==='Relic').map(i => ({inst:i, owner:'player'})),
+          ...G.ai.battlefield.filter(i    => i.type==='Relic').map(i => ({inst:i, owner:'ai'})),
+        ]
+      : [
+          ...G.player.battlefield.filter(i => i.type==='Creature').map(i => ({inst:i, owner:'player'})),
+          ...G.ai.battlefield.filter(i    => i.type==='Creature').map(i => ({inst:i, owner:'ai'})),
+        ];
     const valid = allCreatures.filter(({inst:t, owner}) => {
       if (targetMode === 'opponent-creature') return owner === 'ai';
       if (targetMode === 'own-creature') {
@@ -5596,6 +5721,36 @@ function runCombatAnimation(atkInsts, blkMap, direction, defendingSide) {
           setTimeout(() => lifeEl.classList.remove('life-impact'), 350);
         }
 
+        // Clash impact burst — positioned between attacker and first blocker (or center of zone)
+        (function spawnClashImpact() {
+          let impactX, impactY;
+          const atkEl = atkInsts[0] ? document.querySelector(`[data-inst="${atkInsts[0].instId}"]`) : null;
+          const blkId = Object.keys(blkMap)[0];
+          const blkEl = blkId ? document.querySelector(`[data-inst="${blkId}"]`) : null;
+
+          if (atkEl && blkEl) {
+            const ar = atkEl.getBoundingClientRect();
+            const br = blkEl.getBoundingClientRect();
+            impactX = (ar.left + ar.right + br.left + br.right) / 4;
+            impactY = (ar.top  + ar.bottom + br.top  + br.bottom) / 4;
+          } else if (atkEl) {
+            const ar = atkEl.getBoundingClientRect();
+            impactX = ar.left + ar.width  / 2;
+            impactY = direction === 'up' ? ar.top - 30 : ar.bottom + 30;
+          } else {
+            return; // no elements found, skip
+          }
+
+          const burst = document.createElement('div');
+          burst.className = 'clash-impact';
+          burst.style.left   = impactX + 'px';
+          burst.style.top    = impactY + 'px';
+          burst.style.width  = '90px';
+          burst.style.height = '90px';
+          document.body.appendChild(burst);
+          setTimeout(() => burst.remove(), 400);
+        })();
+
         sfx('damage', 0.7);
 
         // ── Step 4: Resolve after animation completes (~350ms) ──
@@ -6027,8 +6182,31 @@ function createCardElement(inst, isHand) {
 }
 
 function updateLifeDisplay(who) {
-  document.getElementById(`${who}-life`).textContent = G[who].life;
-  document.getElementById(`${who}-bleed`).textContent = G[who].bleed;
+  const lifeEl  = document.getElementById(`${who}-life`);
+  const bleedEl = document.getElementById(`${who}-bleed`);
+  if (!lifeEl || !bleedEl || !G) return;
+
+  const prevBleed = parseInt(bleedEl.textContent) || 0;
+  const newBleed  = G[who].bleed;
+
+  lifeEl.textContent  = G[who].life;
+  bleedEl.textContent = newBleed;
+
+  // Bleed tick animation — shake when bleed counter increases
+  if (newBleed > prevBleed) {
+    bleedEl.classList.remove('bleed-tick');
+    void bleedEl.offsetWidth;
+    bleedEl.classList.add('bleed-tick');
+    setTimeout(() => bleedEl.classList.remove('bleed-tick'), 520);
+    // Also ripple the life display if bleed resolving (life decreased)
+    const prevLife = parseInt(lifeEl.textContent) || 0;
+    if (G[who].life < prevLife) {
+      lifeEl.classList.remove('life-impact');
+      void lifeEl.offsetWidth;
+      lifeEl.classList.add('life-impact');
+      setTimeout(() => lifeEl.classList.remove('life-impact'), 320);
+    }
+  }
 }
 
 function updateDeckCounts() {
@@ -6324,7 +6502,58 @@ function showBanner(text) {
 // Keep for backward compatibility
 function playSelectedLand() { playSelectedCard(); }
 
-// ── VISUAL EFFECTS SYSTEM ────────────────────────────────────────
+// ── FLYING PIP — animates a mana symbol from land to pool ────────
+function flyPipToPool(fromEl, color, who) {
+  const poolEl = document.getElementById(`${who}-mana-display`);
+  if (!fromEl || !poolEl) return;
+
+  const fromR = fromEl.getBoundingClientRect();
+  const toR   = poolEl.getBoundingClientRect();
+
+  // Start position: center of the land card
+  const startX = fromR.left + fromR.width  / 2;
+  const startY = fromR.top  + fromR.height / 2;
+  // End position: center of the pool display
+  const endX   = toR.left  + toR.width  / 2;
+  const endY   = toR.top   + toR.height / 2;
+
+  // Create a mana pip clone to fly
+  const pip = manaSymbol(color, 'md');
+  pip.classList.add('pip-flying');
+  pip.style.left = startX + 'px';
+  pip.style.top  = startY + 'px';
+  pip.style.width  = '22px';
+  pip.style.height = '22px';
+  document.body.appendChild(pip);
+
+  // Animate to pool position on next frame
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      pip.style.left = endX + 'px';
+      pip.style.top  = endY + 'px';
+      pip.style.transition = 'left 0.38s cubic-bezier(.4,0,.6,1), top 0.38s cubic-bezier(.4,0,.6,1)';
+    });
+  });
+
+  setTimeout(() => pip.remove(), 500);
+}
+
+// ── DRAW CARD SLIDE — new cards appear with a sweep from the deck ─
+function animateCardDraw(who) {
+  // Find the most recently added hand card element and animate it
+  requestAnimationFrame(() => {
+    const handEl = document.getElementById(`hand-${who}-cards`);
+    if (!handEl) return;
+    const cards = handEl.querySelectorAll('.hand-card, .card');
+    const lastCard = cards[cards.length - 1];
+    if (lastCard) {
+      lastCard.classList.remove('card-draw-enter');
+      void lastCard.offsetWidth;
+      lastCard.classList.add('card-draw-enter');
+      setTimeout(() => lastCard.classList.remove('card-draw-enter'), 350);
+    }
+  });
+}
 
 // ── Particle background ──────────────────────────────────────────
 (function initParticles() {
@@ -6439,6 +6668,8 @@ function attachCardTilt(cardEl) {
   cardEl.appendChild(spec);
 
   cardEl.addEventListener('mousemove', (e) => {
+    // Don't override transform on exhausted/overexhausted cards — they must stay rotated
+    if (cardEl.classList.contains('exhausted') || cardEl.classList.contains('overexhausted')) return;
     const rect = cardEl.getBoundingClientRect();
     const cx = rect.left + rect.width  / 2;
     const cy = rect.top  + rect.height / 2;
