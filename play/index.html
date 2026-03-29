@@ -1943,6 +1943,8 @@ const SOUNDS = {
   bleed:        BASE_AUDIO + 'bleed.mp3?raw=true',
   phase_change: BASE_AUDIO + 'phase_change.mp3?raw=true',
   turn_end:     BASE_AUDIO + 'turn_end.mp3?raw=true',
+  glimpse:      BASE_AUDIO + 'glimpse.mp3?raw=true',
+  shuffle:      BASE_AUDIO + 'shuffle.mp3?raw=true',
 };
 
 // Pre-load audio objects so first play has no delay
@@ -4647,6 +4649,7 @@ function resolveSpell(inst, caster) {
                 const fi = makeInst(foundId, caster);
                 if (fi) G[caster].hand.push(fi);
                 log(`${inst.name}: ${c.name} searched to hand. Deck shuffled.`, 'heal');
+              sfx('shuffle', 0.55);
               }
               updateUI();
             }
@@ -4671,6 +4674,7 @@ function resolveSpell(inst, caster) {
             const pos = Math.floor(Math.random() * (G[caster].main.length + 1));
             G[caster].main.splice(pos, 0, c.cardId);
             log(`${inst.name}: ${c.name} shuffled back into deck.`, 'heal');
+            sfx('shuffle', 0.55);
             updateUI();
           }
         }))
@@ -5770,6 +5774,7 @@ function openGlimpsePanel(who, ids, cards, isReverse, canPutInHand, onComplete) 
   document.getElementById('card-preview').style.display = 'none';
   document.getElementById('glimpse-panel').classList.add('visible');
   document.getElementById('glimpse-confirm').disabled = false;
+  sfx('glimpse', 0.7);
 }
 
 function renderGlimpseSpread() {
@@ -6014,6 +6019,7 @@ function doMulligan() {
   player.hand = [];
   player.main = shuffle(player.main);
   player.land = shuffle(player.land);
+  sfx('shuffle', 0.6);
   player.life -= 1;
   mulliganUsed.player = true;
   updateLifeDisplay('player');
