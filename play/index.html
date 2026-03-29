@@ -3173,7 +3173,7 @@ function confirmAttack() {
 
   log(`⚔ ATTACKING: ${atkInsts.map(i => i.name+'['+getEffectivePower(i)+']').join(', ')}`, 'phase');
 
-  // AI decides blocks — skip unblockable attackers
+  // AI decides blocks
   blockers = {};
   const aiAvail = G.ai.battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed' && !i.attacking);
   const sortedAtk = [...atkInsts].sort((a,b) => getEffectivePower(b)-getEffectivePower(a));
@@ -3181,9 +3181,7 @@ function confirmAttack() {
 
   sortedAtk.forEach(atk => {
     if (!remaining.length) return;
-    // Unblockable — cannot be blocked at all
     if (hasKeyword(atk,'unblockable')) { log(`${atk.name} cannot be blocked.`,''); return; }
-    // noWallBlock — walls cannot block this creature
     const validBlockers = remaining.filter(b => !(hasKeyword(atk,'noWallBlock') && hasKeyword(b,'wall')));
     if (!validBlockers.length) return;
     const blk = validBlockers.find(b => getEffectivePower(b) >= getEffectivePower(atk)) || validBlockers[0];
@@ -3194,62 +3192,60 @@ function confirmAttack() {
     log(`AI blocks ${atk.name} with ${blk.name}[${getEffectivePower(blk)}].`, '');
   });
 
-  // Render state (attackers still renewed so they render upright for animation)
   updateUI();
 
-  // Show response window for AI BEFORE lunge (after blockers declared)
-  // Player gets a window to cast instants/abilities before damage
+  // ── Response window — cast spells/abilities before damage ─────
   combatPhase = 'response';
   log('⚡ Response window — cast spells or use abilities before damage. Click RESOLVE COMBAT when ready.', 'important');
   showActionOverlay('response');
   updateUI();
 
   new Promise(resolve => { _responseResolve = resolve; }).then(() => {
-  hideActionOverlay();
-  combatPhase = 'resolving';
-  // Run lunge animation, THEN exhaust and resolve
-  runCombatAnimation(atkInsts, blockers, 'up', 'ai').then(() => {
-    // Now exhaust non-Tireless attackers
-    atkInsts.forEach(inst => {
-      if (!hasKeyword(inst,'tireless')) {
-        // mustOverexhaust creatures go to overexhausted (2-turn recovery) instead of exhausted
-        inst.exhaustState = hasKeyword(inst,'mustOverexhaust') ? 'overexhausted' : 'exhausted';
-      }
+    hideActionOverlay();
+    combatPhase = 'resolving';
+
+    // ── Lunge animation then resolve ──────────────────────────
+    runCombatAnimation(atkInsts, blockers, 'up', 'ai').then(() => {
+      if (!G) return;
+
+      // Exhaust non-Tireless attackers
+      atkInsts.forEach(inst => {
+        if (!hasKeyword(inst,'tireless'))
+          inst.exhaustState = hasKeyword(inst,'mustOverexhaust') ? 'overexhausted' : 'exhausted';
+      });
+
+      applyWhileAttackingAuras('player', atkInsts);
+
+      atkInsts.forEach(inst => {
+        if (inst.keywords.selfBleed) {
+          G.player.bleed += inst.keywords.selfBleed;
+          log(`${inst.name}: Self Bleed ${inst.keywords.selfBleed}.`, 'bleed');
+          updateLifeDisplay('player');
+        }
+      });
+
+      log('── Damage resolves ──', 'phase');
+      resolveCombat(atkInsts, blockers, 'ai');
+      if (!G) return;
+
+      attackers = [];
+      blockers = {};
+      combatPhase = null;
+      G.player.hasAttackedThisTurn = true;
+      G.player.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
+      G.ai.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
+
+      document.getElementById('btn-attack').style.display = 'none';
+      updateUI();
+      updateLifeDisplay('ai');
+      updateLifeDisplay('player');
+      checkWin();
+      if (!G) return;
+
+      // Advance to post-battle so NEXT PHASE button appears
+      setPhase('postbattle');
+      updateUI();
     });
-
-    // Apply "while attacking" auras from creatures on battlefield
-    applyWhileAttackingAuras('player', atkInsts);
-
-    // Self Bleed on attackers that have it as a static keyword
-    atkInsts.forEach(inst => {
-      if (inst.keywords.selfBleed) {
-        G.player.bleed += inst.keywords.selfBleed;
-        log(`${inst.name}: Self Bleed ${inst.keywords.selfBleed}.`, 'bleed');
-        updateLifeDisplay('player');
-      }
-    });
-
-    log('── Damage resolves ──', 'phase');
-    resolveCombat(atkInsts, blockers, 'ai');
-
-    attackers = [];
-    blockers = {};
-    combatPhase = null;
-    G.player.hasAttackedThisTurn = true; // lock out further attacks this turn
-    G.player.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
-    G.ai.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
-
-    const btn = document.getElementById('btn-attack');
-    btn.textContent = 'DECLARE ATTACK';
-    btn.onclick = declareAttack;
-    btn.style.display = 'none';
-  }); // end response then
-
-    if (!G) return;
-    updateUI();
-    updateLifeDisplay('ai');
-    updateLifeDisplay('player');
-    checkWin();
   });
 }
 
