@@ -1070,6 +1070,16 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .damage-flash { animation: damage-flash 0.4s ease; }
 .heal-flash { animation: heal-flash 0.4s ease; }
 
+/* ── TARGETING CURSOR ── */
+body.targeting-active,
+body.targeting-active #arena,
+body.targeting-active .card:not(.blockable) {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%23e03030' stroke-width='2' opacity='0.85'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%23e03030'/%3E%3Cline x1='16' y1='2' x2='16' y2='10' stroke='%23e03030' stroke-width='2'/%3E%3Cline x1='16' y1='22' x2='16' y2='30' stroke='%23e03030' stroke-width='2'/%3E%3Cline x1='2' y1='16' x2='10' y2='16' stroke='%23e03030' stroke-width='2'/%3E%3Cline x1='22' y1='16' x2='30' y2='16' stroke='%23e03030' stroke-width='2'/%3E%3C/svg%3E") 16 16, crosshair !important;
+}
+body.targeting-active .card.blockable {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%23ff4444' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23ff4444'/%3E%3Cline x1='16' y1='1' x2='16' y2='10' stroke='%23ff4444' stroke-width='2.5'/%3E%3Cline x1='16' y1='22' x2='16' y2='31' stroke='%23ff4444' stroke-width='2.5'/%3E%3Cline x1='1' y1='16' x2='10' y2='16' stroke='%23ff4444' stroke-width='2.5'/%3E%3Cline x1='22' y1='16' x2='31' y2='16' stroke='%23ff4444' stroke-width='2.5'/%3E%3C/svg%3E") 16 16, crosshair !important;
+}
+
 /* ── RESOURCE DISPLAY ── */
 .resource-row { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; }
 .mana-pip {
@@ -3351,7 +3361,35 @@ function fireEnterTrigger(inst, who) {
 // ── DESTROY TRIGGERS ──────────────────────────────────────────
 function fireDestroyTrigger(inst, owner) {
   const txt = (inst.abilities || '').toLowerCase();
-  if (!txt.includes('when this') && !txt.includes('if this') && 
+
+  // ── REVERSE TRIGGERS — run BEFORE the self-ability guard ──────
+  // These fire based on WHAT DIED, not the dead card's own abilities
+
+  // Swarmshade Witch: when any Bat Token dies, destroy the Witch too
+  if (inst.isToken && inst.name === 'Bat Token') {
+    const witch = G[owner] && G[owner].battlefield.find(i => i.name === 'Swarmshade Witch');
+    if (witch) {
+      log(`Swarmshade Witch: a Bat Token was destroyed — Witch is destroyed too!`, 'damage');
+      removeFromBattlefield(witch, owner);
+    }
+  }
+
+  // Illusion Token (Eternal Subterfuge): when destroyed, return exiled creature
+  if (inst.isToken && inst.name === 'Illusion Token' && inst._exiledCard) {
+    const exiled   = inst._exiledCard;
+    const exOwner  = inst._exiledOwner || owner;
+    if (G[exOwner]) {
+      if (G[exOwner].exile) G[exOwner].exile = G[exOwner].exile.filter(i => i.instId !== exiled.instId);
+      exiled.exhaustState = 'renewed';
+      exiled.newlyTurned  = true;
+      G[exOwner].battlefield.push(exiled);
+      log(`Illusion Token destroyed — ${exiled.name} returns to the field!`, 'heal');
+      updateUI();
+    }
+  }
+
+  // ── SELF-ABILITY TRIGGERS ──────────────────────────────────────
+  if (!txt.includes('when this') && !txt.includes('if this') &&
       !txt.includes('when this card is destroyed') && !txt.includes('when this is destroyed')) return;
 
   // "If [this] were to be destroyed, you may instead destroy another creature" (Mira Hermes)
@@ -3427,6 +3465,8 @@ function fireDestroyTrigger(inst, owner) {
     G[owner].hand.push(inst);
     log(`${inst.name}: Returned to hand on death.`, 'heal');
   }
+
+  // (Swarmshade and Illusion Token reverse triggers are handled at the top of this function)
 }
 
 // ── DIRECT DAMAGE TRIGGERS ────────────────────────────────────
@@ -3963,13 +4003,24 @@ function castSpellWithTargeting(inst, caster, onDone) {
 function resolveSpellOnTarget(inst, caster, target, targetOwner) {
   const txt = (inst.abilities || '').toLowerCase();
   const opp = caster === 'player' ? 'ai' : 'player';
+  const who = caster; // alias for clarity
 
   // Determine owner if not passed
   if (!targetOwner) {
     targetOwner = G[caster].battlefield.find(i => i.instId === target.instId) ? caster : opp;
   }
 
-  if (txt.includes('destroy') && !txt.includes('overexhausted')) {
+  if (txt.includes('remove target') && txt.includes('from the game')) {
+    // Eternal Subterfuge — exile target, give its owner an Illusion token
+    G[targetOwner].battlefield = G[targetOwner].battlefield.filter(i => i.instId !== target.instId);
+    if (!G[targetOwner].exile) G[targetOwner].exile = [];
+    G[targetOwner].exile.push(target);
+    log(`${inst.name}: ${target.name} removed from the game!`, 'damage');
+    const illusion = createTokenCustom('Illusion Token', 1, 'When this is destroyed, return the exiled creature to play', targetOwner);
+    illusion._exiledCard  = target;
+    illusion._exiledOwner = targetOwner;
+    log(`${inst.name}: ${targetOwner} gets an Illusion Token — destroy it to return ${target.name}!`, 'heal');
+  } else if (txt.includes('destroy') && !txt.includes('overexhausted')) {
     destroyCreature(target, targetOwner);
     log(`${inst.name}: ${target.name} destroyed.`, 'damage');
   } else if (txt.includes('no combat damage') || txt.includes('deals no')) {
@@ -3997,24 +4048,33 @@ function resolveSpellOnTarget(inst, caster, target, targetOwner) {
     target.keywords.haste = true;
     target.newlyTurned = false;
     log(`${inst.name}: ${target.name} gains Haste.`, 'heal');
-  } else if (txt.includes('renew target') || seg.includes('renew target')) {
+  } else if (txt.includes('renew target')) {
     target.exhaustState = 'renewed';
     log(`${inst.name}: ${target.name} renewed.`, 'heal');
-    updateUI();
+  } else if (seg.includes('make a copy') || (seg.includes('copy of') && seg.includes('creature'))) {
+    // Elara Relicrender — copy target creature, give haste, destroy at EOT
+    const copyInst = makeInst(target.cardId, who);
+    if (copyInst) {
+      copyInst.exhaustState = 'renewed';
+      copyInst.newlyTurned = false;
+      copyInst.keywords.haste = true;
+      copyInst._destroyAtEot = true;
+      G[who].battlefield.push(copyInst);
+      log(`${inst.name}: ${target.name} copied — copy has Haste, destroyed at end of turn!`, 'heal');
+    }
   } else if (txt.includes('overexhausted') && txt.includes('target')) {
     target.exhaustState = 'overexhausted';
     log(`${inst.name}: ${target.name} overexhausted.`, '');
   } else if (txt.includes('exhaust') && txt.includes('target')) {
     target.exhaustState = 'exhausted';
     log(`${inst.name}: ${target.name} exhausted.`, '');
-  } else if (txt.includes('returned to') || txt.includes('return') && txt.includes('hand')) {
+  } else if (txt.includes('returned to') || (txt.includes('return') && txt.includes('hand'))) {
     const arr = G[targetOwner].battlefield;
     const idx = arr.findIndex(i => i.instId === target.instId);
     if (idx !== -1) arr.splice(idx, 1);
     G[targetOwner].hand.push(target);
     log(`${inst.name}: ${target.name} returned to hand.`, '');
   } else {
-    // Fallback — just log it
     log(`${inst.name} targets ${target.name}.`, '');
   }
   updateUI();
@@ -4193,6 +4253,7 @@ function resolveSpell(inst, caster) {
     G[caster].life += n; updateLifeDisplay(caster);
     log(`${inst.name}: Gained ${n} life.`, 'heal');
   }
+  // Eternal Subterfuge — handled in resolveSpellOnTarget (needs a target creature)
   else {
     log(`${inst.name}: effect applied.`, '');
   }
@@ -4211,6 +4272,7 @@ let targetingState = {
 function beginTargeting(spell, caster, mode, callback) {
   targetingState = { active: true, spell, caster, mode, callback };
   document.getElementById('targeting-hint').style.display = 'flex';
+  document.body.classList.add('targeting-active');
   log(`Choose a target for ${spell.name}.`, 'important');
   updateUI();
 }
@@ -4218,6 +4280,7 @@ function beginTargeting(spell, caster, mode, callback) {
 function cancelTargeting() {
   targetingState = { active: false, spell: null, caster: null, mode: null, callback: null };
   document.getElementById('targeting-hint').style.display = 'none';
+  document.body.classList.remove('targeting-active');
   updateUI();
 }
 
@@ -4265,9 +4328,12 @@ function handleCardClick(inst, who) {
     return;
   }
 
-  // During AI turn: allow ability activation in block/response windows
+  // During AI turn: allow ability activation + land tapping in block/response windows
   if (who === 'player' && G.activePlayer === 'ai' &&
       (combatPhase === 'player-block' || combatPhase === 'response')) {
+    if (inst.type === 'Land') {
+      tapLandForMana(inst); return;
+    }
     if (inst.type === 'Creature' || inst.type === 'Relic') {
       tryActivateAbility(inst);
     }
@@ -4643,14 +4709,15 @@ function abilityNeedsTarget(txt, mode) {
   return seg.includes('target creature') || seg.includes('target player') ||
          seg.includes('target token')    || seg.includes('target attacking') ||
          seg.includes('target blocking') || seg.includes('target wolf') ||
-         seg.includes('target relic')    || seg.includes('gain control');
+         seg.includes('target relic')    || seg.includes('gain control') ||
+         seg.includes('make a copy')     || (seg.includes('copy of') && seg.includes('creature'));
 }
 
 function getAbilityTargetMode(txt, mode, caster) {
   const seg = getEffectSeg(txt, mode);
-  // Negative → opponent (unless 'you control' specifies own side)
+  // Negative → opponent (unless 'you control' specifies own side, or 'with glimpse' = Signet)
   if ((seg.includes('exhaust target') || seg.includes('overexhaust target') ||
-      (seg.includes('damage') && seg.includes('target')) ||
+      (seg.includes('damage') && seg.includes('target') && !seg.includes('with glimpse')) ||
       seg.includes('destroy') || seg.includes('-1 power')) &&
       !seg.includes('you control')) return 'opponent-creature';
   // 'exhaust target creature you control' → own side
@@ -4663,10 +4730,13 @@ function getAbilityTargetMode(txt, mode, caster) {
   // Token-specific → own side
   if (seg.includes('target wolf') || seg.includes('target bat') ||
       seg.includes('target token'))                         return 'own-creature';
-  // Positive buffs → own side
-  if (seg.includes('+1 power') || seg.includes('+2 power') ||
+  // Positive buffs → own side (unless 'with glimpse' — Augur's Signet targets any)
+  if (!seg.includes('with glimpse') &&
+     (seg.includes('+1 power') || seg.includes('+2 power') ||
       seg.includes('gains ')   || seg.includes('tireless') ||
-      seg.includes('siphon')   || seg.includes('breach'))  return 'own-creature';
+      seg.includes('siphon')   || seg.includes('breach'))) return 'own-creature';
+  // Copy effects → own side (Elara Relicrender)
+  if (seg.includes('make a copy') || (seg.includes('copy of') && seg.includes('creature'))) return 'own-creature';
   return 'any-creature';
 }
 
@@ -4904,6 +4974,11 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
   }
 
   // ── SELF / GLOBAL EFFECTS (no target) ──────────────────────
+  // Elara Relicrender — make a copy of target creature with haste, destroy at EOT
+  if (seg.includes('make a copy') || seg.includes('copy of') && seg.includes('creature')) {
+    // target is set — handled in target block, but if no target given, prompt for one
+    // This is handled as a targeted ability via abilityNeedsTarget catching 'creature'
+  }
   // Loyal Butler — destroy self to shield against one damage source
   if (seg.includes('reduce all damage') && seg.includes('0')) {
     G[who]._butlerShield = true;
@@ -5351,6 +5426,16 @@ function clearEotEffects(who) {
     // Return temp-controlled creatures to their original owner
     if (inst._tempControlOwner) toReturn.push({ inst, origOwner: inst._tempControlOwner });
   });
+  // Destroy Elara copies at end of turn
+  const toDestroy = [];
+  G[who].battlefield.forEach(inst => {
+    if (inst._destroyAtEot) toDestroy.push(inst);
+  });
+  toDestroy.forEach(inst => {
+    log(`${inst.name} (copy) is destroyed at end of turn.`, 'damage');
+    removeFromBattlefield(inst, who);
+  });
+
   toReturn.forEach(({ inst, origOwner }) => {
     G[who].battlefield = G[who].battlefield.filter(i => i.instId !== inst.instId);
     inst._tempControlOwner = null;
