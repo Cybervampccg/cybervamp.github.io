@@ -277,9 +277,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .card::before {
   content:''; position:absolute; inset:0; border-radius:8px;
   background: radial-gradient(ellipse at 50% 38%,
-    transparent 38%,
-    rgba(0,0,0,0.45) 75%,
-    rgba(0,0,0,0.72) 100%
+    transparent 45%,
+    rgba(0,0,0,0.30) 78%,
+    rgba(0,0,0,0.52) 100%
   );
   pointer-events:none; z-index:3;
 }
@@ -346,8 +346,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .card-art-scrim {
   position:absolute; bottom:28px; left:0; right:0; height:60px;
   background: linear-gradient(to top,
-    rgba(0,0,0,0.90) 0%,
-    rgba(0,0,0,0.45) 45%,
+    rgba(0,0,0,0.78) 0%,
+    rgba(0,0,0,0.30) 40%,
     transparent 100%
   );
   pointer-events:none; z-index:2;
@@ -366,7 +366,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.5);
   position:relative; z-index:7;
 }
-.card-name-mini { color:var(--text-bright); max-width:100px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-family:'Cinzel',serif; font-size:9.5px; letter-spacing:0.3px; }
+.card-name-mini { color:#f0eeff; max-width:100px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-family:'Cinzel',serif; font-size:9.5px; letter-spacing:0.3px; }
 .card-power { color:var(--gold); font-family:'Share Tech Mono',monospace; font-size:14px; font-weight:700; text-shadow: 0 0 8px rgba(212,160,32,0.6); }
 
 /* Color bar — taller, glowing, faction-colored gradient */
@@ -396,7 +396,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   display: flex; align-items: stretch;
   padding: 0; overflow: visible;
   min-height: 218px; max-height: 234px;
-  background: rgba(0,0,0,0.15); position: relative; z-index: 80;
+  background: rgba(0,0,0,0.08); position: relative; z-index: 80;
 }
 #hand-ai {
   filter: brightness(0.75); cursor: default;
@@ -470,8 +470,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .hand-card { width:148px; height:208px; }
 .hand-card:hover { transform:translateY(-20px) scale(1.08); z-index:50; }
 .hand-card.selected { transform:translateY(-24px) scale(1.10)!important; border-color:var(--gold)!important; box-shadow:0 0 18px var(--gold-glow)!important; }
-.hand-card.playable   { border-color:rgba(212,160,32,0.55); }
-.hand-card.unplayable { opacity:0.35; }
+.hand-card.playable   { border-color:rgba(212,160,32,0.7); box-shadow: 0 0 16px rgba(212,160,32,0.25); }
+.hand-card.unplayable { opacity:0.52; filter: saturate(0.6) brightness(0.75); }
 .hand-card.targeting  { border-color:#30e0ff!important; box-shadow:0 0 14px rgba(48,224,255,0.5)!important; }
 
 /* ── ACTION BAR ── */
@@ -519,7 +519,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   opacity: 0;
   transition: opacity 0.12s ease;
   /* Size: ~3× battlefield card (148×208 → 480×672) */
-  width: 480px; height: 672px;
+  width: 520px; height: 728px;
   filter: drop-shadow(0 12px 40px rgba(0,0,0,0.9));
 }
 #card-preview.visible { opacity: 1; }
@@ -534,24 +534,14 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   transform: none !important;
 }
 #card-preview .card:hover { transform: none !important; }
-#card-preview .card-footer { padding: 9px 12px !important; }
-#card-preview .card-name-mini { font-size: 16px !important; max-width: 280px !important; }
-#card-preview .card-power { font-size: 22px !important; }
-#card-preview .card-cost-row { padding: 4px 8px !important; }
-#card-preview .mana-pip { width: 22px !important; height: 22px !important; }
-#card-preview .kw-badge { font-size: 13px !important; padding: 4px 9px !important; }
-#card-preview .color-bar { height: 9px !important; }
-/* Abilities overlay */
-#card-preview .preview-abilities {
-  position: absolute; bottom: 44px; left: 0; right: 0;
-  background: rgba(0,0,0,0.91);
-  padding: 10px 14px;
-  font-size: 13px; color: var(--text-mid); line-height: 1.6;
-  max-height: 180px; overflow-y: auto;
-  scrollbar-width: thin;
-  border-top: 1px solid var(--border-dim);
-  pointer-events: none;
-}
+#card-preview .card-footer { padding: 11px 14px !important; background: rgba(8,4,18,0.99) !important; }
+#card-preview .card-name-mini { font-size: 18px !important; max-width: 300px !important; color: #fff !important; letter-spacing: 0.5px !important; }
+#card-preview .card-power { font-size: 24px !important; }
+#card-preview .card-cost-row { padding: 5px 10px !important; }
+#card-preview .mana-pip { width: 24px !important; height: 24px !important; }
+#card-preview .kw-badge { font-size: 13px !important; padding: 4px 10px !important; }
+#card-preview .color-bar { height: 10px !important; }
+/* preview-abilities overlay removed — card art shows clean */
 
 /* Hand card hover — lift MORE and show glow */
 .hand-card:hover { transform: translateY(-20px) scale(1.12); z-index: 50; }
@@ -7299,8 +7289,8 @@ const KW_STYLES = {
 
 function showCardDetail(inst, triggerEl) {
   const el = document.getElementById('card-preview');
-  const previewW = 480;
-  const previewH = 672;
+  const previewW = 520;
+  const previewH = 728;
 
   // Build a fresh card element clone at preview size
   el.innerHTML = '';
@@ -7309,14 +7299,8 @@ function showCardDetail(inst, triggerEl) {
   cardClone.style.height = '100%';
   cardClone.style.cursor = 'default';
 
-  // Add abilities overlay on top of the art
-  if (inst.abilities) {
-    const abl = document.createElement('div');
-    abl.className = 'preview-abilities';
-    abl.textContent = inst.abilities;
-    cardClone.appendChild(abl);
-  }
-
+  // No abilities overlay — art stays clean and readable
+  // Abilities are visible on battlefield cards and in deckbuilder
   el.appendChild(cardClone);
 
   // Position opposite the hovered card
