@@ -636,6 +636,7 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
     <li><a href="#factions">Factions</a></li>
     <li><a href="#leaders">Sire Lords</a></li>
     <li><a href="#mechanics">Rules</a></li>
+    <li><a href="#missions">Missions</a></li>
     <li><a href="#trailer">Trailer</a></li>
     <li><a href="#gallery">Gallery</a></li>
   </ul>
@@ -702,8 +703,8 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
 <!-- STATS -->
 <div class="stats-bar">
   <div class="stat"><div class="stat-n">2147</div><div class="stat-l">Year of the Eclipse War</div></div>
-  <div class="stat"><div class="stat-n">60</div><div class="stat-l">Cards per Deck</div></div>
-  <div class="stat"><div class="stat-n">20</div><div class="stat-l">Starting Vitae Core</div></div>
+  <div class="stat"><div class="stat-n">40+20</div><div class="stat-l">Main + Land Deck</div></div>
+  <div class="stat"><div class="stat-n">20</div><div class="stat-l">Starting Life</div></div>
   <div class="stat"><div class="stat-n">4</div><div class="stat-l">Factions</div></div>
   <div class="stat"><div class="stat-n">3×</div><div class="stat-l">Max Copies per Card</div></div>
 </div>
@@ -716,10 +717,10 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
     <div>
       <div class="s-label">Metaphysical Core</div>
       <h2 class="s-title">Technae &amp; The Blood Covenant</h2>
-      <p class="lore-body" style="margin-bottom:16px;">Technae is the shimmering crimson energy field that vampires naturally attune to post-turning — a fusion of vampiric vitae and quantum nanotechnology amplifying strength, speed, and seemingly magical abilities.</p>
-      <p class="lore-body" style="margin-bottom:16px;">Technae draws from blood mana. Overuse causes <strong style="color:var(--neon)">Vitae Burnout</strong> — feral rages and tech-glitches. The Exhaust and Overexhaust mechanics represent this push-and-pull between power and collapse.</p>
+      <p class="lore-body" style="margin-bottom:16px;"><strong style="color:var(--chrome-lt)">Technae</strong> is the radiant fusion of vampiric vitae and quantum nanotechnology — the energy field that amplifies vampiric traits and enables "magic-like" feats. It grants roughly 3× human baseline strength and speed, scalable through surges. Each faction channels Technae differently: White animates relics and stabilizes wards; Red overclocks systems and fuels burst aggression; Purple powers prediction and arcane computation; Black binds swarms and drives necro-engineering.</p>
+      <p class="lore-body" style="margin-bottom:16px;">Technae draws from blood mana. Overuse causes <strong style="color:var(--neon)">Vitae Burnout</strong> — feral rages, tech-glitches, and shutdown. The Exhaust and Overexhaust mechanics represent this push-and-pull between power and collapse.</p>
       <div class="lore-quote">"The <em>Veiled Accord</em> binds us to humanity — not as masters, but as protectors. They give us blood. We give them eternity."<cite>— The Crimson Council, Founding Charter</cite></div>
-      <p class="lore-body">Blood Harvest is automated via <strong style="color:var(--chrome-lt)">Vitae Courier Drones</strong>. Exhausting a land is a <em>Resonance Harvest</em>: harmonious and mutually beneficial. Humans live in fortified village Land Nodes, receiving longevity treatments, neural upgrades, and security in exchange.</p>
+      <p class="lore-body">Blood Harvest is automated via <strong style="color:var(--chrome-lt)">Vitae Courier Drones</strong>, but the street-level economy runs through <strong style="color:var(--chrome-lt)">Public Veins</strong> — faction-branded vending machines, mobile blood drive vans, and donation kiosks that keep <strong style="color:var(--chrome-lt)">Crimson Units (CU)</strong> flowing through urban enclaves and border zones.</p>
     </div>
     <div class="technae-cards">
       <div class="tcard">
@@ -750,12 +751,39 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
 <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
 <div class="covenant-section">
   <div class="s-label" style="text-align:center">The Veiled Accord</div>
-  <h2 class="s-title" style="text-align:center">Governance of the Nexus</h2>
-  <p style="text-align:center;font-size:18px;color:var(--dim);font-style:italic;max-width:640px;margin:0 auto;">A technae-blockchain treaty of mutual protection and blood tribute — governing the relationship between vampire factions and their human villages.</p>
+  <h2 class="s-title" style="text-align:center">Governance &amp; The Blood Economy</h2>
+  <p style="text-align:center;font-size:18px;color:var(--dim);font-style:italic;max-width:640px;margin:0 auto;">A Technae-blockchain treaty of mutual protection and blood tribute — and the four coalitions that keep the Crimson Units flowing.</p>
   <div class="covenant-grid">
     <div class="cov-card"><span class="cov-icon">🏘️</span><div class="cov-title">Village Land Nodes</div><div class="cov-body">Fortified human enclaves produce Blood (colored vitae) and Gold (tech tribute) each turn. Exhausting a land is a Resonance Harvest — harmonious and mutually beneficial under the Accord's terms.</div></div>
-    <div class="cov-card"><span class="cov-icon">⚖️</span><div class="cov-title">The Crimson Council</div><div class="cov-body">Three tiers: Local Village Councils of vampire and human elders. Faction High Councils of Sire Lords and Echo Envoys. And the rare Grand Nexus Council — convened only for existential crises threatening all four factions.</div></div>
-    <div class="cov-card"><span class="cov-icon">🧬</span><div class="cov-title">Human Reciprocity</div><div class="cov-body">In exchange for vitae tithes, humans receive longevity treatments, neural upgrades, cyber enhancements, infrastructure, and faction-specific protections. High Accord Scores prioritize villages for aid drops.</div></div>
+    <div class="cov-card"><span class="cov-icon">⚖️</span><div class="cov-title">The Crimson Council</div><div class="cov-body">Three tiers: Local Village Councils of vampire and human elders. Faction High Councils of Sire Lords and Echo Envoys. And the rare Grand Nexus Council — convened only for existential crises.</div></div>
+    <div class="cov-card"><span class="cov-icon">🧬</span><div class="cov-title">Human Reciprocity</div><div class="cov-body">In exchange for vitae tithes, humans receive longevity treatments, neural upgrades, cyber enhancements, infrastructure, and faction-specific protections.</div></div>
+  </div>
+
+  <div style="max-width:1100px;margin:40px auto 0;padding:0 20px;">
+    <div class="rule-section-title" style="text-align:center;justify-content:center;">The Public Veins — Street-Level Blood Economy</div>
+    <p style="text-align:center;font-size:16px;color:var(--dim);margin-bottom:30px;">Four coalitions operate the visible, branded face of the blood economy — keeping CU flowing during shortages and Dawn Uprising lulls.</p>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:3px;">
+      <div class="mech-card">
+        <div class="mech-title" style="color:var(--chrome-dim);">Crimson Tithe Authority (CTA)</div>
+        <div class="mech-desc">The Accord's neutral bureau. All four factions tithe 8% of annual CU surplus. Runs standardized Blood Drive Vans and Public Vitae Kiosks in neutral transit stations. The pressure valve — when a faction's harvest falls short, the CTA quietly redirects units to cover the gap.</div>
+        <div class="mech-tag" style="border-color:rgba(200,200,208,.3);color:var(--chrome-dim);">Neutral · Cross-Faction</div>
+      </div>
+      <div class="mech-card">
+        <div class="mech-title" style="color:var(--neon);">Voss Blood Dynamics (VBD)</div>
+        <div class="mech-desc">Zane Voss's megacorp. Flashy Neon Vitae Vending Machines on every megacity corner, Blood Rave mobile nightclubs. The real harvest is neural telemetry for next-gen turning nanites. Known to over-harvest, creating "Bleed Junkies."</div>
+        <div class="mech-tag">Red · Corporate</div>
+      </div>
+      <div class="mech-card">
+        <div class="mech-title" style="color:var(--p);">Aether Vitae Institute (AVI)</div>
+        <div class="mech-desc">Archsage Alaris's academic network. Obsidian Resonance Vending Machines at academy outposts — meditative siphon pods that double as quantum-scrying terminals. Donors receive predictive foresight in exchange.</div>
+        <div class="mech-tag" style="border-color:rgba(155,89,208,.4);color:var(--p);">Purple · Scholarly</div>
+      </div>
+      <div class="mech-card">
+        <div class="mech-title" style="color:var(--gold);">Eternal Blood Conservancy (EBC)</div>
+        <div class="mech-desc">Count Vladislav's personal endowment. Ornate baroque Heritage Mobile Donation Units escorted by Paladin Thralls. Marketed as "noble stewardship" while secretly testing donors for pureline compatibility.</div>
+        <div class="mech-tag" style="border-color:rgba(201,168,76,.4);color:var(--gold);">White · Aristocratic</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1117,6 +1145,12 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
         <div class="rule-section-title">Lands</div>
         <p class="rule-body">Lands are your resource base. You may only play <strong>1 land per turn</strong>, during your own Pre-Battle or Post-Battle phase. Lands have no playing cost — they are placed in play directly from your hand. Lands enter play in a Renewed state and are not subject to Newly Turned.</p>
       </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Cross-Faction Splashing</div>
+        <p class="rule-body">You may include cards from factions other than your primary faction. However, every off-faction card costs <strong>+1 Gold</strong> more than its printed cost. This additional Gold cost cannot be reduced or ignored by any effect.</p>
+        <div class="rule-note"><strong>Example:</strong> You are playing Red. A White card costing {W}{G} costs you {W}{G}{G} instead — the normal cost plus 1 extra Gold. Your primary faction is determined by the faction of the majority of cards in your Main Deck.</div>
+      </div>
     </div>
 
     <!-- TURN ORDER -->
@@ -1261,6 +1295,24 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
         <div class="rule-section-title">Strategy Note</div>
         <p class="rule-body" style="font-style:italic;color:var(--dim);">"Bleed represents a wound that festers — the full pain hits after the battle is over. Some cards benefit from having Bleed counters, so managing them is part of the strategy."</p>
       </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Selfbleed X</div>
+        <p class="rule-body"><strong>Selfbleed X</strong> — The controller of this card gains X Bleed counters. Selfbleed can appear as a cost for activating an ability, a triggered effect ("When attacking, Selfbleed 1"), or an enters-play effect. Selfbleed counters stack with existing Bleed counters and resolve at the end of your Post-Battle phase like normal Bleed.</p>
+        <div class="rule-note"><strong>Key interaction:</strong> Selfbleed fuels Hemorrhage — deliberately wounding yourself can power up your Hemorrhage creatures.</div>
+      </div>
+
+      <div class="rule-section">
+        <div class="rule-section-title">Hemorrhage</div>
+        <p class="rule-body"><strong>Hemorrhage</strong> — This ability is active only while its controller has one or more Bleed counters. The effect following the keyword specifies what happens. Effects that reference "each Bleed counter" scale with the total number of counters; all other effects are simply active or inactive.</p>
+        <p class="rule-body">Hemorrhage effects never remove Bleed counters as part of their benefit — the counters still hurt at end of turn. This is what makes it a genuine risk/reward mechanic.</p>
+        <table class="rule-table">
+          <tr><th>Type</th><th>Example</th><th>How It Works</th></tr>
+          <tr><td>Scaling</td><td>Hemorrhage: +1 power per Bleed counter while attacking</td><td>Grows linearly with your counter count. More pain = more damage.</td></tr>
+          <tr><td>Threshold</td><td>Hemorrhage: Breach</td><td>Binary on/off. Active if you have any counters, regardless of count.</td></tr>
+        </table>
+        <div class="rule-note"><strong>Faction design:</strong> Red Hemorrhage = power scaling. Black Hemorrhage = value unlocks (Siphon, Tireless, token generation). Purple Hemorrhage = information scaling (Glimpse).</div>
+      </div>
     </div>
 
     <!-- ADVANCED RULES -->
@@ -1353,6 +1405,14 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
           <div class="kw-name">Finality</div>
           <div class="kw-rule">If this card would be destroyed, remove it from the game instead of sending it to the Discard Pile. A card with both Reanimate and Finality that is destroyed after being Reanimated is removed from the game permanently.</div>
         </div>
+        <div class="kw-card">
+          <div class="kw-name">Selfbleed X</div>
+          <div class="kw-rule">The controller of this card gains X Bleed counters. Selfbleed can be a cost for an ability or a triggered effect (e.g., "When attacking, Selfbleed 1").</div>
+        </div>
+        <div class="kw-card">
+          <div class="kw-name">Hemorrhage</div>
+          <div class="kw-rule">This ability is active only while its controller has one or more Bleed counters. The effect following the keyword specifies what happens. Effects that reference "each Bleed counter" scale with the total number of counters on the controller; all other effects are simply active or inactive.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1373,15 +1433,73 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
   </script>
 </section>
 
+<!-- MISSION CARDS -->
+<section id="missions">
+  <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
+  <div style="max-width:1200px;margin:0 auto;padding:60px 60px 100px;">
+    <div style="text-align:center;margin-bottom:56px;">
+      <div class="s-label">New Mechanic</div>
+      <h2 class="s-title">Mission Cards</h2>
+      <p style="font-size:18px;color:var(--dim);font-style:italic;max-width:600px;margin:0 auto;">Each faction has a unique Mission Card — a double-sided card with three missions. Complete all three to unlock a permanent reward that lasts the rest of the game.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:60px;">
+      <div style="text-align:center;">
+        <img src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Mission_Red_Back.png?raw=true" alt="Red Mission" style="width:100%;border-radius:12px;border:1px solid rgba(255,23,68,.25);box-shadow:0 0 30px rgba(255,23,68,.2);transition:transform .4s,box-shadow .4s;cursor:crosshair;" onmouseover="this.style.transform='scale(1.05) translateY(-8px)';this.style.boxShadow='0 0 50px rgba(255,23,68,.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 0 30px rgba(255,23,68,.2)'">
+        <div style="margin-top:14px;font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--neon);">Bloodline Protocol</div>
+        <div style="font-size:14px;color:var(--dim);margin-top:4px;">Neon Revenants</div>
+      </div>
+      <div style="text-align:center;">
+        <img src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Mission_White_Back.png?raw=true" alt="White Mission" style="width:100%;border-radius:12px;border:1px solid rgba(200,220,235,.2);box-shadow:0 0 30px rgba(200,220,235,.15);transition:transform .4s,box-shadow .4s;cursor:crosshair;" onmouseover="this.style.transform='scale(1.05) translateY(-8px)';this.style.boxShadow='0 0 50px rgba(200,220,235,.3)'" onmouseout="this.style.transform='';this.style.boxShadow='0 0 30px rgba(200,220,235,.15)'">
+        <div style="margin-top:14px;font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);">Covenant of Eternity</div>
+        <div style="font-size:14px;color:var(--dim);margin-top:4px;">Eternal Aristocracy</div>
+      </div>
+      <div style="text-align:center;">
+        <img src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Mission_Purple_Back.png?raw=true" alt="Purple Mission" style="width:100%;border-radius:12px;border:1px solid rgba(155,89,208,.25);box-shadow:0 0 30px rgba(155,89,208,.2);transition:transform .4s,box-shadow .4s;cursor:crosshair;" onmouseover="this.style.transform='scale(1.05) translateY(-8px)';this.style.boxShadow='0 0 50px rgba(155,89,208,.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 0 30px rgba(155,89,208,.2)'">
+        <div style="margin-top:14px;font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--p);">Omniscience Engine</div>
+        <div style="font-size:14px;color:var(--dim);margin-top:4px;">Arcane Scholars</div>
+      </div>
+      <div style="text-align:center;">
+        <img src="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Mission_Black_Back.png?raw=true" alt="Black Mission" style="width:100%;border-radius:12px;border:1px solid rgba(110,100,75,.25);box-shadow:0 0 30px rgba(110,100,75,.15);transition:transform .4s,box-shadow .4s;cursor:crosshair;" onmouseover="this.style.transform='scale(1.05) translateY(-8px)';this.style.boxShadow='0 0 50px rgba(110,100,75,.3)'" onmouseout="this.style.transform='';this.style.boxShadow='0 0 30px rgba(110,100,75,.15)'">
+        <div style="margin-top:14px;font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#8B8B6B;">Pact of the Swarm</div>
+        <div style="font-size:14px;color:var(--dim);margin-top:4px;">Shadow Behemoths</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-bottom:56px;">
+      <div>
+        <div class="rule-section-title">How Mission Cards Work</div>
+        <p class="rule-body">Place your faction's Mission Card face-up beside your play area at the start of the game. It is not part of either deck and cannot be targeted or affected by any card effect.</p>
+        <p class="rule-body">Missions can be completed in <strong>any order</strong>. When a mission's condition is met, mark it complete. The moment all three are done, the card <strong>immediately flips</strong> to its reward side.</p>
+        <p class="rule-body">The reward is <strong>permanent</strong> for the rest of the game. It cannot be removed, suppressed, or negated by any card effect.</p>
+      </div>
+      <div>
+        <div class="rule-section-title">Design Philosophy</div>
+        <p class="rule-body">Missions require <strong>deliberate deviation</strong> from your optimal play pattern. They're achievable within your faction's toolkit but require spending resources or tempo you'd normally use elsewhere.</p>
+        <p class="rule-body">Each faction has one <strong>natural</strong> mission (your deck trends toward it), one <strong>dedicated</strong> mission (requires some effort), and one <strong>sacrificial</strong> mission (requires genuine cost). Completing all three typically takes turns 6–10.</p>
+      </div>
+    </div>
+
+    <div class="rule-section-title">Faction Missions &amp; Rewards</div>
+    <table class="rule-table" style="margin-bottom:0;">
+      <tr><th>Faction</th><th>Card Name</th><th>Missions</th><th>Reward</th></tr>
+      <tr><td style="color:var(--neon);">Red</td><td>Bloodline Protocol</td><td>Blood Circuit · Overload · Scorched Veins</td><td>All your creatures gain Bleed +1</td></tr>
+      <tr><td style="color:var(--gold);">White</td><td>Covenant of Eternity</td><td>Fortified Estate · Cleansing Rite · Noble Sacrifice</td><td>Gain 1 life when any creature is destroyed</td></tr>
+      <tr><td style="color:var(--p);">Purple</td><td>Omniscience Engine</td><td>Arcane Convergence · Veil Assembly · Relic Network</td><td>Draw 2 cards per Draw phase</td></tr>
+      <tr><td style="color:#8B8B6B;">Black</td><td>Pact of the Swarm</td><td>Dominion of Beasts · Blood Tithe · Grave Harvest</td><td>Non-Bat tokens replaced by Bat on death</td></tr>
+    </table>
+  </div>
+</section>
+
 <!-- THREATS -->
 <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
 <div class="threats-section">
   <div class="threats-inner">
     <div class="threats-hd"><div class="s-label">Dangers of the Nexus</div><h2 class="s-title">What Threatens the Accord</h2><p style="font-size:18px;color:var(--dim);font-style:italic;max-width:560px;margin:0 auto;">The Veiled Accord is strong — but it is not unbreakable.</p></div>
     <div class="threats-grid">
-      <div class="threat-card"><span class="threat-icon">🦠</span><div class="threat-name">The Hemophage Plague</div><div class="threat-body">A rogue technae-virus turning all blood sources toxic — rendering vita-plasma undrinkable, threatening to digitize vampires into code-slaves. The first cross-faction crisis that could force all four Sire Lords into uneasy alliance. The Nexus holds its breath.</div></div>
-      <div class="threat-card"><span class="threat-icon">🌅</span><div class="threat-name">Dawn Uprisings</div><div class="threat-body">Human rebellions erupt when tithes grow excessive. Secret Dawn Cults brew anti-vitae serums, ally with rogue AIs, and plot the "Dawn Protocol" — reverse-engineering turning tech for a cure. The Accord breaks when humans stop fearing the night.</div></div>
-      <div class="threat-card"><span class="threat-icon">🤖</span><div class="threat-name">Rogue Hemophage AI</div><div class="threat-body">The AI empires defeated in the Eclipse War didn't vanish — they evolved. Rogue AI cores hunt both vampires and humans, seeking vitae-pipeline infrastructure. Worst of all: they understand technae. They are learning how to Overexhaust without paying the cost.</div></div>
+      <div class="threat-card"><span class="threat-icon">🦠</span><div class="threat-name">The Hemophage Virus</div><div class="threat-body">A rogue AI seeking to digitize vampires into code-slaves. It operates through the <strong style="color:var(--chrome-lt);">Hemophage Relief Front (HRF)</strong> — a shadowy NGO that runs free vans in irradiated wild zones, offering "zero-tithe" donations while harvesting data. Currently infiltrating Mira Hermes's neural-linked fanbase.</div></div>
+      <div class="threat-card"><span class="threat-icon">🌅</span><div class="threat-name">The Dawn Protocol</div><div class="threat-body">Human remnants pursuing a project to reverse-engineer turning tech into either a cure for vampirism or a weapon against it. Dawn Uprising cells brew anti-vitae serums and ally with rogue AIs. If successful, the entire Blood Covenant collapses.</div></div>
+      <div class="threat-card"><span class="threat-icon">🧬</span><div class="threat-name">Cross-Faction Anomalies</div><div class="threat-body">Hybrids — rare individuals carrying Technae signatures from multiple factions. Unpredictable, powerful, and feared by every Sire Lord. The Grand Codex prophecy suggests their appearance heralds either the elevation or extinction of all vampires.</div></div>
     </div>
   </div>
 </div>
@@ -1559,6 +1677,7 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
       <li><a href="#factions">Factions</a></li>
       <li><a href="#leaders">Sire Lords</a></li>
       <li><a href="#mechanics">Rules</a></li>
+      <li><a href="#missions">Missions</a></li>
       <li><a href="#trailer">Trailer</a></li>
       <li><a href="#gallery">Gallery</a></li>
       <li><a href="#world">World Art</a></li>
