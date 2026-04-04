@@ -31,8 +31,8 @@
   --gold:       #C9A84C;
   --gold-lt:    #E8C96B;
   /* Text */
-  --text:       #C8C4BC;
-  --dim:        #666672;
+  --text:       #DAD6CE;
+  --dim:        #7E7E8A;
   /* Faction */
   --r: #FF2200;
   --w: #E8DCC8;
@@ -45,7 +45,7 @@ body {
   background:var(--gothic-dk);
   color:var(--text);
   font-family:'EB Garamond',serif;
-  font-size:18px;
+  font-size:20px;
   overflow-x:hidden;
   cursor:crosshair;
 }
@@ -264,7 +264,7 @@ nav {
   display:grid; grid-template-columns:1fr 1fr;
   gap:80px; align-items:center;
 }
-.lore-body { font-size:18px; line-height:1.95; color:var(--text); margin-bottom:16px; }
+.lore-body { font-size:20px; line-height:2; color:var(--text); margin-bottom:16px; }
 .lore-quote {
   margin:24px 0; padding:20px 28px;
   border-left:2px solid var(--neon);
@@ -491,7 +491,7 @@ nav {
 .mech-card:hover { border-color:rgba(255,23,68,.22); background:rgba(17,17,24,.98); }
 .mech-icon { font-size:26px; margin-bottom:14px; display:block; }
 .mech-title { font-family:'Cinzel',serif; font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--chrome-lt); margin-bottom:10px; }
-.mech-desc { font-size:16px; line-height:1.8; color:var(--text); }
+.mech-desc { font-size:18px; line-height:1.9; color:var(--text); }
 .mech-tag { display:inline-block; margin-top:14px; font-family:'Cinzel',serif; font-size:9px; letter-spacing:2px; text-transform:uppercase; padding:3px 9px; border:1px solid rgba(255,23,68,.4); color:var(--neon); }
 
 /* ═══ HOW TO PLAY ═══ */
@@ -527,7 +527,7 @@ nav {
 .threat-card::after { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at top,rgba(255,23,68,.05),transparent 60%); pointer-events:none; }
 .threat-icon { font-size:30px; margin-bottom:18px; display:block; }
 .threat-name { font-family:'Cinzel',serif; font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--chrome-lt); margin-bottom:12px; }
-.threat-body { font-size:16px; line-height:1.8; color:var(--text); }
+.threat-body { font-size:18px; line-height:1.9; color:var(--text); }
 
 /* ═══ GALLERY ═══ */
 .gallery-outer { padding:100px 40px; background:var(--gothic-mid); border-top:1px solid rgba(255,23,68,.1); }
@@ -633,10 +633,9 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
   <a href="#" class="nav-logo">CYBERVAMP</a>
   <ul class="nav-links">
     <li><a href="#mechanics">Rules</a></li>
+    <li><a href="#lore">World</a></li>
     <li><a href="#factions">Factions</a></li>
-    <li><a href="#leaders">Sire Lords</a></li>
     <li><a href="#missions">Missions</a></li>
-    <li><a href="#lore">The Nexus</a></li>
     <li><a href="#gallery">Gallery</a></li>
   </ul>
   <div class="nav-right">
@@ -661,7 +660,6 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
 <section class="hero">
   <div class="hero-bg"></div>
   <div class="hero-content">
-    <span class="hero-eyemark">🩸</span>
     <div class="hero-pre">The Crimson Nexus Awaits</div>
     <h1 class="hero-title">CYBERVAMP</h1>
     <div class="hero-year">Year 2147 · Post-Eclipse War</div>
@@ -674,10 +672,17 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
       <div class="blood-pip"><img src="images/Gold_Logo_256x256.png?v=2" alt="{G}"></div>
       <div class="blood-pip"><img src="images/Colorless_Blood_Logo_256x256.png?v=2" alt="{C}"></div>
     </div>
-    <p class="hero-desc">Ancient vampires. Quantum nanotechnology. A world remade in blood. You are an <em>unseen Will</em> — a force beyond knowing, guiding your faction through the eternal night of the Crimson Nexus. Four Sire Lords await your hand.</p>
+    <p class="hero-desc">Ancient vampires. Quantum nanotechnology. A world remade in blood. You are an <em>unseen Will</em> — guiding your faction through the eternal night of the Crimson Nexus.</p>
     <div class="hero-ctas">
-      <a href="#signup" class="btn-primary">Awaken Early Access</a>
-      <a href="#mechanics" class="btn-secondary">Learn the Rules</a>
+      <a href="#mechanics" class="btn-primary">Learn the Rules</a>
+      <a href="#signup" class="btn-secondary">Early Access</a>
+    </div>
+
+    <!-- Embedded trailer in hero -->
+    <div style="max-width:720px;margin:48px auto 0;animation:fadeUp 1s ease .8s both;">
+      <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:4px;border:1px solid rgba(255,23,68,.3);box-shadow:0 0 40px rgba(255,23,68,.2),0 0 80px rgba(255,23,68,.08);">
+        <iframe src="https://www.youtube.com/embed/t5e47tN4Srg" title="Cybervamp CCG — Official Trailer" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;"></iframe>
+      </div>
     </div>
   </div>
   <div class="scroll-hint"><div class="scroll-line"></div>Descend</div>
@@ -704,7 +709,7 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
     .rule-section { margin-bottom:40px; }
     .rule-section-title { font-family:'Cinzel',serif; font-size:13px; letter-spacing:3px; text-transform:uppercase; color:var(--chrome-lt); margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid rgba(255,23,68,.18); display:flex; align-items:center; gap:10px; }
     .rule-section-title::before { content:'✦'; color:var(--neon); font-size:10px; text-shadow:0 0 8px var(--neon-glow); }
-    .rule-body { font-size:17px; line-height:1.95; color:var(--text); margin-bottom:12px; }
+    .rule-body { font-size:19px; line-height:2; color:var(--text); margin-bottom:12px; }
     .rule-body strong { color:var(--chrome-lt); }
     .rule-note {
       margin:16px 0; padding:16px 22px;
@@ -728,7 +733,7 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
     .kw-card { background:var(--gothic-mid); padding:20px 24px; border-left:2px solid var(--neon); transition:background .3s; box-shadow:-2px 0 8px rgba(255,23,68,.08); }
     .kw-card:hover { background:var(--gothic-lt); }
     .kw-name { font-family:'Cinzel',serif; font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--chrome-lt); margin-bottom:6px; }
-    .kw-rule { font-size:15px; line-height:1.7; color:var(--text); }
+    .kw-rule { font-size:17px; line-height:1.8; color:var(--text); }
 
     /* Turn timeline */
     .turn-steps { margin-top:40px; position:relative; }
@@ -1146,26 +1151,6 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
   </script>
 </section>
 
-<!-- TRAILER -->
-<section id="trailer">
-  <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
-  <div style="max-width:900px;margin:0 auto;padding:0 60px 80px;text-align:center;">
-    <div class="s-label">Official Trailer</div>
-    <h2 class="s-title">The Eternal Night Begins</h2>
-    <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:4px;border:1px solid rgba(255,23,68,.3);box-shadow:0 0 40px rgba(255,23,68,.2),0 0 80px rgba(255,23,68,.08);margin-bottom:24px;">
-      <iframe
-        src="https://www.youtube.com/embed/t5e47tN4Srg"
-        title="Cybervamp CCG — Official Trailer"
-        frameborder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen
-        style="position:absolute;top:0;left:0;width:100%;height:100%;">
-      </iframe>
-    </div>
-    <p style="font-size:17px;color:var(--dim);font-style:italic;line-height:1.8;">Four factions. Four Sire Lords. One Nexus. The eternal night begins.</p>
-  </div>
-</section>
-
 <!-- FACTIONS -->
 <section id="factions">
   <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
@@ -1333,39 +1318,44 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
 </section>
 
 <!-- LORE -->
+<!-- WORLD & GALLERY -->
 <section id="lore">
-  <div class="world-lore">
-    <div>
-      <div class="s-label">The Crimson Nexus</div>
-      <h2 class="s-title">The World Remade in Blood</h2>
-      <p class="lore-body">In the year <strong style="color:var(--chrome-lt)">2147</strong>, the <em>Eclipse War</em> tore history in two. Ancient vampires — hidden for centuries — surfaced to clash with humanity's AI-driven empires in a global conflict that irradiated 90% of the world. When the smoke cleared, vampirism itself had evolved.</p>
-      <p class="lore-body">The traditional bite now carries a 90% mortality rate due to incompatible post-war genomes. In its place: <strong style="color:var(--chrome-lt)">synth-bite nanotech</strong> and quantum turning protocols — controlled by four factions vying for dominance of what remains.</p>
-      <div class="lore-quote">"Vampirism is no longer a curse. It is an upgrade. The only question is who controls the upgrade path."<cite>— Zane "Z" Voss, Neon Overlord</cite></div>
-      <p class="lore-body">Vampires are enhanced immortals sustained by <em>vita-plasma</em> — synthetic blood laced with data streams — and empowered by <strong style="color:var(--chrome-lt)">Technae</strong>: the radiant fusion of vampiric vitae and quantum nanotechnology. You, the player, are the <strong style="color:var(--neon)">unseen Will of the Nexus</strong> — an unknowable force felt only as surges of compulsion. None of them know what you truly are.</p>
-      <br><a href="#factions" class="btn-secondary">Choose Your Bloodline</a>
-    </div>
-    <div class="lore-img-wrap"><img src="images/website_background_002.png" alt="The Crimson Nexus"></div>
-  </div>
-</section>
-
-<!-- THREATS -->
-<div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
-<div class="threats-section">
-  <div class="threats-inner">
-    <div class="threats-hd"><div class="s-label">Dangers of the Nexus</div><h2 class="s-title">What Threatens the Accord</h2><p style="font-size:18px;color:var(--dim);font-style:italic;max-width:560px;margin:0 auto;">The Veiled Accord is strong — but it is not unbreakable.</p></div>
-    <div class="threats-grid">
-      <div class="threat-card"><span class="threat-icon">🦠</span><div class="threat-name">The Hemophage Virus</div><div class="threat-body">A rogue AI seeking to digitize vampires into code-slaves. It operates through the <strong style="color:var(--chrome-lt);">Hemophage Relief Front (HRF)</strong> — a shadowy NGO that runs free vans in irradiated wild zones, offering "zero-tithe" donations while harvesting data. Currently infiltrating Mira Hermes's neural-linked fanbase.</div></div>
-      <div class="threat-card"><span class="threat-icon">🌅</span><div class="threat-name">The Dawn Protocol</div><div class="threat-body">Human remnants pursuing a project to reverse-engineer turning tech into either a cure for vampirism or a weapon against it. Dawn Uprising cells brew anti-vitae serums and ally with rogue AIs. If successful, the entire Blood Covenant collapses.</div></div>
-      <div class="threat-card"><span class="threat-icon">🧬</span><div class="threat-name">Cross-Faction Anomalies</div><div class="threat-body">Hybrids — rare individuals carrying Technae signatures from multiple factions. Unpredictable, powerful, and feared by every Sire Lord. The Grand Codex prophecy suggests their appearance heralds either the elevation or extinction of all vampires.</div></div>
-    </div>
-  </div>
-</div>
-
-<!-- GALLERY -->
-<section id="gallery">
   <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
-  <div class="gallery-outer">
-    <div class="gallery-hd"><div class="s-label">The Collection</div><h2 class="s-title">Card Gallery</h2><p style="font-size:18px;color:var(--dim);font-style:italic;">Click any card to view full size. Filter by faction.</p></div>
+  <div style="max-width:1100px;margin:0 auto;padding:60px 60px 80px;">
+    <div style="text-align:center;margin-bottom:56px;">
+      <div class="s-label">The Crimson Nexus</div>
+      <h2 class="s-title">The World of Cybervamp</h2>
+    </div>
+
+    <!-- Lore + World Art side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start;margin-bottom:60px;">
+      <div>
+        <p style="font-size:20px;line-height:2;color:var(--text);margin-bottom:16px;">In the year <strong style="color:var(--chrome-lt)">2147</strong>, the <em>Eclipse War</em> tore history in two. Ancient vampires surfaced to clash with humanity's AI-driven empires. When the smoke cleared, vampirism itself had evolved.</p>
+        <p style="font-size:20px;line-height:2;color:var(--text);margin-bottom:16px;">The traditional bite now carries a <strong style="color:var(--chrome-lt)">90% mortality rate</strong>. In its place: synth-bite nanotech and quantum turning protocols — controlled by four factions vying for dominance.</p>
+        <div class="lore-quote">"Vampirism is no longer a curse. It is an upgrade. The only question is who controls the upgrade path."<cite>— Zane "Z" Voss, Neon Overlord</cite></div>
+        <p style="font-size:20px;line-height:2;color:var(--text);">Vampires are enhanced immortals sustained by <em>vita-plasma</em> and empowered by <strong style="color:var(--chrome-lt)">Technae</strong> — the radiant fusion of vampiric vitae and quantum nanotechnology. You are the <strong style="color:var(--neon)">unseen Will of the Nexus</strong> — an unknowable force guiding your faction through the eternal night.</p>
+      </div>
+      <div>
+        <div class="world-grid" style="grid-template-columns:1fr 1fr;gap:6px;">
+          <div class="world-item"><img src="images/website_background_001.png" alt="Cyber City"><div class="world-item-label">Neon Revenant Territory</div></div>
+          <div class="world-item"><img src="images/website_background_004.png" alt="Blood Moon"><div class="world-item-label">Cathedral Ruins</div></div>
+          <div class="world-item"><img src="images/website_background_003.png" alt="Academy"><div class="world-item-label">Aether Academy</div></div>
+          <div class="world-item"><img src="images/website_background_002.png" alt="Palace"><div class="world-item-label">Crystal Palace</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Threats as compact cards -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-bottom:60px;">
+      <div class="threat-card"><span class="threat-icon">🦠</span><div class="threat-name">The Hemophage Virus</div><div class="threat-body">A rogue AI seeking to digitize vampires into code-slaves. Operates through the Hemophage Relief Front — a shadowy NGO harvesting data under the guise of charity.</div></div>
+      <div class="threat-card"><span class="threat-icon">🌅</span><div class="threat-name">The Dawn Protocol</div><div class="threat-body">Human remnants reverse-engineering turning tech into a weapon. Dawn Uprising cells brew anti-vitae serums. If successful, the Blood Covenant collapses.</div></div>
+      <div class="threat-card"><span class="threat-icon">🧬</span><div class="threat-name">Cross-Faction Anomalies</div><div class="threat-body">Rare hybrids carrying Technae from multiple factions. The Grand Codex prophecy suggests they herald either elevation or extinction.</div></div>
+    </div>
+  </div>
+
+  <!-- Card Gallery -->
+  <div class="gallery-outer" id="gallery">
+    <div class="gallery-hd"><div class="s-label">The Collection</div><h2 class="s-title">Card Gallery</h2><p style="font-size:20px;color:var(--dim);font-style:italic;">Click any card to view full size. Filter by faction.</p></div>
     <div class="filter-tabs">
       <button class="ftab active" data-filter="all">All</button>
       <button class="ftab" data-filter="red">Red</button>
@@ -1376,11 +1366,11 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
       <button class="ftab" data-filter="land">Land</button>
     </div>
     <div class="gallery-grid" id="cardGrid">
-      <div class="g-item" data-faction="white" data-name="Echo Reliquary — Prototype" data-img="images/Prototype_Card_-_Echo_Reliquary.png?v=2"><img src="images/Prototype_Card_-_Echo_Reliquary.png?v=2" alt="Echo Reliquary"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Echo Reliquary · Prototype</div></div></div></div>
       <div class="g-item" data-faction="red" data-name="Red Creature 009" data-img="images/Red_Creature_009.jpg"><img src="images/Red_Creature_009.jpg" alt="Red Creature"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Red Creature</div></div></div></div>
       <div class="g-item" data-faction="red" data-name="Red Creature 012" data-img="images/Red_Creature_012.jpg"><img src="images/Red_Creature_012.jpg" alt="Red Creature"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Red Creature</div></div></div></div>
       <div class="g-item" data-faction="red" data-name="Red Spell 007" data-img="images/Red_Spell_007.png"><img src="images/Red_Spell_007.png" alt="Red Spell"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Red Spell</div></div></div></div>
       <div class="g-item" data-faction="red" data-name="Red Spell 013" data-img="images/Red_Spell_013.png"><img src="images/Red_Spell_013.png" alt="Red Spell"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Red Spell</div></div></div></div>
+      <div class="g-item" data-faction="white" data-name="Echo Reliquary — Prototype" data-img="images/Prototype_Card_-_Echo_Reliquary.png?v=2"><img src="images/Prototype_Card_-_Echo_Reliquary.png?v=2" alt="Echo Reliquary"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Echo Reliquary · Prototype</div></div></div></div>
       <div class="g-item" data-faction="white" data-name="White Creature 001" data-img="images/White_Creature_001.png"><img src="images/White_Creature_001.png" alt="White Creature"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">White Creature</div></div></div></div>
       <div class="g-item" data-faction="white" data-name="White Creature 010" data-img="images/White_Creature_010.png"><img src="images/White_Creature_010.png" alt="White Creature"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">White Creature</div></div></div></div>
       <div class="g-item" data-faction="white" data-name="White Relic 006" data-img="images/White_Relic_006.png"><img src="images/White_Relic_006.png" alt="White Relic"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">White Relic</div></div></div></div>
@@ -1396,22 +1386,6 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
       <div class="g-item" data-faction="colorless" data-name="Colorless Relic 009" data-img="images/Colorless_Relic_009.png"><img src="images/Colorless_Relic_009.png" alt="Colorless Relic"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Colorless Relic</div></div></div></div>
       <div class="g-item" data-faction="colorless" data-name="Colorless Relic 016" data-img="images/Colorless_Relic_016.png"><img src="images/Colorless_Relic_016.png" alt="Colorless Relic"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Colorless Relic</div></div></div></div>
       <div class="g-item" data-faction="land" data-name="Crypto Mining Monolith" data-img="images/Land_-_Crypto_Mining_Monolith.png"><img src="images/Land_-_Crypto_Mining_Monolith.png" alt="Land"><div class="g-overlay"><div><div class="g-faction-dot"></div><div class="g-name">Crypto Mining Monolith</div></div></div></div>
-    </div>
-  </div>
-</section>
-
-<!-- WORLD ART -->
-<section id="world">
-  <div class="divider"><div class="div-line"></div><div class="div-sym">✦</div><div class="div-line"></div></div>
-  <div class="worldart-outer">
-    <div class="worldart-hd"><div class="s-label">Art of the Crimson Nexus</div><h2 class="s-title">The World of Cybervamp</h2><p style="font-size:18px;color:var(--dim);font-style:italic;">Gothic architecture meets neon circuitry. Blood fountains beside quantum databanks. The eternal night hums with technae.</p></div>
-    <div class="world-grid">
-      <div class="world-item"><img src="images/website_background_001.png" alt="Cyber City"><div class="world-item-label">Neon Revenant Territory — Cyber City Streets</div></div>
-      <div class="world-item"><img src="images/website_background_004.png" alt="Blood Moon"><div class="world-item-label">Blood Moon Over the Cathedral Ruins</div></div>
-      <div class="world-item"><img src="images/website_background_003.png" alt="Academy Library"><div class="world-item-label">The Aether Academy — Arcane Library</div></div>
-      <div class="world-item"><img src="images/website_background_002.png" alt="Palace Gardens"><div class="world-item-label">Crystal Palace — Vladislav's Blood Gardens</div></div>
-      <div class="world-item"><img src="images/website_background_005.png" alt="Inner Sanctum"><div class="world-item-label">Palace Inner Sanctum — Command Floor</div></div>
-      <div class="world-item"><img src="images/website_background_007.png" alt="Neo-Sanguine Quarter"><div class="world-item-label">The Neo-Sanguine Quarter — Street Level</div></div>
     </div>
   </div>
 </section>
@@ -1531,12 +1505,11 @@ footer { background:var(--gothic-dk); border-top:1px solid rgba(255,255,255,.05)
     <div><div class="footer-logo">CYBERVAMP</div><div class="footer-tagline">The night never ends. · Year 2147</div></div>
     <ul class="footer-links">
       <li><a href="#mechanics">Rules</a></li>
+      <li><a href="#lore">World</a></li>
       <li><a href="#factions">Factions</a></li>
       <li><a href="#leaders">Sire Lords</a></li>
       <li><a href="#missions">Missions</a></li>
-      <li><a href="#lore">The Nexus</a></li>
       <li><a href="#gallery">Gallery</a></li>
-      <li><a href="#world">World Art</a></li>
       <li><a href="#signup">Early Access</a></li>
     </ul>
     <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end;">
