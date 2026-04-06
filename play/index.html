@@ -2522,6 +2522,7 @@ function parseKeywords(txt) {
   if ((t.includes('while') && t.includes('attacking') &&
       (t.includes('gain') || t.includes('get'))) ||
       (t.includes('while on the battlefield') && (t.includes('gain') || t.includes('get')))) kw.whileAttackingAura = true;
+  if (t.includes('hemorrhage')) kw.hemorrhage = true;
   // Glimpse tag — any card that mentions Glimpse is considered a Glimpse creature/card
   if (t.includes('glimpse')) kw.glimpse = true;
   // mustOverexhaust — creature must be overexhausted (not just exhausted) to attack
@@ -4146,6 +4147,23 @@ function fireDirectDamageTrigger(inst, attackingSide, damage) {
     log(`${inst.name}: deals damage directly — drew a card.`, '');
   }
 
+  // Hemorrhage: on-hit scaling effects
+  if (inst.keywords?.hemorrhage && hemorrhageActive(inst)) {
+    const hEff = getHemorrhageEffect(inst.abilities || '').toLowerCase();
+    // Nano Vein Flexer: '+1 Bleed for each Bleed counter on you'
+    if (hEff.includes('+1 bleed for each bleed counter')) {
+      const bc = hemorrhageBleedCount(inst);
+      const opp2 = attackingSide === 'player' ? 'ai' : 'player';
+      G[opp2].bleed += bc;
+      updateLifeDisplay(opp2);
+      log(`${inst.name}: Hemorrhage — +${bc} Bleed (${bc} counters on you).`, 'bleed');
+    }
+    // Cassian Gateward: 'Glimpse 1 when this deals direct damage'
+    if (hEff.includes('glimpse 1') && hEff.includes('direct damage') && attackingSide === 'player') {
+      doGlimpse('player', 1, inst.name);
+    }
+  }
+
   // Augur's Signet buff — creature flagged to draw on direct damage
   if (inst._augurDraw) {
     inst._augurDraw = false;
@@ -4254,6 +4272,18 @@ function fireCombatTriggers(atkInsts, blkMap, defendingSide) {
       }
 
       // ── POST-DAMAGE triggers (deferred — attacker overexhaust) ─
+      // Hemorrhage: Ironmaw Butcher — +1 power per blocker with power ≤ 2
+      if (atk.keywords?.hemorrhage && hemorrhageActive(atk)) {
+        const hEff = getHemorrhageEffect(atk.abilities || '').toLowerCase();
+        if (hEff.includes('blocking it with power of 2 or less') || hEff.includes('power of 2 or less')) {
+          const weakBlockers = blkList.filter(b => getEffectivePower(b) <= 2).length;
+          if (weakBlockers > 0) {
+            atk.powerMods.push({ amount: weakBlockers, until: 'eot' });
+            log(`${atk.name}: Hemorrhage — +${weakBlockers} power (${weakBlockers} weak blocker(s)).`, 'heal');
+          }
+        }
+      }
+
       // Elowen Thornveil: "If blocked, the blocking creature becomes overexhausted after the battle phase ends"
       // We apply this now — the attacker triggered it, the blocker gets overexhausted
       if (atkTxt.includes('if blocked') && atkTxt.includes('blocking creature') && atkTxt.includes('overexhausted')) {
@@ -6248,6 +6278,32 @@ function applyWhileAttackingAuras(who, attackingInsts) {
         log(`${aura.name}: ${atk.name} gains Bleed +${bonus}.`, '');
       });
     }
+    // ── HEMORRHAGE while-attacking effects ──────────────────────
+    if (aura.keywords?.hemorrhage) {
+      const owner2 = who;
+      const bleedCount = G[owner2].bleed || 0;
+      if (bleedCount > 0 && aura.attacking) {
+        const hEff = getHemorrhageEffect(aura.abilities || '').toLowerCase();
+        // Velocity Glitcher: 'while attacking +1 power for each bleed counter on you'
+        if (hEff.includes('while attacking') && hEff.includes('each bleed counter')) {
+          aura.powerMods.push({ amount: bleedCount, until: 'eot' });
+          log(`${aura.name}: Hemorrhage — +${bleedCount} power (${bleedCount} Bleed).`, 'heal');
+        }
+        // Nano Vein Flexer: '+1 Bleed for each Bleed counter on you' (on hit — handled in fireDirectDamageTrigger)
+        // Salizer Shade: 'Hemorrhage: Breach, Selfbleed 1 when attacking'
+        if (hEff.includes('breach')) {
+          aura.tempKeywords = aura.tempKeywords || {};
+          aura.tempKeywords.breach = true;
+          log(`${aura.name}: Hemorrhage — Breach active.`, 'heal');
+        }
+        if (hEff.includes('selfbleed')) {
+          const sbN = parseInt(hEff.match(/selfbleed (\d+)/)?.[1] || '1');
+          G[owner2].bleed += sbN;
+          updateLifeDisplay(owner2);
+          log(`${aura.name}: Hemorrhage — Selfbleed ${sbN}.`, 'bleed');
+        }
+      }
+    }
   });
 }
 // ── GLIMPSE PANEL ─────────────────────────────────────────────
@@ -6436,6 +6492,29 @@ function hasKeyword(inst, kw) {
   return !!(inst.keywords[kw] || inst.tempKeywords[kw]);
 }
 
+// ── HEMORRHAGE SYSTEM ─────────────────────────────────────────
+// Returns the effect text after "Hemorrhage:" in an ability string, or null.
+function getHemorrhageEffect(abilitiesStr) {
+  const m = abilitiesStr.match(/Hemorrhage:\s*(.+?)(?:\n|$)/i);
+  return m ? m[1].trim() : null;
+}
+
+// Is Hemorrhage active for this card's controller?
+function hemorrhageActive(inst) {
+  if (!G || !inst.keywords?.hemorrhage) return false;
+  const owner = G.player.battlefield.includes(inst) ? 'player' :
+                G.ai.battlefield.includes(inst)     ? 'ai'     : null;
+  return owner ? (G[owner].bleed || 0) > 0 : false;
+}
+
+// How many bleed counters does this card's controller have?
+function hemorrhageBleedCount(inst) {
+  if (!G) return 0;
+  const owner = G.player.battlefield.includes(inst) ? 'player' :
+                G.ai.battlefield.includes(inst)     ? 'ai'     : null;
+  return owner ? (G[owner].bleed || 0) : 0;
+}
+
 function getEffectivePower(inst) {
   let p = inst.power || 0;
   inst.powerMods.forEach(m => p += m.amount);
@@ -6450,9 +6529,16 @@ function getEffectivePower(inst) {
   if (owner && inst.name === 'Cassian Gateward' &&
       G[owner].battlefield.some(i => i.name === 'Liora Gateward'))  p += 1;
 
-  // Velocity Glitcher: +1 for every bleed counter on controller
-  if (owner && (inst.abilities||'').toLowerCase().includes('every bleed token on its controller'))
-    p += (G[owner].bleed || 0);
+  // Hemorrhage: 'While attacking +1 power for each Bleed counter on you' (Velocity Glitcher)
+  // This is handled in applyWhileAttackingAuras for the attacking buff;
+  // static power check here only if not attacking (non-attacking Hemorrhage power buffs)
+  if (owner && inst.keywords?.hemorrhage && hemorrhageActive(inst)) {
+    const hEffect = getHemorrhageEffect(inst.abilities || '').toLowerCase();
+    // Static power bonus (not while-attacking): 'each bleed counter' without 'while attacking'
+    if (hEffect && hEffect.includes('each bleed counter') && !hEffect.includes('while attacking')) {
+      p += hemorrhageBleedCount(inst);
+    }
+  }
 
   // Static auras: scan battlefield for 'while in the field/play' token power buffs
   if (owner && inst.isToken && inst.type === 'Creature') {
@@ -7657,7 +7743,8 @@ const KW_STYLES = {
   haste:   { label:'Haste',     bg:'rgba(224,80,0,0.85)',   color:'#fff' },
   wall:    { label:'Wall',      bg:'rgba(80,120,200,0.85)', color:'#fff' },
   breach:  { label:'Breach',    bg:'rgba(200,60,0,0.85)',   color:'#fff' },
-  tireless:{ label:'Tireless',  bg:'rgba(0,160,80,0.85)',   color:'#fff' },
+  hemorrhage:{ label:'Hemorrhage', bg:'rgba(180,20,20,0.88)', color:'#ffb0b0' },
+  tireless:{   label:'Tireless',   bg:'rgba(0,160,80,0.85)',  color:'#fff' },
   siphon:  { label:'Siphon',    bg:'rgba(120,0,200,0.85)',  color:'#fff' },
   bleed:   { label:'Bleed',     bg:'rgba(220,30,50,0.85)',  color:'#fff' },
 };
