@@ -885,14 +885,14 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   border-right: 1px solid var(--border-dim);
 }
 .mission-card {
-  position: relative; width: 72px; height: 101px;
-  border-radius: 5px; overflow: hidden; cursor: pointer; flex-shrink: 0;
+  position: relative; width: 96px; height: 134px;
+  border-radius: 6px; overflow: hidden; cursor: pointer; flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.07);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
   perspective: 600px;
 }
 .mission-card:hover {
-  transform: scale(1.08);
+  transform: scale(1.06);
   box-shadow: 0 4px 20px rgba(0,0,0,0.8), 0 0 14px rgba(160,32,240,0.4);
 }
 .mission-card-inner {
@@ -946,7 +946,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   position: fixed; z-index: 10500; pointer-events: none;
   filter: drop-shadow(0 12px 40px rgba(0,0,0,0.95)) drop-shadow(0 0 20px rgba(160,32,240,0.3));
 }
-#mission-preview img { width: 280px; height: 392px; border-radius: 12px; display: block; }
+#mission-preview img { width: 360px; height: 504px; border-radius: 14px; display: block; }
 
 /* ── SCREEN SHAKE ── */
 @keyframes screen-shake {
@@ -2008,7 +2008,7 @@ function showMissionPreview(ms, e) {
 function moveMissionPreview(e) {
   const prev = document.getElementById('mission-preview');
   if (!prev || prev.style.display === 'none') return;
-  const pw = 280, ph = 392, margin = 12;
+  const pw = 360, ph = 504, margin = 12;
   let left = e.clientX + margin;
   let top  = e.clientY - ph / 2;
   if (left + pw > window.innerWidth - margin)  left = e.clientX - pw - margin;
@@ -4037,41 +4037,7 @@ function fireDestroyTrigger(inst, owner) {
   if (!txt.includes('when this') && !txt.includes('if this') &&
       !txt.includes('when this card is destroyed') && !txt.includes('when this is destroyed')) return;
 
-  // "If [this] were to be destroyed, you may instead destroy another creature" (Mira Hermes)
-  // This is handled pre-destroy — if inst has this text and owner is player, offer sacrifice
-  if (txt.includes('were to be destroyed') && txt.includes('instead destroy') && owner === 'player') {
-    const sacrificeTargets = G.player.battlefield.filter(i =>
-      i.instId !== inst.instId && i.type === 'Creature'
-    );
-    if (sacrificeTargets.length > 0) {
-      // Show sacrifice modal — remove the just-added discard first
-      G[owner].discard = G[owner].discard.filter(i => i.instId !== inst.instId);
-      G[owner].battlefield.push(inst); // put back
-      showModal(
-        `${inst.name} — Protection`,
-        `Sacrifice another creature to save ${inst.name}?`,
-        sacrificeTargets.map(t => ({
-          label: `SACRIFICE ${t.name} [${getEffectivePower(t)}]`,
-          cls: 'btn-danger',
-          action: () => {
-            removeFromBattlefield(t, owner);
-            log(`${inst.name}: ${t.name} sacrificed — ${inst.name} survives!`, 'heal');
-            updateUI();
-          }
-        })).concat([{
-          label: 'LET IT DIE',
-          cls: 'btn-muted',
-          action: () => {
-            // Actually destroy now
-            const idx2 = G[owner].battlefield.findIndex(i => i.instId === inst.instId);
-            if (idx2 !== -1) { G[owner].battlefield.splice(idx2,1); G[owner].discard.push(inst); }
-            updateUI();
-          }
-        }])
-      );
-      return; // skip normal destroy triggers
-    }
-  }
+  // Mira Hermes protection is now handled in destroyCreature (pre-removal) — not here
   if (txt.includes('destroyed') && txt.includes('bat token')) {
     const n = parseInt(txt.match(/(\d+) bat token/)?.[1] || '1');
     for (let i = 0; i < n; i++) createToken('Bat Token', owner);
@@ -4182,6 +4148,18 @@ function fireDirectDamageTrigger(inst, attackingSide, damage) {
 }
 function fireAttackTrigger(inst, who) {
   const txt = (inst.abilities || '').toLowerCase();
+
+  // 'When attacking Selfbleed N' — fires at attack declaration regardless of other guards
+  if (txt.includes('when attacking') && txt.includes('selfbleed')) {
+    const sbMatch = txt.match(/when attacking selfbleed (\d+)/);
+    if (sbMatch) {
+      const sbN = parseInt(sbMatch[1]);
+      G[who].bleed += sbN;
+      updateLifeDisplay(who);
+      log(`${inst.name}: When attacking — Selfbleed ${sbN}.`, 'bleed');
+    }
+  }
+
   if (!txt.includes('when this') || !txt.includes('attack')) return;
 
   // "When this creature is declared as an attacker, you may give +1 power to target Bat token" (id:206)
@@ -4223,9 +4201,11 @@ function fireAttackTrigger(inst, who) {
   }
 
   // "Any creature blocking this card becomes exhausted" (Salizer Shade) — mark for combat resolution
-  if (txt.includes('blocking this card becomes exhausted') || txt.includes('blocking this becomes exhausted')) {
+  if (txt.includes('blocking this card becomes exhausted') || txt.includes('blocking this becomes exhausted') ||
+      txt.includes('blocking this card becomes overexhausted')) {
     inst._exhaustBlockers = true;
   }
+
 }
 // Called BEFORE damage so all creatures still exist for checks
 // Attacker-overexhaust triggers are deferred to run AFTER damage via returned callbacks
@@ -4282,6 +4262,12 @@ function fireCombatTriggers(atkInsts, blkMap, defendingSide) {
             log(`${atk.name}: Hemorrhage — +${weakBlockers} power (${weakBlockers} weak blocker(s)).`, 'heal');
           }
         }
+      }
+
+      // Slashfang Sprinter: mark as blocked this turn
+      if ((atkTxt.includes('was blocked') || atkTxt.includes('it was blocked') || atkTxt.includes('gains bleed +1')) &&
+           atkTxt.includes('blocked')) {
+        atk._wasBlockedThisTurn = true;
       }
 
       // Elowen Thornveil: "If blocked, the blocking creature becomes overexhausted after the battle phase ends"
@@ -4516,6 +4502,38 @@ function destroyCreature(inst, owner, bySpell = false) {
   if (bySpell && inst._spellProtect) {
     log(`${inst.name} is protected from spells this turn — not destroyed.`, 'heal');
     return;
+  }
+  // Mira Hermes: pre-destroy intercept — offer sacrifice BEFORE removal
+  const abl_mira = (inst.abilities || '').toLowerCase();
+  if ((abl_mira.includes('going to be destroyed') || abl_mira.includes('were to be destroyed')) &&
+       abl_mira.includes('instead destroy') && owner === 'player') {
+    const sacrificeTargets = G.player.battlefield.filter(i =>
+      i.instId !== inst.instId && i.type === 'Creature'
+    );
+    if (sacrificeTargets.length > 0) {
+      showModal(
+        `${inst.name} — Protection`,
+        `Sacrifice another creature to save ${inst.name}?`,
+        sacrificeTargets.map(t => ({
+          label: `SACRIFICE ${t.name} [${getEffectivePower(t)}]`,
+          cls: 'btn-danger',
+          action: () => {
+            destroyCreature(t, owner);
+            if (abl_mira.includes('draw a card')) {
+              drawFromDeck(owner, G[owner].main.length > 0 ? 'main' : 'land');
+              log(`${inst.name}: Drew a card.`, 'heal');
+            }
+            log(`${inst.name}: ${t.name} sacrificed — ${inst.name} survives!`, 'heal');
+            updateUI();
+          }
+        })).concat([{
+          label: 'LET HER DIE',
+          cls: 'btn-muted',
+          action: () => { removeFromBattlefield(inst, owner); sfx('destroy', 0.5); updateUI(); }
+        }])
+      );
+      return; // modal handles outcome
+    }
   }
   removeFromBattlefield(inst, owner);
   sfx('destroy', 0.5);
@@ -6055,6 +6073,24 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     updateUI();
     return;
   }
+  // Living Wall: Destroy a relic you control: Loses Wall until end of turn
+  if (seg.includes('loses wall') || (seg.includes('destroy') && seg.includes('relic') && seg.includes('loses wall'))) {
+    const ownRelics = G[who].battlefield.filter(i => i.type === 'Relic');
+    if (ownRelics.length === 0) { log(`${inst.name}: No relics to destroy.`, ''); return; }
+    const doLose = (relic) => {
+      removeFromBattlefield(relic, who);
+      inst.tempKeywords = inst.tempKeywords || {};
+      inst.tempKeywords.wall = false;
+      inst._lostWallThisTurn = true;
+      log(`${inst.name}: Destroyed ${relic.name} — Wall removed until end of turn!`, 'heal');
+      updateUI();
+    };
+    if (ownRelics.length === 1) doLose(ownRelics[0]);
+    else showModal(inst.name, 'Choose a relic to destroy:',
+      ownRelics.map(r => ({ label: r.name, cls: 'btn-danger', action: () => doLose(r) })));
+    return;
+  }
+
   // Aristocrat Seer — destroy own wall or relic to draw a card
   if (seg.includes('destroy a wall or relic') && seg.includes('draw a card')) {
     const targets = G[who].battlefield.filter(i =>
@@ -6081,6 +6117,29 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     updateUI();
     return;
   }
+  // Crystal Ward Guardian: gain life = power of creature blocking target wall
+  if (seg.includes('gain life equal to the power') && seg.includes('wall')) {
+    const walls = G[who].battlefield.filter(i => hasKeyword(i,'wall') && i.type==='Creature');
+    if (walls.length === 0) { log(`${inst.name}: No walls in play.`, ''); return; }
+    const doGain = (wall) => {
+      // Find what's blocking this wall (player block window: blockers map)
+      const blockingPow = G[who==='player'?'ai':'player'].battlefield
+        .filter(i => i.blocking && i.blockTarget === wall.instId)
+        .reduce((s,i) => s + getEffectivePower(i), 0);
+      if (blockingPow > 0) {
+        G[who].life += blockingPow; updateLifeDisplay(who);
+        log(`${inst.name}: Gained ${blockingPow} life (blocker power).`, 'heal');
+      } else {
+        log(`${inst.name}: No creature blocking that wall.`, '');
+      }
+    };
+    if (walls.length === 1) doGain(walls[0]);
+    else showModal(inst.name, 'Choose target wall:', walls.map(w => ({
+      label: w.name, cls: 'btn-secondary', action: () => doGain(w)
+    })));
+    return;
+  }
+
   if (seg.includes('gain') && seg.includes('life')) {
     const n = parseInt(seg.match(/gain (\d+) life/)?.[1] || '1');
     G[who].life += n; updateLifeDisplay(who);
@@ -6489,7 +6548,9 @@ function confirmGlimpse() {
 
 // ── HELPERS ───────────────────────────────────────────────────
 function hasKeyword(inst, kw) {
-  return !!(inst.keywords[kw] || inst.tempKeywords[kw]);
+  // If tempKeywords explicitly negates the keyword, return false
+  if (inst.tempKeywords && kw in inst.tempKeywords && inst.tempKeywords[kw] === false) return false;
+  return !!(inst.keywords?.[kw] || inst.tempKeywords?.[kw]);
 }
 
 // ── HEMORRHAGE SYSTEM ─────────────────────────────────────────
@@ -6557,6 +6618,12 @@ function getEffectivePower(inst) {
 function clearEotEffects(who) {
   const toReturn = [];
   G[who].battlefield.forEach(inst => {
+    // Slashfang Sprinter: gains Bleed +1 at EOT if it was blocked this turn
+    if (inst._wasBlockedThisTurn && (inst.abilities||'').toLowerCase().includes('gains bleed +1')) {
+      inst.keywords.bleed = (inst.keywords.bleed || 0) + 1;
+      log(`${inst.name}: Was blocked — Bleed now ${inst.keywords.bleed}.`, 'bleed');
+      inst._wasBlockedThisTurn = false;
+    }
     inst.powerMods = inst.powerMods.filter(m => m.until !== 'eot');
     inst.tempKeywords = {};
     if (inst._cannotAttack) inst._cannotAttack = false;
@@ -6564,6 +6631,10 @@ function clearEotEffects(who) {
     if (inst._augurDraw) inst._augurDraw = false;
     if (inst._spellProtect) inst._spellProtect = false;
     if (inst._bleedBoost) inst._bleedBoost = 0; // Blade Silhouette EOT clear
+    if (inst._lostWallThisTurn) { // Living Wall restores Wall
+      inst._lostWallThisTurn = false;
+      if (inst.tempKeywords) inst.tempKeywords.wall = undefined;
+    }
     // Return temp-controlled creatures to their original owner
     if (inst._tempControlOwner) toReturn.push({ inst, origOwner: inst._tempControlOwner });
   });
