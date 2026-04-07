@@ -2,8 +2,34 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Cybervamp CCG</title>
+
+<!-- ── PWA META ── -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cybervamp">
+<meta name="theme-color" content="#07080d">
+<meta name="description" content="Cybervamp CCG — Solo vs AI card game">
+
+<!-- Apple touch icons (all pointing to your banner/logo image) -->
+<link rel="apple-touch-icon" href="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/YT%20Banner%202026%20Cybervamp.jpg?raw=true">
+<link rel="apple-touch-icon" sizes="152x152" href="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/YT%20Banner%202026%20Cybervamp.jpg?raw=true">
+<link rel="apple-touch-icon" sizes="180x180" href="https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/YT%20Banner%202026%20Cybervamp.jpg?raw=true">
+
+<!-- Inline manifest via data URI -->
+<link rel="manifest" href="data:application/manifest+json,{
+  %22name%22:%22Cybervamp%20CCG%22,
+  %22short_name%22:%22Cybervamp%22,
+  %22description%22:%22Solo%20vs%20AI%20card%20game%22,
+  %22start_url%22:%22.%22,
+  %22display%22:%22standalone%22,
+  %22orientation%22:%22landscape%22,
+  %22background_color%22:%22%2307080d%22,
+  %22theme_color%22:%22%2307080d%22,
+  %22icons%22:[{%22src%22:%22https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/YT%2520Banner%25202026%2520Cybervamp.jpg?raw=true%22,%22sizes%22:%22512x512%22,%22type%22:%22image/jpeg%22}]
+}">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -71,7 +97,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   scrollbar-width: thin; position: relative; z-index: 80;
   border-top: 1px solid rgba(255,255,255,0.06);
 }
-#hand-ai { filter: brightness(0.4); cursor: default; align-items: flex-start; }
+#hand-ai { filter: brightness(0.75); cursor: default; align-items: stretch; }
 
 /* Player info strips — bigger, more prominent */
 #ai-info-strip, #player-info-strip {
@@ -399,8 +425,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   background: rgba(0,0,0,0.08); position: relative; z-index: 80;
 }
 #hand-ai {
-  filter: brightness(0.75); cursor: default;
-  min-height: 84px; max-height: 96px;
+  filter: brightness(0.85); cursor: default;
+  min-height: 188px; max-height: 210px;
+}
+/* AI vitals get slightly higher brightness than the card backs */
+#hand-ai #ai-hand-vitals,
+#hand-ai .mission-slot {
+  filter: brightness(1.15);
 }
 #hand-ai .hand-decks {
   padding: 4px 10px;
@@ -881,11 +912,16 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 /* ── MISSION CARDS ── */
 .mission-slot {
   display: flex; align-items: center; justify-content: center;
-  padding: 4px 6px; flex-shrink: 0;
+  padding: 4px 8px; flex-shrink: 0;
+  border-right: 1px solid var(--border-dim);
+}
+/* AI mission slot sits to right of vitals — border on both sides */
+#mission-slot-ai {
+  border-left: none;
   border-right: 1px solid var(--border-dim);
 }
 .mission-card {
-  position: relative; width: 116px; height: 162px;
+  position: relative; width: 136px; height: 190px;
   border-radius: 6px; overflow: hidden; cursor: pointer; flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.07);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
@@ -946,7 +982,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   position: fixed; z-index: 10500; pointer-events: none;
   filter: drop-shadow(0 12px 40px rgba(0,0,0,0.95)) drop-shadow(0 0 20px rgba(160,32,240,0.3));
 }
-#mission-preview img { width: 420px; height: 588px; border-radius: 16px; display: block; }
+#mission-preview img { width: 448px; height: 628px; border-radius: 16px; display: block; }
 
 /* ── SCREEN SHAKE ── */
 @keyframes screen-shake {
@@ -1597,10 +1633,24 @@ html.targeting-active .card.blockable * {
   <canvas id="particle-canvas"></canvas>
   <div id="damage-vignette"></div>
   <div id="arena">
-    <!-- AI HAND — no vitals here, they moved to the info strip -->
+    <!-- AI HAND — vitals left, mission card, cards center, decks right -->
     <div class="hand-zone" id="hand-ai">
-      <!-- Cards center -->
+      <!-- Life/Bleed left — mirrors player side -->
+      <div class="hand-vitals" id="ai-hand-vitals">
+        <div class="hand-vital-block">
+          <div class="hand-vital-icon">❤️</div>
+          <div class="hand-vital-val life" id="ai-life">20</div>
+          <div class="hand-vital-label">LIFE</div>
+        </div>
+        <div class="hand-vital-block">
+          <div class="hand-vital-icon">🩸</div>
+          <div class="hand-vital-val bleed" id="ai-bleed">0</div>
+          <div class="hand-vital-label">BLEED</div>
+        </div>
+      </div>
+      <!-- Mission card — between life total and hand cards -->
       <div class="mission-slot" id="mission-slot-ai"></div>
+      <!-- Cards center -->
       <div class="hand-cards-scroll" id="hand-ai-cards"></div>
       <!-- Decks right -->
       <div class="hand-decks">
@@ -1621,22 +1671,9 @@ html.targeting-active .card.blockable * {
       </div>
     </div>
 
-    <!-- AI MANA BAR — vitals on left, pool on right -->
+    <!-- AI MANA BAR — faction label + pool only, vitals moved to hand zone -->
     <div id="ai-info-strip">
-      <!-- AI life/bleed now live here, always visible -->
-      <div class="strip-vitals">
-        <div class="hand-vital-block">
-          <div class="hand-vital-icon">❤️</div>
-          <div class="strip-vital-val life" id="ai-life">20</div>
-          <div class="hand-vital-label">LIFE</div>
-        </div>
-        <div class="hand-vital-block">
-          <div class="hand-vital-icon">🩸</div>
-          <div class="strip-vital-val bleed" id="ai-bleed">0</div>
-          <div class="hand-vital-label">BLEED</div>
-        </div>
-      </div>
-      <span id="ai-faction-label" style="font-family:'Cinzel Decorative',serif;font-size:10px;letter-spacing:2px;color:var(--text-dim);margin-left:8px;"></span>
+      <span id="ai-faction-label" style="font-family:'Cinzel Decorative',serif;font-size:10px;letter-spacing:2px;color:var(--text-dim);"></span>
       <span class="pool-spacer"></span>
       <span class="pool-label">POOL:</span>
       <div class="resource-row" id="ai-mana-display"></div>
@@ -2014,7 +2051,7 @@ function showMissionPreview(ms, e) {
 function moveMissionPreview(e) {
   const prev = document.getElementById('mission-preview');
   if (!prev || prev.style.display === 'none') return;
-  const pw = 420, ph = 588, margin = 12;
+  const pw = 448, ph = 628, margin = 12;
   let left = e.clientX + margin;
   let top  = e.clientY - ph / 2;
   if (left + pw > window.innerWidth - margin)  left = e.clientX - pw - margin;
@@ -3590,9 +3627,12 @@ async function aiDeclareAttack() {
   // Apply "while attacking" auras from AI's battlefield
   applyWhileAttackingAuras('ai', myAttackers);
 
-  // Self Bleed on AI attackers with static selfBleed keyword
+  // Self Bleed on AI attackers — only for cards with static selfBleed keyword
+  // that do NOT also have 'when attacking selfbleed' text (which fires via fireAttackTrigger)
   myAttackers.forEach(inst => {
-    if (inst.keywords.selfBleed) {
+    const abl = (inst.abilities||'').toLowerCase();
+    const hasWhenAttackingText = abl.includes('when attacking') && abl.includes('selfbleed');
+    if (inst.keywords.selfBleed && !hasWhenAttackingText) {
       G.ai.bleed += inst.keywords.selfBleed;
       log(`${inst.name}: Self Bleed ${inst.keywords.selfBleed}.`, 'bleed');
       updateLifeDisplay('ai');
@@ -3862,13 +3902,8 @@ function confirmAttack() {
 
       applyWhileAttackingAuras('player', atkInsts);
 
-      atkInsts.forEach(inst => {
-        if (inst.keywords.selfBleed) {
-          G.player.bleed += inst.keywords.selfBleed;
-          log(`${inst.name}: Self Bleed ${inst.keywords.selfBleed}.`, 'bleed');
-          updateLifeDisplay('player');
-        }
-      });
+      // Note: selfBleed keyword is applied in fireAttackTrigger for
+      // 'When attacking Selfbleed N' cards — no double-apply here.
 
       log('── Damage resolves ──', 'phase');
       resolveCombat(atkInsts, blockers, 'ai');
@@ -4644,7 +4679,7 @@ function playCard(inst) {
     inst.newlyTurned = false;
     // 'Enters play exhausted' keyword (e.g. Eternal Archive)
     const ablLow2 = (inst.abilities || '').toLowerCase();
-    inst.exhaustState = ablLow2.includes('enters play exhausted') ? 'exhausted' : 'renewed';
+    inst.exhaustState = (ablLow2.includes('enters play exhausted') || ablLow2.includes('enters exhausted')) ? 'exhausted' : 'renewed';
     G.player.battlefield.push(inst);
     sfx('card_play');
     log(`You play ${inst.name} [Relic].${inst.exhaustState==='exhausted'?' (enters exhausted)':''}`, 'important');
@@ -5633,81 +5668,14 @@ function activatePayAbility(inst, pa) {
 // Short label for ability modal buttons
 // Activate a specific ability line (for cards with multiple exhaust lines like Hypeflux)
 function activateAbilityLine(inst, line) {
-  const lower = line.toLowerCase().trim();
-  const isOverexhaust = lower.includes('{overexhaust}');
+  // Delegate to activateAbility with a temporary single-line abilities override.
+  // This avoids duplicating the target-mode, mana-cost, exhaust, and effect logic.
+  const saved = inst.abilities;
+  inst.abilities = line;
+  const isOverexhaust = line.toLowerCase().includes('{overexhaust}');
   const mode = isOverexhaust ? 'overexhaust' : 'exhaust';
-
-  // Extract mana cost
-  const costMatches = lower.match(/^(\{[rgbpwc]\})+/);
-  const costStr = costMatches ? costMatches[0].replace(/[{}]/g,'').toUpperCase() : '';
-  if (costStr) {
-    autoTapForCost('player', costStr);
-    if (!canPayCost('player', costStr)) {
-      log(`${inst.name}: Needs ${costStr} — tap lands first.`, ''); return;
-    }
-    payCost('player', costStr);
-  }
-
-  // Build a synthetic ability text with just this line so resolveAbilityEffect can parse it
-  const synth = makeInst(inst.cardId, inst.owner ? inst.owner : 'player');
-  if (synth) synth.abilities = line;  // single line only
-  const synthInst = synth || inst;
-  synthInst.abilities = line;
-
-  // Check if this line needs a target
-  const seg = lower.includes('{exhaust}')
-    ? lower.substring(lower.indexOf('{exhaust}') + '{exhaust}'.length)
-    : lower.substring(lower.indexOf('{overexhaust}') + '{overexhaust}'.length);
-
-  const needsTarget = seg.includes('target') || seg.includes('gain control');
-
-  if (needsTarget) {
-    // Determine target mode from the line
-    let targetMode = 'any-creature';
-    if (seg.includes('gain control') && seg.includes('token')) targetMode = 'opponent-creature';
-    else if (seg.includes('gain control')) targetMode = 'opponent-creature';
-    else if (seg.includes('+1 power') || seg.includes('+2 power') || seg.includes('gains ')) targetMode = 'own-creature';
-    else if (seg.includes('exhaust target') || seg.includes('destroy') || seg.includes('-1 power')) targetMode = 'opponent-creature';
-
-    const allCreatures = [
-      ...G.player.battlefield.filter(i => i.type==='Creature').map(i => ({inst:i, owner:'player'})),
-      ...G.ai.battlefield.filter(i    => i.type==='Creature').map(i => ({inst:i, owner:'ai'})),
-    ];
-    const valid = allCreatures.filter(({inst:t, owner}) => {
-      if (targetMode === 'opponent-creature') return owner !== 'player';
-      if (targetMode === 'own-creature')      return owner === 'player';
-      return true;
-    });
-
-    if (valid.length === 0) {
-      log(`${inst.name}: No valid targets.`, '');
-      // Refund cost
-      if (costStr) costStr.split('').forEach(c => { G.player.mana[c] = (G.player.mana[c]||0)+1; });
-      updateManaDisplay('player');
-      return;
-    }
-
-    applyExhaustForAbility(inst, mode);
-
-    const doEffect = (target, targetOwner) => {
-      // Reuse resolveAbilityEffect with the line as ability text
-      const fakeInst = { ...inst, abilities: line };
-      resolveAbilityEffect(fakeInst, mode, 'player', target, targetOwner);
-    };
-
-    if (valid.length === 1) {
-      doEffect(valid[0].inst, valid[0].owner);
-    } else {
-      log(`${inst.name}: Choose a target.`, 'important');
-      beginTargeting({ name: inst.name, abilities: line }, 'player', targetMode,
-        (target, targetOwner) => doEffect(target, targetOwner)
-      );
-    }
-  } else {
-    applyExhaustForAbility(inst, mode);
-    const fakeInst = { ...inst, abilities: line };
-    resolveAbilityEffect(fakeInst, mode, 'player', null, null);
-  }
+  activateAbility(inst, mode);
+  inst.abilities = saved; // restore full abilities text
 }
 
 function parseAbilityDescription(txt, mode) {
@@ -5779,11 +5747,14 @@ function getAbilityTargetMode(txt, mode, caster) {
   // Token-specific → own side
   if (seg.includes('target wolf') || seg.includes('target bat') ||
       seg.includes('target token'))                         return 'own-creature';
+  // 'gains Siphon' on target creature — can target any creature (relic effect)
+  if (seg.includes('siphon') && !seg.includes('you control') && !seg.includes('gain siphon yourself'))
+    return 'any-creature';
   // Positive buffs → own side (unless 'with glimpse' — Augur's Signet targets any)
   if (!seg.includes('with glimpse') &&
      (seg.includes('+1 power') || seg.includes('+2 power') ||
       seg.includes('gains ')   || seg.includes('tireless') ||
-      seg.includes('siphon')   || seg.includes('breach'))) return 'own-creature';
+      seg.includes('breach'))) return 'own-creature';
   // Copy effects → own side (Elara Relicrender)
   if (seg.includes('make a copy') || (seg.includes('copy of') && seg.includes('creature'))) return 'own-creature';
   return 'any-creature';
@@ -8224,6 +8195,73 @@ document.addEventListener('click', e => {
   }
 });
 
+</script>
+<!-- ── PWA SERVICE WORKER ── -->
+<script>
+if ('serviceWorker' in navigator) {
+  // Inline service worker as a blob URL — no separate sw.js file needed
+  const swCode = `
+const CACHE = 'cybervamp-v1';
+const OFFLINE_URL = self.location.href; // the single HTML file is its own offline page
+
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE).then(cache => {
+      // Cache the fonts and the page itself
+      return cache.addAll([
+        'https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap',
+      ]).catch(() => {}); // fonts may fail on first load — that's ok
+    })
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', e => {
+  // For navigation requests, serve the cached page if offline
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).catch(() =>
+        caches.match(e.request).then(r => r || caches.match('/'))
+      )
+    );
+    return;
+  }
+  // For everything else: network first, cache fallback
+  e.respondWith(
+    fetch(e.request)
+      .then(res => {
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return res;
+      })
+      .catch(() => caches.match(e.request))
+  );
+});
+`;
+
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+
+  navigator.serviceWorker.register(swUrl, { scope: './' })
+    .then(reg => {
+      console.log('[PWA] Service worker registered, scope:', reg.scope);
+    })
+    .catch(err => {
+      // Blob SW registration may be blocked on some browsers/servers — graceful fallback
+      console.log('[PWA] SW registration skipped:', err.message);
+    });
+}
 </script>
 </body>
 </html>
