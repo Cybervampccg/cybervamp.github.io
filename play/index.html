@@ -67,18 +67,31 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 /* ── TOP BAR ── */
 #topbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 6px 16px; background: var(--bg-panel);
-  border-bottom: 1px solid var(--border-dim); flex-shrink: 0; height: 52px; z-index: 100;
+  padding: 6px 20px;
+  background: linear-gradient(135deg, rgba(10,6,24,0.97) 0%, rgba(14,8,28,0.95) 100%);
+  border-bottom: 1px solid rgba(160,32,240,0.2);
+  box-shadow: 0 2px 20px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.04);
+  flex-shrink: 0; height: 52px; z-index: 100;
+  backdrop-filter: blur(12px);
 }
-#topbar .logo { font-family: 'Cinzel Decorative', serif; font-size: 17px; color: var(--red); letter-spacing: 2px; }
+#topbar .logo {
+  font-family: 'Cinzel Decorative', serif; font-size: 17px; color: var(--red);
+  letter-spacing: 3px; text-shadow: 0 0 20px rgba(224,48,48,0.5);
+}
 .phase-track { display: flex; gap: 4px; align-items: center; }
 .phase-pip {
-  padding: 4px 12px; border-radius: 3px; font-size: 11px; letter-spacing: 1px;
-  font-weight: 600; text-transform: uppercase; border: 1px solid var(--border-dim);
-  color: var(--text-dim); background: transparent; transition: var(--transition);
+  padding: 4px 13px; border-radius: 20px; font-size: 10px; letter-spacing: 1.5px;
+  font-weight: 700; text-transform: uppercase;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.03);
+  color: var(--text-dim); transition: all 0.2s ease;
 }
-.phase-pip.active { color: var(--text-bright); border-color: var(--gold); background: rgba(212,160,32,0.15); }
-.phase-pip.done { color: var(--text-dim); border-color: var(--border-dim); }
+.phase-pip.active {
+  background: linear-gradient(135deg, var(--red) 0%, rgba(180,20,20,0.85) 100%);
+  color: #fff; border-color: rgba(255,80,80,0.35);
+  box-shadow: 0 0 18px rgba(224,48,48,0.5), 0 2px 8px rgba(0,0,0,0.5);
+}
+.phase-pip.done { color: var(--text-dim); opacity: 0.35; }
 
 #turn-info { font-size: 14px; color: var(--text-mid); font-family: 'Share Tech Mono', monospace; }
 
@@ -105,7 +118,11 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   padding: 5px 16px; flex-shrink: 0;
   z-index: 90; position: relative; min-height: 38px;
 }
-#ai-info-strip { background: rgba(20,10,50,0.95); border-bottom: 2px solid var(--border-dim); }
+#ai-info-strip {
+  background: linear-gradient(135deg, rgba(16,8,36,0.98) 0%, rgba(20,10,44,0.95) 100%);
+  border-bottom: 1px solid rgba(160,32,240,0.25);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
 
 /* AI vitals inside the info strip */
 .strip-vitals {
@@ -120,7 +137,11 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .strip-vital-val.life  { color: #80ff90; text-shadow: 0 0 8px rgba(80,255,100,0.5); }
 .strip-vital-val.bleed { color: #ff4444; text-shadow: 0 0 8px rgba(255,60,60,0.5); }
 .strip-vital-sep { font-size: 13px; opacity: 0.75; }
-#player-info-strip { background: rgba(30,10,10,0.95); border-top: 2px solid var(--border-dim); }
+#player-info-strip {
+  background: linear-gradient(135deg, rgba(28,8,8,0.98) 0%, rgba(20,6,6,0.95) 100%);
+  border-top: 1px solid rgba(224,48,48,0.2);
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.4);
+}
 
 /* Resource pool label */
 .pool-label {
@@ -392,8 +413,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.5);
   position:relative; z-index:7;
 }
-.card-name-mini { color:#f0eeff; max-width:100px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-family:'Cinzel',serif; font-size:9.5px; letter-spacing:0.3px; }
-.card-power { color:var(--gold); font-family:'Share Tech Mono',monospace; font-size:14px; font-weight:700; text-shadow: 0 0 8px rgba(212,160,32,0.6); }
+.card-name-mini { color:#fff; max-width:100px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-family:'Cinzel',serif; font-size:9.5px; letter-spacing:0.4px; text-shadow:0 1px 4px rgba(0,0,0,0.95); }
+.card-power { color:#fff; font-family:'Cinzel Decorative',monospace; font-size:15px; font-weight:700; text-shadow: 0 0 12px rgba(255,255,255,0.5), 0 1px 3px rgba(0,0,0,0.9); }
 
 /* Color bar — taller, glowing, faction-colored gradient */
 .color-bar { height:4px; width:100%; flex-shrink:0; position:relative; }
@@ -422,7 +443,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   display: flex; align-items: stretch;
   padding: 0; overflow: visible;
   min-height: 218px; max-height: 234px;
-  background: rgba(0,0,0,0.08); position: relative; z-index: 80;
+  background: linear-gradient(180deg, rgba(4,2,12,0.85) 0%, rgba(8,4,18,0.95) 100%);
+  position: relative; z-index: 80;
 }
 #hand-ai {
   filter: brightness(0.85); cursor: default;
@@ -456,10 +478,17 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 }
 .hand-vital-val {
   font-family: 'Cinzel Decorative', serif;
-  font-size: 28px; font-weight: 700; line-height: 1;
+  font-size: 32px; font-weight: 700; line-height: 1;
+  min-width: 36px; text-align: center;
 }
-.hand-vital-val.life  { color: var(--life-green); text-shadow: 0 0 16px rgba(80,220,80,0.5); }
-.hand-vital-val.bleed { color: var(--bleed-red);  text-shadow: 0 0 16px rgba(220,48,48,0.5); }
+.hand-vital-val.life  {
+  color: var(--life-green);
+  text-shadow: 0 0 20px rgba(48,208,96,0.7), 0 0 40px rgba(48,208,96,0.3);
+}
+.hand-vital-val.bleed {
+  color: var(--bleed-red);
+  text-shadow: 0 0 20px rgba(255,48,64,0.7), 0 0 40px rgba(255,48,64,0.3);
+}
 .hand-vital-label { font-size: 8px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); }
 .hand-vital-icon { font-size: 14px; }
 /* Cards scroll area — center of hand zone */
@@ -508,24 +537,52 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 /* ── ACTION BAR ── */
 #action-bar {
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 8px 20px; background: var(--bg-panel);
-  border-top: 1px solid var(--border-dim); flex-shrink: 0; flex-wrap: wrap;
+  padding: 10px 20px;
+  background: linear-gradient(180deg, rgba(8,4,20,0.97) 0%, rgba(4,2,14,0.99) 100%);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.7);
+  flex-shrink: 0; flex-wrap: wrap;
 }
 
 .btn {
-  padding: 8px 20px; border-radius: 4px; cursor: pointer;
-  font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 600;
-  letter-spacing: 1px; text-transform: uppercase;
-  border: 1px solid; transition: var(--transition); white-space: nowrap;
+  padding: 9px 22px; border-radius: 8px; cursor: pointer;
+  font-family: 'Cinzel', serif; font-size: 13px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  border: 1px solid transparent; transition: all 0.2s ease; white-space: nowrap;
+  position: relative; overflow: hidden;
 }
-.btn-primary { background: rgba(224,48,48,0.2); border-color: var(--red); color: #ffaaaa; }
-.btn-primary:hover { background: rgba(224,48,48,0.4); }
-.btn-secondary { background: rgba(212,160,32,0.1); border-color: var(--gold); color: var(--gold); }
-.btn-secondary:hover { background: rgba(212,160,32,0.2); }
-.btn-muted { background: transparent; border-color: var(--border-dim); color: var(--text-mid); }
-.btn-muted:hover { border-color: var(--border-bright); color: var(--text-bright); }
-.btn-danger { background: rgba(255,32,64,0.15); border-color: #ff2040; color: #ff8090; }
-.btn-danger:hover { background: rgba(255,32,64,0.3); }
+.btn::before {
+  content: ''; position: absolute; inset: 0; border-radius: 8px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #d03030 0%, #a01818 100%);
+  border-color: rgba(255,80,80,0.3); color: #fff;
+  box-shadow: 0 2px 16px rgba(200,32,32,0.4), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #e83838, #b82020);
+  box-shadow: 0 4px 28px rgba(224,48,48,0.6); transform: translateY(-1px);
+}
+.btn-secondary {
+  background: linear-gradient(135deg, rgba(180,130,20,0.25) 0%, rgba(140,100,10,0.3) 100%);
+  border-color: rgba(212,160,32,0.45); color: var(--gold);
+  box-shadow: 0 2px 10px rgba(212,160,32,0.15);
+}
+.btn-secondary:hover {
+  background: linear-gradient(135deg, rgba(212,160,32,0.35), rgba(180,130,20,0.4));
+  box-shadow: 0 4px 20px rgba(212,160,32,0.35); transform: translateY(-1px);
+}
+.btn-muted {
+  background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); color: var(--text-mid);
+}
+.btn-muted:hover { border-color: rgba(255,255,255,0.22); color: var(--text-bright); }
+.btn-danger {
+  background: linear-gradient(135deg, rgba(220,32,32,0.3), rgba(160,16,16,0.35));
+  border-color: rgba(255,48,64,0.4); color: #ff7080;
+}
+.btn-danger:hover { background: linear-gradient(135deg, rgba(255,40,60,0.4), rgba(200,20,30,0.45)); transform: translateY(-1px); }
 .btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
 
 /* ── LOG ── */
@@ -1682,7 +1739,7 @@ html.targeting-active .card.blockable * {
     <!-- BATTLEFIELD WRAPPER -->
     <div id="bf-wrapper" style="position:relative;">
       <div id="faction-tint"></div>
-      <div id="bf-overlay" style="position:absolute;inset:0;background:rgba(0,0,0,0.52);pointer-events:none;z-index:0;"></div>
+      <div id="bf-overlay" style="position:absolute;inset:0;background:radial-gradient(ellipse 100% 60% at 50% 50%,rgba(10,6,24,0.45) 0%,rgba(4,2,14,0.72) 100%);pointer-events:none;z-index:0;"></div>
 
       <!-- AI SIDE -->
       <div class="side-zone" id="side-ai">
@@ -2553,7 +2610,19 @@ function parseKeywords(txt) {
   // 'destroy a wall', 'target wall', etc.
   // Match: starts with 'wall', or ', wall', or '\nwall'
   if (/(?:^|,\s*|\n)wall(?:\s*,|\s*$|\s*\n|\s*\.|\s*;)/m.test(t)) kw.wall = true;
-  if (t.includes('breach')) kw.breach = true;
+  // breach: only a standing keyword if it appears standalone or after 'Haste,' etc.
+  // NOT when it's inside a conditional clause like 'if targeted by a spell: Breach'
+  if (t.includes('breach')) {
+    const breachIdx = t.indexOf('breach');
+    const before = t.substring(0, breachIdx);
+    // Conditional contexts — breach is a triggered/temporary effect, not a standing keyword
+    const isConditional = before.includes(': ') && (
+      before.includes('if ') || before.includes('when ') ||
+      before.includes('target of') || before.includes('targeted') ||
+      before.includes('hemorrhage') || before.includes('while attacking')
+    );
+    if (!isConditional) kw.breach = true;
+  }
   if (t.includes('siphon')) kw.siphon = true;
   const bm = t.match(/bleed (\d+)/); if (bm) kw.bleed = parseInt(bm[1]);
   const sb = t.match(/selfbleed (\d+)/i); if (sb) kw.selfBleed = parseInt(sb[1]);
@@ -3595,12 +3664,21 @@ async function aiDeclareAttack() {
   log('Assign blockers by clicking an AI attacker then your creature. Cast spells freely.', 'important');
 
   // ── BLOCKING WINDOW ──────────────────────────────────────────
-  combatPhase = 'player-block';
-  playerBlockers = {};
-  playerBlockTarget = null;
-  showActionOverlay('block');
-  updateUI();
-  await new Promise(resolve => { _blockResolve = resolve; });
+  // Skip if player has no creatures that can block
+  const playerBlockableCreatures = G.player.battlefield.filter(i =>
+    i.type === 'Creature' && i.exhaustState === 'renewed' && !i.attacking);
+  if (playerBlockableCreatures.length === 0) {
+    log('You have no creatures to block with.', '');
+    playerBlockers = {};
+    playerBlockTarget = null;
+  } else {
+    combatPhase = 'player-block';
+    playerBlockers = {};
+    playerBlockTarget = null;
+    showActionOverlay('block');
+    updateUI();
+    await new Promise(resolve => { _blockResolve = resolve; });
+  }
 
   // ── RESPONSE WINDOW ──────────────────────────────────────────
   combatPhase = 'response';
@@ -4773,6 +4851,36 @@ function castSpellWithTargeting(inst, caster, onDone) {
 
 function resolveSpellOnTarget(inst, caster, target, targetOwner) {
   const txt = (inst.abilities || '').toLowerCase();
+
+  // ── SPELL-TARGETED REACTIVE TRIGGERS on the target card ──────
+  // "If this card is the target of any spell: Gain +3 power, Breach until end of turn" (Elias Veyr)
+  // "When targeted by any spell Glimpse 2" (Vesper Lockscar)
+  const targetAbl = (target.abilities || '').toLowerCase();
+  if (targetAbl.includes('target of any spell') || targetAbl.includes('targeted by any spell')) {
+    // +N power reactive buff
+    const powMatch = targetAbl.match(/gain \+(\d+) power/);
+    if (powMatch) {
+      const n = parseInt(powMatch[1]);
+      target.powerMods.push({ amount: n, until: 'eot' });
+      log(`${target.name}: Targeted by spell — gains +${n} power until EOT!`, 'heal');
+    }
+    // Breach reactive
+    if (targetAbl.includes('breach')) {
+      target.tempKeywords = target.tempKeywords || {};
+      target.tempKeywords.breach = true;
+      log(`${target.name}: Targeted by spell — gains Breach until EOT!`, 'heal');
+    }
+    // Glimpse reactive (Vesper Lockscar)
+    if (targetAbl.includes('glimpse')) {
+      const glimpseMatch = targetAbl.match(/glimpse (\d+)/);
+      const n = glimpseMatch ? parseInt(glimpseMatch[1]) : 1;
+      doGlimpse(targetOwner, n, target.name);
+      // If the glimpsed card is a relic, draw it (Vesper Lockscar special)
+      if (targetAbl.includes('relic') && targetAbl.includes('draw')) {
+        log(`${target.name}: If you Glimpse a Relic, you may draw it.`, 'important');
+      }
+    }
+  }
   const opp = caster === 'player' ? 'ai' : 'player';
   const who = caster; // alias for clarity
 
@@ -5232,9 +5340,13 @@ function resolveSpell(inst, caster) {
   else if (txt.includes('discard pile') && txt.includes('hand')) {
     // 'wall creature' filter — Ancient Reclamation only returns walls
     const needsWall = txt.includes('wall creature') || txt.includes('wall') && txt.includes('discard');
+    // Power filter — Grave Whisper: "power of 2 or less"
+    const powerCapMatch = txt.match(/power of (\d+) or less/);
+    const powerCap = powerCapMatch ? parseInt(powerCapMatch[1]) : null;
     const pile = G[caster].discard.filter(i => {
       if (i.type !== 'Creature') return false;
       if (needsWall) return hasKeyword(i, 'wall');
+      if (powerCap !== null && (i.power || 0) > powerCap) return false;
       return true;
     });
     if (pile.length > 0) {
