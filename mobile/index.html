@@ -33,13 +33,13 @@
   --gold-glow: rgba(212,160,32,0.4);
   --life-green:#50dc50;
   --bleed-red: #dc3030;
-  --card-w:    76px;
-  --card-h:    106px;
-  --bf-card-w: 62px;
-  --bf-card-h: 87px;
-  --relic-w:   54px;
-  --relic-h:   76px;
-  --land-w:    48px;
+  --card-w:    88px;
+  --card-h:    123px;
+  --bf-card-w: 68px;
+  --bf-card-h: 95px;
+  --relic-w:   58px;
+  --relic-h:   81px;
+  --land-w:    52px;
   --land-h:    52px;
 }
 html,body {
@@ -132,7 +132,7 @@ html,body {
 #hand-ai {
   display:flex; align-items:stretch;
   background:rgba(10,6,24,.9); border-bottom:1px solid var(--border-dim);
-  flex-shrink:0; min-height:96px; filter:brightness(.85);
+  flex-shrink:0; min-height:72px; max-height:80px; filter:brightness(.85);
 }
 /* AI vitals */
 #hand-ai .hand-vitals {
@@ -146,7 +146,8 @@ html,body {
 }
 #hand-ai .hand-vital-icon  { font-size:10px; }
 #hand-ai .hand-vital-val   {
-  font-family:'Cinzel Decorative',serif; font-size:18px; font-weight:700; line-height:1;
+  font-family:'Cinzel Decorative',serif; font-size:16px; font-weight:700; line-height:1;
+  min-width:28px; text-align:center;
 }
 #hand-ai .hand-vital-val.life  { color:var(--life-green); }
 #hand-ai .hand-vital-val.bleed { color:var(--bleed-red); }
@@ -222,7 +223,7 @@ html,body {
 }
 #ai-faction-label { font-family:'Cinzel Decorative',serif; font-size:8px; letter-spacing:1px; color:var(--text-dim); }
 .pool-spacer { flex:1; }
-.pool-label { font-size:8px; letter-spacing:1px; color:var(--text-dim); }
+.pool-label { font-size:9px; letter-spacing:1px; color:var(--text-dim); flex-shrink:0; }
 .resource-row { display:flex; gap:2px; align-items:center; flex-wrap:wrap; }
 .mana-pip { width:14px!important; height:14px!important; border-radius:50%; flex-shrink:0;
   display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:700; }
@@ -230,18 +231,19 @@ html,body {
 /* ── BATTLEFIELD ─────────────────────────────────────────────── */
 #bf-wrapper {
   flex:1; position:relative; overflow:hidden; display:flex; flex-direction:column;
-  min-height:0;
+  min-height:0; background:#07080d;
 }
+.side-zone { flex:1; display:flex; flex-direction:column; min-height:0; }
 #faction-tint { position:absolute; inset:0; pointer-events:none; z-index:0; transition:background .5s; }
 #bf-overlay   { position:absolute; inset:0; background:rgba(0,0,0,.52); pointer-events:none; z-index:0; }
 
-.side-zone { display:flex; flex-direction:column; flex:1; z-index:1; position:relative; min-height:0; }
+.side-zone { z-index:1; position:relative; }
 #side-ai     { border-bottom:1px solid rgba(255,255,255,.08); }
 #side-player { }
 
-.bf-row { display:flex; align-items:center; gap:3px; padding:3px 6px; flex-shrink:0; min-height:0; }
-.lands-row  { min-height:62px; overflow-x:auto; }
-.main-row   { flex:1; overflow-x:auto; align-items:center; }
+.bf-row { display:flex; align-items:center; gap:3px; padding:3px 6px; flex-shrink:0; min-height:0; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.lands-row  { min-height:64px; flex-shrink:0; }
+.main-row   { flex:1; align-items:center; }
 
 .row-label { font-size:7px; letter-spacing:1px; color:var(--text-dim);
   writing-mode:vertical-rl; padding:0 2px; flex-shrink:0; }
@@ -260,7 +262,7 @@ html,body {
 .discard-pile { margin-left:auto; flex-shrink:0; }
 .discard-stack { display:flex; flex-direction:column; align-items:center; gap:1px;
   cursor:pointer; padding:2px; }
-.ds-top { width:var(--bf-card-w); height:var(--bf-card-h); border-radius:3px;
+.ds-top { width:40px; height:56px; border-radius:3px;
   border:1px dashed var(--border-dim); background:rgba(0,0,0,.3); }
 .ds-count { font-size:9px; font-family:'Share Tech Mono',monospace; color:var(--text-mid); }
 .ds-label { font-size:6px; letter-spacing:1px; color:var(--text-dim); }
@@ -268,10 +270,14 @@ html,body {
 /* ── BATTLEFIELD CARD SIZES ───────────────────────────────────── */
 /* Creatures */
 .creatures-group .card { width:var(--bf-card-w)!important; height:var(--bf-card-h)!important; }
+.creatures-group .card-name-mini { font-size:7px!important; }
+.creatures-group .card-power { font-size:14px!important; }
 /* Relics */
 .relics-group .card    { width:var(--relic-w)!important;   height:var(--relic-h)!important; }
+.relics-group .card-name-mini { font-size:6.5px!important; }
 /* Lands */
 .lands-row .card       { width:var(--land-w)!important;    height:var(--land-h)!important; }
+.lands-row .card-name-mini { font-size:6px!important; }
 /* Block lines canvas */
 #block-lines { position:absolute; inset:0; pointer-events:none; z-index:10; }
 
@@ -286,7 +292,7 @@ html,body {
 #hand-player {
   display:flex; align-items:stretch;
   background:rgba(10,4,8,.95); border-top:1px solid var(--border-dim);
-  flex-shrink:0; min-height:130px; max-height:142px;
+  flex-shrink:0; min-height:145px; max-height:158px;
 }
 /* Player vitals */
 .hand-vitals {
@@ -296,7 +302,7 @@ html,body {
 }
 .hand-vital-block { display:flex; flex-direction:column; align-items:center; gap:1px; }
 .hand-vital-icon  { font-size:12px; }
-.hand-vital-val   { font-family:'Cinzel Decorative',serif; font-size:26px; font-weight:700; line-height:1; }
+.hand-vital-val   { font-family:'Cinzel Decorative',serif; font-size:24px; font-weight:700; line-height:1; min-width:30px; text-align:center; }
 .hand-vital-val.life  { color:var(--life-green); text-shadow:0 0 12px rgba(80,220,80,.5); }
 .hand-vital-val.bleed { color:var(--bleed-red);  text-shadow:0 0 12px rgba(220,48,48,.5); }
 .hand-vital-label { font-size:7px; letter-spacing:2px; color:var(--text-dim); }
@@ -335,15 +341,16 @@ html,body {
 
 /* ── ACTION BAR ───────────────────────────────────────────────── */
 #action-bar {
-  display:flex; gap:5px; align-items:center; justify-content:center;
-  padding:6px 8px; background:rgba(4,2,10,.97); flex-shrink:0;
+  display:flex; gap:6px; align-items:center; justify-content:center;
+  padding:5px 8px; background:rgba(4,2,10,.97); flex-shrink:0;
   border-top:1px solid var(--border-dim); flex-wrap:wrap;
-  padding-bottom:max(6px, env(safe-area-inset-bottom));
+  padding-bottom:max(8px, env(safe-area-inset-bottom));
 }
 .btn {
-  padding:8px 14px; border-radius:6px; cursor:pointer; font-size:11px;
+  padding:10px 16px; border-radius:6px; cursor:pointer; font-size:12px;
   font-family:'Cinzel',serif; letter-spacing:1px; border:none;
   font-weight:700; transition:all .15s; flex-shrink:0;
+  min-height:44px;  /* iOS minimum tap target */
 }
 .btn-primary  { background:var(--red); color:#fff; }
 .btn-secondary{ background:rgba(40,20,80,.9); color:var(--text-bright); border:1px solid var(--border-bright); }
@@ -381,20 +388,21 @@ html,body {
 .color-bar { position:absolute; bottom:0; left:0; right:0; height:3px; }
 .kw-badges { position:absolute; top:3px; left:2px; right:2px;
   display:flex; flex-wrap:wrap; gap:2px; pointer-events:none; }
-.kw-badge { font-size:6px; padding:1px 4px; border-radius:2px;
-  font-family:'Share Tech Mono',monospace; letter-spacing:.5px; white-space:nowrap; }
+.kw-badge { font-size:7px; padding:2px 5px; border-radius:2px;
+  font-family:'Share Tech Mono',monospace; letter-spacing:.3px; white-space:nowrap; }
 .card-footer {
   position:absolute; bottom:0; left:0; right:0;
-  padding:3px 5px; display:flex; flex-direction:column; gap:1px;
+  padding:4px 5px 5px; display:flex; flex-direction:column; gap:2px;
+  background:linear-gradient(to top, rgba(0,0,0,.9) 0%, rgba(0,0,0,.6) 60%, transparent 100%);
 }
 .card-cost-row { display:flex; gap:1px; align-items:center; padding:2px 4px; }
 .card-name-mini {
-  color:#f0eeff; font-family:'Cinzel',serif; font-size:6px;
+  color:#f0eeff; font-family:'Cinzel',serif; font-size:7.5px;
   letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   text-shadow:0 1px 3px rgba(0,0,0,.9); max-width:100%;
 }
 .card-power {
-  font-family:'Cinzel Decorative',serif; font-size:13px; font-weight:700;
+  font-family:'Cinzel Decorative',serif; font-size:15px; font-weight:700;
   color:#fff; text-shadow:0 0 8px rgba(255,255,255,.5); line-height:1; text-align:right;
 }
 /* Exhaust tilt */
@@ -414,17 +422,50 @@ html,body {
 }
 
 /* ── CARD PREVIEW (tap to enlarge) ───────────────────────────── */
+/* ── CARD PREVIEW — bottom sheet on mobile ── */
 #card-preview {
-  position:fixed; z-index:9999; pointer-events:none;
-  opacity:0; transition:opacity .12s;
-  width:200px; height:280px;
-  filter:drop-shadow(0 8px 24px rgba(0,0,0,.9));
+  position:fixed; bottom:0; left:0; right:0; z-index:9999;
+  pointer-events:none;
+  opacity:0; transition:opacity .15s, transform .15s;
+  transform:translateY(100%);
+  height:220px;
+  display:flex; align-items:flex-end; padding:0 0 8px;
+  background:linear-gradient(to top, rgba(4,2,10,.98) 60%, transparent 100%);
 }
-#card-preview.visible { opacity:1; }
-#card-preview .card { width:100%!important; height:100%!important;
-  border-radius:10px!important; cursor:default!important; transform:none!important; }
-#card-preview .card-name-mini { font-size:11px!important; }
-#card-preview .card-power { font-size:16px!important; }
+#card-preview.visible {
+  opacity:1; transform:translateY(0); pointer-events:all;
+}
+/* Inner layout: art on left, info on right */
+#card-preview-inner {
+  display:flex; gap:10px; align-items:flex-end; padding:10px 12px;
+  width:100%;
+}
+#card-preview-art {
+  width:100px; height:140px; border-radius:8px; overflow:hidden; flex-shrink:0;
+  box-shadow:0 4px 16px rgba(0,0,0,.8);
+}
+#card-preview-art img { width:100%; height:100%; object-fit:cover; }
+#card-preview-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
+#card-preview-name {
+  font-family:'Cinzel Decorative',serif; font-size:15px; font-weight:700;
+  color:#fff; line-height:1.2; text-shadow:0 1px 4px rgba(0,0,0,.9);
+}
+#card-preview-type {
+  font-size:10px; color:var(--text-dim); letter-spacing:1px; text-transform:uppercase;
+}
+#card-preview-power {
+  font-family:'Cinzel Decorative',serif; font-size:28px; color:#fff;
+  text-shadow:0 0 12px rgba(255,255,255,.4); line-height:1;
+}
+#card-preview-abilities {
+  font-size:11px; color:var(--text-mid); line-height:1.5; max-height:80px; overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+#card-preview-tap-hint {
+  font-size:9px; color:var(--text-dim); letter-spacing:1px; margin-top:2px;
+}
+/* The .card clone is hidden — we use the custom layout above */
+#card-preview .card { display:none!important; }
 
 /* ── MISSION PREVIEW ──────────────────────────────────────────── */
 #mission-preview { position:fixed; z-index:10500; pointer-events:none;
@@ -618,6 +659,29 @@ html.targeting-active .valid-target { cursor:pointer!important; }
 ::-webkit-scrollbar { width:3px; height:3px; }
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:var(--border-dim); border-radius:2px; }
+
+/* ── LANDSCAPE ────────────────────────────────────────────────── */
+@media (orientation: landscape) and (max-height: 500px) {
+  #hand-ai  { min-height:56px; max-height:64px; }
+  #hand-player { min-height:110px; max-height:120px; }
+  #ai-info-strip, #player-info-strip { min-height:18px; padding:1px 8px; }
+  #topbar   { min-height:28px; padding:2px 8px; }
+  #action-bar { padding:4px 8px; }
+  .btn { padding:6px 10px; font-size:10px; }
+  #hand-ai .hand-vital-val { font-size:14px; }
+  .hand-vital-val { font-size:20px; }
+  :root {
+    --card-w: 72px; --card-h: 100px;
+    --bf-card-w: 54px; --bf-card-h: 76px;
+    --relic-w: 46px; --relic-h: 64px;
+    --land-w: 42px; --land-h: 46px;
+  }
+  #card-preview { height:160px; }
+  #card-preview-art { width:80px; height:112px; }
+}
+
+/* card-preview-art position for the inline style */
+#card-preview-art { position:relative; }
 </style>
 </head>
 <body>
@@ -817,8 +881,10 @@ html.targeting-active .valid-target { cursor:pointer!important; }
 <div id="action-overlay" style="display:none;"></div>
 <div id="drag-ghost" style="display:none;"></div>
 
-<!-- Card detail preview -->
-<div id="card-preview"></div>
+<!-- Card detail preview — bottom sheet, populated by JS -->
+<div id="card-preview" onclick="hideCardDetail()">
+  <!-- populated by showCardDetail() -->
+</div>
 
 <!-- Mission preview -->
 <div id="mission-preview" style="display:none;">
@@ -1572,6 +1638,18 @@ function renderHand(who) {
     if (!affordable && !isLand) card.classList.add('unplayable');
     else card.classList.add('playable');
     if (inst.instId === selectedCardId) card.classList.add('selected');
+
+    // Mobile: long-press to preview, tap to select/play
+    let _ht = null, _prevShown = false;
+    card.addEventListener('touchstart', () => {
+      _ht = setTimeout(() => { _prevShown = true; showCardDetail(inst, card); }, 400);
+    }, { passive: true });
+    card.addEventListener('touchend', (e) => {
+      if (_ht) { clearTimeout(_ht); _ht = null; }
+      if (_prevShown) { _prevShown = false; e.preventDefault(); return; }
+    }, { passive: false });
+    card.addEventListener('touchmove', () => { if (_ht) { clearTimeout(_ht); _ht = null; } }, { passive: true });
+
     card.onclick = (e) => { e.stopPropagation(); handleCardClick(inst, 'player'); };
     card.onmouseenter = () => { if (!_drag) showCardDetail(inst, card); };
     card.onmouseleave = () => hideCardDetail();
@@ -6611,7 +6689,36 @@ function applyExhaustClasses(card, inst) {
 }
 
 function addCardHandlers(card, inst, who) {
+  // Mobile: long-press or second tap to show preview, single tap = game action
+  let _tapTimer = null;
+  let _previewShown = false;
+
+  card.addEventListener('touchstart', (e) => {
+    _tapTimer = setTimeout(() => {
+      // Long press (400ms) → show preview
+      _previewShown = true;
+      showCardDetail(inst, card);
+    }, 400);
+  }, { passive: true });
+
+  card.addEventListener('touchend', (e) => {
+    if (_tapTimer) { clearTimeout(_tapTimer); _tapTimer = null; }
+    if (_previewShown) {
+      // Long-press released → keep preview shown, don't trigger click
+      _previewShown = false;
+      e.preventDefault();
+      return;
+    }
+    // Normal tap → game action (handled by onclick below)
+  }, { passive: false });
+
+  card.addEventListener('touchmove', () => {
+    if (_tapTimer) { clearTimeout(_tapTimer); _tapTimer = null; }
+  }, { passive: true });
+
   card.onclick = (e) => { e.stopPropagation(); handleCardClick(inst, who); };
+
+  // Mouse fallback for desktop testing
   card.onmouseenter = () => showCardDetail(inst, card);
   card.onmouseleave = () => hideCardDetail();
 }
@@ -6891,40 +6998,42 @@ const KW_STYLES = {
 
 function showCardDetail(inst, triggerEl) {
   const el = document.getElementById('card-preview');
-  const previewW = 520;
-  const previewH = 728;
 
-  // Build a fresh card element clone at preview size
-  el.innerHTML = '';
-  const cardClone = createCardElement(inst, false);
-  cardClone.style.width  = '100%';
-  cardClone.style.height = '100%';
-  cardClone.style.cursor = 'default';
+  // Build bottom-sheet layout: art left, info right
+  const colorHex = COLOR_HEX[inst.color] || '#888';
+  const kw = inst.keywords || {};
 
-  // No abilities overlay — art stays clean and readable
-  // Abilities are visible on battlefield cards and in deckbuilder
-  el.appendChild(cardClone);
+  // Build keyword badge HTML
+  const kwHtml = Object.entries(KW_STYLES)
+    .filter(([k]) => kw[k])
+    .map(([k, s]) => {
+      const label = k === 'bleed' ? `Bleed ${kw[k]}` :
+                    k === 'selfBleed' ? `Selfbleed ${kw[k]}` : s.label;
+      return `<span style="background:${s.bg};color:${s.color};padding:2px 6px;border-radius:3px;font-size:10px;font-family:'Share Tech Mono',monospace;white-space:nowrap;">${label}</span>`;
+    }).join(' ');
 
-  // Position opposite the hovered card
-  const margin = 14;
-  if (triggerEl) {
-    const rect = triggerEl.getBoundingClientRect();
-    const cardCenterX = rect.left + rect.width / 2;
+  const abilities = (inst.abilities || '').replace(/\\n/g, '\n').replace(/\n/g, '<br>');
+  const powerHtml = (inst.power != null && inst.power !== undefined)
+    ? `<div id="card-preview-power" style="font-family:'Cinzel Decorative',serif;font-size:30px;color:#fff;text-shadow:0 0 12px rgba(255,255,255,.4);line-height:1;">${getEffectivePower(inst)}</div>` : '';
 
-    let left, top;
-    if (cardCenterX > window.innerWidth / 2) {
-      left = Math.max(margin, rect.left - previewW - margin);
-    } else {
-      left = Math.min(window.innerWidth - previewW - margin, rect.right + margin);
-    }
-    top = rect.top;
-    if (top + previewH > window.innerHeight - margin) top = window.innerHeight - previewH - margin;
-    if (top < margin) top = margin;
+  el.innerHTML = `
+    <div id="card-preview-inner">
+      <div id="card-preview-art">
+        ${inst.image ? `<img src="${inst.image}" alt="${inst.name}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">` : ''}
+        <div style="position:absolute;inset:0;border-radius:8px;border:2px solid ${colorHex};pointer-events:none;"></div>
+      </div>
+      <div id="card-preview-info">
+        <div id="card-preview-name">${inst.name}</div>
+        <div id="card-preview-type" style="font-size:10px;color:var(--text-dim);letter-spacing:1px;">${inst.color} ${inst.type}${inst.subtype ? ' — '+inst.subtype : ''}</div>
+        ${powerHtml}
+        ${kwHtml ? `<div style="display:flex;flex-wrap:wrap;gap:3px;">${kwHtml}</div>` : ''}
+        <div id="card-preview-abilities" style="font-size:11px;color:var(--text-mid);line-height:1.5;max-height:72px;overflow-y:auto;">${abilities || '<em style="opacity:.5;">No abilities</em>'}</div>
+        <div id="card-preview-tap-hint" style="font-size:9px;color:var(--text-dim);letter-spacing:1px;margin-top:2px;">TAP ANYWHERE TO DISMISS</div>
+      </div>
+    </div>`;
 
-    el.style.top  = top  + 'px';
-    el.style.left = left + 'px';
-  }
-
+  el.style.removeProperty('top');
+  el.style.removeProperty('left');
   el.classList.add('visible');
 }
 
@@ -7268,9 +7377,20 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.card') && !e.target.closest('.btn') && !e.target.closest('#modal-box')) {
     if (selectedCardId) { selectedCardId = null; updateUI(); }
   }
+  // Dismiss card preview on tap outside
+  const preview = document.getElementById('card-preview');
+  if (preview && preview.classList.contains('visible')) {
+    if (!e.target.closest('#card-preview') || e.target.id === 'card-preview') {
+      hideCardDetail();
+    }
+  }
 });
 
-
+// Prevent iOS rubber-band scroll on the game container
+document.body.addEventListener('touchmove', e => {
+  const scrollable = e.target.closest('.hand-cards-scroll, #log-panel, #db-card-grid, #db-deck-list, #card-preview-abilities, #glimpse-spread, #modal-box');
+  if (!scrollable) e.preventDefault();
+}, { passive: false });
 </script>
 
 <!-- PWA -->
