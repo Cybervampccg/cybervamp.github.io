@@ -372,18 +372,31 @@ html,body {
   flex-shrink:0;
 }
 .card-frame-outer {
-  position:absolute; inset:0; border-radius:5px; pointer-events:none;
+  position:absolute; inset:0; border-radius:5px; pointer-events:none; z-index:3;
   background:linear-gradient(135deg,rgba(255,255,255,.04) 0%,transparent 50%,rgba(0,0,0,.15) 100%);
 }
+.kw-badges { z-index:4; }
+.card-footer { z-index:4; }
+.card-cost-row { z-index:4; }
 .card-frame-outer::before {
   content:''; position:absolute; inset:0;
   background:radial-gradient(ellipse at 50% 38%,transparent 45%,rgba(0,0,0,.30) 78%,rgba(0,0,0,.52) 100%);
 }
 .card-art { position:absolute; inset:0; }
 .card-art img { width:100%; height:100%; object-fit:cover; display:block; }
+/* card-img is the direct img child of .card (createCardElement) */
+.card > img.card-img {
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; display:block; z-index:0;
+}
 .card-art-scrim {
-  position:absolute; left:0; right:0; bottom:0; top:40%;
-  background:linear-gradient(to top,rgba(0,0,0,.78) 0%,rgba(0,0,0,.30) 40%,transparent 100%);
+  position:absolute; left:0; right:0; bottom:0; top:30%;
+  background:linear-gradient(to top,rgba(0,0,0,.85) 0%,rgba(0,0,0,.40) 45%,transparent 100%);
+  z-index:1;
+}
+.card-img-placeholder {
+  position:absolute; inset:0; display:flex; align-items:center;
+  justify-content:center; font-size:28px; opacity:.25; z-index:0;
 }
 .color-bar { position:absolute; bottom:0; left:0; right:0; height:3px; }
 .kw-badges { position:absolute; top:3px; left:2px; right:2px;
@@ -428,43 +441,18 @@ html,body {
   pointer-events:none;
   opacity:0; transition:opacity .15s, transform .15s;
   transform:translateY(100%);
-  height:220px;
-  display:flex; align-items:flex-end; padding:0 0 8px;
-  background:linear-gradient(to top, rgba(4,2,10,.98) 60%, transparent 100%);
+  max-height:55vh; overflow-y:auto;
+  display:flex; align-items:stretch;
+  background:rgba(4,2,10,.97);
+  border-top:2px solid rgba(160,32,240,.4);
+  border-radius:14px 14px 0 0;
+  box-shadow:0 -8px 32px rgba(0,0,0,.8);
+  -webkit-overflow-scrolling:touch;
 }
 #card-preview.visible {
   opacity:1; transform:translateY(0); pointer-events:all;
 }
-/* Inner layout: art on left, info on right */
-#card-preview-inner {
-  display:flex; gap:10px; align-items:flex-end; padding:10px 12px;
-  width:100%;
-}
-#card-preview-art {
-  width:100px; height:140px; border-radius:8px; overflow:hidden; flex-shrink:0;
-  box-shadow:0 4px 16px rgba(0,0,0,.8);
-}
-#card-preview-art img { width:100%; height:100%; object-fit:cover; }
-#card-preview-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
-#card-preview-name {
-  font-family:'Cinzel Decorative',serif; font-size:15px; font-weight:700;
-  color:#fff; line-height:1.2; text-shadow:0 1px 4px rgba(0,0,0,.9);
-}
-#card-preview-type {
-  font-size:10px; color:var(--text-dim); letter-spacing:1px; text-transform:uppercase;
-}
-#card-preview-power {
-  font-family:'Cinzel Decorative',serif; font-size:28px; color:#fff;
-  text-shadow:0 0 12px rgba(255,255,255,.4); line-height:1;
-}
-#card-preview-abilities {
-  font-size:11px; color:var(--text-mid); line-height:1.5; max-height:80px; overflow-y:auto;
-  -webkit-overflow-scrolling:touch;
-}
-#card-preview-tap-hint {
-  font-size:9px; color:var(--text-dim); letter-spacing:1px; margin-top:2px;
-}
-/* The .card clone is hidden — we use the custom layout above */
+/* The .card clone is hidden — we use the custom text layout */
 #card-preview .card { display:none!important; }
 
 /* ── MISSION PREVIEW ──────────────────────────────────────────── */
@@ -629,6 +617,23 @@ html,body {
 .db-who-btn.active { background:rgba(212,160,32,.2); border-color:var(--gold); color:var(--gold); }
 
 /* ── MISC ANIMATIONS ──────────────────────────────────────────── */
+/* Drop zone highlight when dragging over player side */
+.drop-zone-active { box-shadow: 0 0 0 2px rgba(212,160,32,0.8) inset !important; background: rgba(212,160,32,0.08) !important; }
+.spell-drop-target { box-shadow: 0 0 0 2px rgba(48,224,255,0.8) inset !important; }
+.drop-reject { animation: drop-reject-shake 0.35s ease !important; }
+@keyframes drop-reject-shake {
+  0%,100% { transform: translateX(0); }
+  25%      { transform: translateX(-6px); }
+  75%      { transform: translateX(6px); }
+}
+/* Player side drop zone glow when dragging */
+#side-player.drop-zone-active {
+  background: rgba(212,160,32,0.06) !important;
+  outline: 2px solid rgba(212,160,32,0.5);
+}
+/* Dragging card dims itself */
+.card.dragging { opacity: 0.35; }
+
 @keyframes card-arrive {
   from { transform:translateY(20px); opacity:0; }
   to   { transform:translateY(0); opacity:1; }
@@ -677,11 +682,8 @@ html.targeting-active .valid-target { cursor:pointer!important; }
     --land-w: 42px; --land-h: 46px;
   }
   #card-preview { height:160px; }
-  #card-preview-art { width:80px; height:112px; }
 }
 
-/* card-preview-art position for the inline style */
-#card-preview-art { position:relative; }
 </style>
 </head>
 <body>
@@ -6562,18 +6564,57 @@ function rejectDrop(el) {
   setTimeout(() => el.classList.remove('drop-reject'), 350);
 }
 
-// Wire drag events onto a hand card element
+// Wire drag events onto a hand card element — supports both mouse and touch
 function addDragHandlers(cardEl, inst) {
   const affordable = canPayCost('player', inst.cost);
   const isLand = inst.type === 'Land';
   if (!affordable && !isLand) return; // unaffordable → no drag
 
+  // ── MOUSE (desktop fallback) ──
   cardEl.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return; // left click only
+    if (e.button !== 0) return;
     e.preventDefault();
     hideCardDetail();
     initDrag(inst, cardEl);
   });
+
+  // ── TOUCH DRAG ──
+  let _touchDragStarted = false;
+  let _touchStartX = 0, _touchStartY = 0;
+
+  cardEl.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    _touchStartX = t.clientX;
+    _touchStartY = t.clientY;
+    _touchDragStarted = false;
+  }, { passive: true });
+
+  cardEl.addEventListener('touchmove', (e) => {
+    const t = e.touches[0];
+    const dx = t.clientX - _touchStartX;
+    const dy = t.clientY - _touchStartY;
+
+    // Start drag after 8px movement (not a tap, not a long-press)
+    if (!_touchDragStarted && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      _touchDragStarted = true;
+      hideCardDetail();
+      initDrag(inst, cardEl);
+    }
+
+    if (_touchDragStarted && _drag) {
+      e.preventDefault(); // prevent scroll while dragging
+      moveDrag({ clientX: t.clientX, clientY: t.clientY });
+    }
+  }, { passive: false });
+
+  cardEl.addEventListener('touchend', (e) => {
+    if (_touchDragStarted && _drag) {
+      const t = e.changedTouches[0];
+      endDrag({ clientX: t.clientX, clientY: t.clientY });
+      e.preventDefault();
+    }
+    _touchDragStarted = false;
+  }, { passive: false });
 }
 
 // Global mouse move + up listeners (attached once)
@@ -6998,38 +7039,65 @@ const KW_STYLES = {
 
 function showCardDetail(inst, triggerEl) {
   const el = document.getElementById('card-preview');
-
-  // Build bottom-sheet layout: art left, info right
   const colorHex = COLOR_HEX[inst.color] || '#888';
   const kw = inst.keywords || {};
 
-  // Build keyword badge HTML
+  // Cost pips as large colored circles
+  const costStr = inst.cost || '';
+  const costHtml = costStr ? (() => {
+    const colors = { R:'#e03030',W:'#c8c0f0',B:'#6030c0',P:'#a020f0',G:'#d4a020',C:'#8090a0' };
+    return costStr.split('').map(ch => {
+      const col = colors[ch] || '#888';
+      return `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:${col};color:#fff;font-size:13px;font-weight:700;font-family:'Share Tech Mono',monospace;flex-shrink:0;">${ch}</span>`;
+    }).join('');
+  })() : '<span style="font-size:11px;color:var(--text-dim);">Free</span>';
+
+  // Keyword badges
   const kwHtml = Object.entries(KW_STYLES)
     .filter(([k]) => kw[k])
     .map(([k, s]) => {
-      const label = k === 'bleed' ? `Bleed ${kw[k]}` :
-                    k === 'selfBleed' ? `Selfbleed ${kw[k]}` : s.label;
-      return `<span style="background:${s.bg};color:${s.color};padding:2px 6px;border-radius:3px;font-size:10px;font-family:'Share Tech Mono',monospace;white-space:nowrap;">${label}</span>`;
-    }).join(' ');
+      const label = k === 'bleed' ? 'Bleed ' + kw[k] :
+                    k === 'selfBleed' ? 'Selfbleed ' + kw[k] : s.label;
+      return `<span style="background:${s.bg};color:${s.color};padding:3px 8px;border-radius:4px;font-size:11px;font-family:'Share Tech Mono',monospace;white-space:nowrap;">${label}</span>`;
+    }).join('');
 
-  const abilities = (inst.abilities || '').replace(/\\n/g, '\n').replace(/\n/g, '<br>');
-  const powerHtml = (inst.power != null && inst.power !== undefined)
-    ? `<div id="card-preview-power" style="font-family:'Cinzel Decorative',serif;font-size:30px;color:#fff;text-shadow:0 0 12px rgba(255,255,255,.4);line-height:1;">${getEffectivePower(inst)}</div>` : '';
+  // Abilities text — clean up escaped newlines
+  const abilRaw = (inst.abilities || '').replace(/\\n/g, '\n');
+  const abilLines = abilRaw.split('\n').filter(l => l.trim());
+  const abilHtml = abilLines.length
+    ? abilLines.map(l => `<div style="padding:2px 0;border-bottom:1px solid rgba(255,255,255,.06);">${l}</div>`).join('')
+    : '<div style="opacity:.4;font-style:italic;">No abilities</div>';
+
+  // Power for creatures
+  const powerHtml = (inst.type === 'Creature' && inst.power !== null)
+    ? `<div style="font-family:'Cinzel Decorative',serif;font-size:36px;font-weight:700;color:#fff;text-shadow:0 0 16px rgba(255,255,255,.4);line-height:1;">${getEffectivePower(inst)}</div>` : '';
 
   el.innerHTML = `
-    <div id="card-preview-inner">
-      <div id="card-preview-art">
-        ${inst.image ? `<img src="${inst.image}" alt="${inst.name}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">` : ''}
-        <div style="position:absolute;inset:0;border-radius:8px;border:2px solid ${colorHex};pointer-events:none;"></div>
-      </div>
-      <div id="card-preview-info">
-        <div id="card-preview-name">${inst.name}</div>
-        <div id="card-preview-type" style="font-size:10px;color:var(--text-dim);letter-spacing:1px;">${inst.color} ${inst.type}${inst.subtype ? ' — '+inst.subtype : ''}</div>
+    <div id="card-preview-inner" style="padding:12px 14px;width:100%;display:flex;flex-direction:column;gap:8px;">
+
+      <!-- Header: name + type + power -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+        <div>
+          <div style="font-family:'Cinzel Decorative',serif;font-size:16px;font-weight:700;color:#fff;line-height:1.2;border-bottom:1px solid ${colorHex};padding-bottom:3px;margin-bottom:3px;">${inst.name}</div>
+          <div style="font-size:10px;color:${colorHex};letter-spacing:1.5px;text-transform:uppercase;">${inst.color} ${inst.type}${inst.subtype ? ' · '+inst.subtype : ''}</div>
+        </div>
         ${powerHtml}
-        ${kwHtml ? `<div style="display:flex;flex-wrap:wrap;gap:3px;">${kwHtml}</div>` : ''}
-        <div id="card-preview-abilities" style="font-size:11px;color:var(--text-mid);line-height:1.5;max-height:72px;overflow-y:auto;">${abilities || '<em style="opacity:.5;">No abilities</em>'}</div>
-        <div id="card-preview-tap-hint" style="font-size:9px;color:var(--text-dim);letter-spacing:1px;margin-top:2px;">TAP ANYWHERE TO DISMISS</div>
       </div>
+
+      <!-- Cost row -->
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-right:2px;">COST:</span>
+        ${costHtml}
+      </div>
+
+      ${kwHtml ? `<!-- Keywords --><div style="display:flex;flex-wrap:wrap;gap:4px;">${kwHtml}</div>` : ''}
+
+      <!-- Abilities -->
+      <div style="font-size:13px;color:var(--text-bright);line-height:1.6;overflow-y:auto;max-height:100px;-webkit-overflow-scrolling:touch;">
+        ${abilHtml}
+      </div>
+
+      <div style="font-size:8px;color:var(--text-dim);letter-spacing:2px;text-align:center;">HOLD TO PREVIEW · TAP TO DISMISS</div>
     </div>`;
 
   el.style.removeProperty('top');
