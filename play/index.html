@@ -105,7 +105,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .hand-zone {
   display: flex; align-items: flex-end; justify-content: center;
   gap: 6px; padding: 4px 8px; overflow-x: auto; overflow-y: visible;
-  min-height: 128px; max-height: 148px;
+  min-height: 118px; max-height: 134px;
   background: rgba(0,0,0,0.55);
   scrollbar-width: thin; position: relative; z-index: 80;
   border-top: 1px solid rgba(255,255,255,0.06);
@@ -228,8 +228,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   gap:8px; padding:4px 0; overflow-x:auto; overflow-y:visible;
   scrollbar-width:thin; position:relative;
 }
-.bf-row.main-row  { flex:1; min-height:0; align-items:center; overflow:visible; }
-.bf-row.lands-row { min-height:118px; flex-shrink:0; }
+.bf-row.main-row  { flex:1; min-height:0; align-items:center; overflow-x:auto; overflow-y:visible; }
+.bf-row.lands-row { min-height:100px; flex-shrink:0; }
 
 /* Creatures group — centered, fills available width */
 .creatures-group {
@@ -505,13 +505,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .hand-zone {
   display: flex; align-items: stretch;
   padding: 0; overflow: visible;
-  min-height: 218px; max-height: 234px;
+  min-height: 200px; max-height: 218px;
   background: linear-gradient(180deg, rgba(4,2,12,0.85) 0%, rgba(8,4,18,0.95) 100%);
   position: relative; z-index: 80;
 }
 #hand-ai {
   filter: brightness(0.85); cursor: default;
-  min-height: 188px; max-height: 210px;
+  min-height: 174px; max-height: 194px;
 }
 /* AI vitals get slightly higher brightness than the card backs */
 #hand-ai #ai-hand-vitals,
@@ -1301,6 +1301,19 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   100% { opacity:1; transform:translateY(0) scale(1); }
 }
 .card-arrive { animation: card-arrive 0.25s ease-out forwards; }
+
+/* AI spell cast reveal — slides down from above, pulses purple glow */
+@keyframes spell-cast-reveal {
+  0%   { opacity:0; transform:translateY(-40px) scale(0.85); filter:brightness(2) saturate(0); }
+  50%  { opacity:1; transform:translateY(6px) scale(1.08); filter:brightness(1.4); }
+  100% { opacity:1; transform:translateY(0) scale(1); filter:none; }
+}
+/* Card destroy burst */
+@keyframes card-destroying {
+  0%   { transform:scale(1); opacity:1; }
+  40%  { transform:scale(1.18); opacity:0.7; filter:brightness(2.5) saturate(0); }
+  100% { transform:scale(0.1); opacity:0; }
+}
 
 /* Player attacker lunges UP toward AI */
 @keyframes lunge-up {
@@ -2324,7 +2337,7 @@ const CARDS_RAW = [
   {id:244,color:"Black",type:"Spell",subtype:null,name:"Death's Grasp",rarity:"Rare",cost:"BBB",power:null,abilities:"Target creature is destroyed.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Deaths_Grasp.png?raw=true",flavor:null,produces:null},
   {id:241,color:"Black",type:"Spell",subtype:null,name:"Verdigris Husk",rarity:"Rare",cost:"CBB",power:null,abilities:"{Exhaust} target land, if that land is exhausted already, overexhaust it. Create 1 Skeleton token (2 power Token creature)",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Verdigris_Husk.png?raw=true",flavor:null,produces:null},
   {id:301,color:"Purple",type:"Creature",subtype:null,name:"Arcane Scholar Acolyte",rarity:"Common",cost:"P",power:1,abilities:"{P}: Glimpse 1 (once per turn)",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Arcane_Scholar_Acolyte.png?raw=true",flavor:null,produces:null},
-  {id:302,color:"Purple",type:"Creature",subtype:null,name:"Aetheric Archivist",rarity:"Common",cost:"PP",power:2,abilities:"Bleed 1\n{P}: Gimpse 2 (once per turn)",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Aetheric_Archivist.png?raw=true",flavor:"Knowledge does not hide from those who know how to listen.",produces:null},
+  {id:302,color:"Purple",type:"Creature",subtype:null,name:"Aetheric Archivist",rarity:"Common",cost:"PP",power:2,abilities:"Bleed 1\n{P}: Glimpse 2 (once per turn)",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Aetheric_Archivist.png?raw=true",flavor:"Knowledge does not hide from those who know how to listen.",produces:null},
   {id:303,color:"Purple",type:"Creature",subtype:null,name:"Lunara Prismwing",rarity:"Common",cost:"GP",power:1,abilities:"Cannot be blocked. Whenever this card deals damage to a player directly, Glimpse 1",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Lunara_Prismwing.png?raw=true",flavor:"VR overlays the sun's glare\u2014wings catch what eyes cannot.",produces:null},
   {id:304,color:"Purple",type:"Creature",subtype:null,name:"Mystic Fledgling",rarity:"Common",cost:"CP",power:2,abilities:"{Exhaust}: Target attacking creature with power less than 3 deals no damage and receives no damage this turn.",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Mystic_Fledgling.png?raw=true",flavor:"Surprised by her abilities, she chooses peace",produces:null},
   {id:305,color:"Purple",type:"Creature",subtype:null,name:"Whetforge Adept",rarity:"Common",cost:"GPP",power:3,abilities:"{G}{P}: While attacking, your other attacking creatures get +1 power",image:"https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/Whetforge_Adept.png?raw=true",flavor:"Preparation is important, you must be well equipped for battle!",produces:null},
@@ -3527,10 +3540,34 @@ async function aiPlayCards() {
       fireEnterTrigger(inst, 'ai');
     } else if (inst.type === 'Spell') {
       sfx('card_play', 0.4);
-      log(`AI casts ${inst.name}.`, '');
-      // Resolve simple spell effects for AI: damage, destroy, tokens
+      log(`AI casts ${inst.name}.`, 'important');
+      // ── SPELL VISUAL: show card on battlefield briefly ────────
+      // Place a temporary card element in the AI main row so player can see what was cast
+      const spellEl = createCardElement(inst, false);
+      spellEl.style.cssText += ';position:relative;z-index:200;animation:spell-cast-reveal 0.35s ease-out;';
+      spellEl.id = '_ai_spell_preview';
+      const spellRow = document.getElementById('bf-ai-main');
+      if (spellRow) spellRow.prepend(spellEl);
+      updateUI();
+      await delay(200); // let it render
+      // Highlight each ability line in sequence
+      const abilLines = (inst.abilities || '').split('\n').filter(l => l.trim());
+      for (const line of abilLines) {
+        showBanner(`⚡ ${inst.name}: ${line.substring(0, 60)}`);
+        await delay(900);
+      }
+      // Resolve effects
       aiResolveSpell(inst);
+      await delay(600);
+      // Remove preview and move to discard
+      const preview = document.getElementById('_ai_spell_preview');
+      if (preview) {
+        preview.style.animation = 'card-destroying 0.3s ease-out forwards';
+        await delay(300);
+        preview.remove();
+      }
       ai.discard.push(inst);
+      showBanner('');
     }
 
     await delay(400);
@@ -3724,8 +3761,10 @@ async function aiDeclareAttack() {
 
   myAttackers.forEach(inst => {
     inst.attacking = true;
+    inst.exhaustState = 'exhausted'; // Exhaust immediately so player sees who's attacking
   });
   log(`⚔ AI attacks with: ${myAttackers.map(i=>i.name+'['+getEffectivePower(i)+']').join(', ')}`, 'important');
+  updateUI();
   checkMissionObjective('ai', 'overload', myAttackers.length);
   log('Assign blockers by clicking an AI attacker then your creature. Cast spells freely.', 'important');
 
@@ -3859,9 +3898,16 @@ function openSpellCaster() {
           if (!canPayCost('player', sp.cost)) { log(`Not enough mana for ${sp.name}.`, ''); return; }
           payCost('player', sp.cost);
           G.player.hand = G.player.hand.filter(i => i.instId !== sp.instId);
+          // Preserve combat phase so blocking still works after spell resolves
+          const _savedPhase = combatPhase;
           castSpellWithTargeting(sp, 'player', () => {
             G.player.discard.push(sp);
             log(`You cast ${sp.name}.`, 'important');
+            if (_savedPhase === 'player-block' || _savedPhase === 'response') {
+              combatPhase = _savedPhase;
+              showActionOverlay(_savedPhase === 'player-block' ? 'block' : 'response');
+            }
+            updateUI();
           });
         }
       })),
@@ -4901,14 +4947,44 @@ function castSpellWithTargeting(inst, caster, onDone) {
     return;
   }
 
-  // If only one valid target, auto-select it
+  // If only one valid target, auto-select it — but confirm during combat window
   if (validTargets.length === 1) {
-    resolveSpellOnTarget(inst, caster, validTargets[0].inst, validTargets[0].owner);
-    onDone();
+    if (combatPhase === 'player-block' || combatPhase === 'response') {
+      // During combat, always confirm so player knows what's happening
+      showModal(
+        `${inst.name} — Confirm Target`,
+        inst.abilities,
+        [{
+          label: `TARGET: ${validTargets[0].inst.name} [${getEffectivePower(validTargets[0].inst)}]`,
+          cls: 'btn-danger',
+          action: () => { resolveSpellOnTarget(inst, caster, validTargets[0].inst, validTargets[0].owner); onDone(); }
+        }, { label: 'CANCEL', cls: 'btn-muted', action: () => { if(G) updateUI(); } }]
+      );
+    } else {
+      resolveSpellOnTarget(inst, caster, validTargets[0].inst, validTargets[0].owner);
+      onDone();
+    }
     return;
   }
 
   // Multiple targets — enter targeting mode
+  // During blocking/response window, use modal picker instead of beginTargeting UI
+  // (avoids interference with the combat overlay)
+  if ((combatPhase === 'player-block' || combatPhase === 'response') && caster === 'player') {
+    showModal(
+      `${inst.name} — Choose Target`,
+      inst.abilities,
+      validTargets.map(({inst: t, owner}) => ({
+        label: `${t.name} [${getEffectivePower(t)}]${owner !== caster ? ' (opponent)' : ''}`,
+        cls: 'btn-secondary',
+        action: () => {
+          resolveSpellOnTarget(inst, caster, t, owner);
+          onDone();
+        }
+      })).concat([{ label: 'CANCEL', cls: 'btn-muted', action: () => { if(G) updateUI(); } }])
+    );
+    return;
+  }
   beginTargeting(inst, caster, mode, (target, targetOwner) => {
     resolveSpellOnTarget(inst, caster, target, targetOwner);
     onDone();
@@ -4971,6 +5047,16 @@ function resolveSpellOnTarget(inst, caster, target, targetOwner) {
   } else if (txt.includes('no combat damage') || txt.includes('deals no')) {
     target.noCombatDamage = true;
     log(`${inst.name}: ${target.name} deals no combat damage this turn.`, '');
+    // Radiant Reprisal: "you gain life equal to its power"
+    if (txt.includes('gain life equal to')) {
+      const pow = getEffectivePower(target);
+      if (pow > 0) {
+        G[caster].life += pow;
+        updateLifeDisplay(caster);
+        flashLifeHeal(caster);
+        log(`${inst.name}: You gain ${pow} life (equal to ${target.name}'s power).`, 'heal');
+      }
+    }
   } else if (txt.includes('prevent') && txt.includes('damage') && txt.includes('target')) {
     // Estate Grounds Keeper, Gilded Rebuke, Hemotech Patch
     target.noCombatDamage = true;
@@ -5824,9 +5910,13 @@ function activatePayAbility(inst, pa) {
     return;
   }
 
-  // Glimpse
-  if (effect.includes('glimpse')) {
-    const n = parseInt(effect.match(/glimpse (\d+)/)?.[1] || '1');
+  // Glimpse (also catches 'gimpse' typo defensively)
+  if (effect.includes('glimpse') || effect.includes('gimpse')) {
+    const n = parseInt((effect.match(/g[li]mpse (\d+)/) || [])[1] || '1');
+    if (pa.raw && pa.raw.toLowerCase().includes('once') && inst.payAbilityUsedThisTurn) {
+      log(`${inst.name}: Already used this turn.`, ''); return;
+    }
+    inst.payAbilityUsedThisTurn = true;
     doGlimpse('player', n, inst.name);
     return;
   }
@@ -5836,6 +5926,143 @@ function activatePayAbility(inst, pa) {
     drawFromDeck('player', G.player.main.length > 0 ? 'main' : 'land');
     log(`${inst.name}: Drew a card.`, '');
     updateUI();
+    return;
+  }
+
+  // Remove bleed counter from target player (Hemostasis Recounter, Faithful Healer pay)
+  if (effect.includes('remove') && effect.includes('bleed') && effect.includes('target player')) {
+    // Target the opponent if they have bleed, otherwise self
+    const opp2 = 'ai';
+    const targets2 = [
+      { label: `OPPONENT (${G.ai.bleed} bleed)`, who: 'ai' },
+      { label: `YOURSELF (${G.player.bleed} bleed)`, who: 'player' },
+    ].filter(t => G[t.who].bleed > 0);
+    if (targets2.length === 0) { log(`${inst.name}: No bleed to remove.`, ''); return; }
+    const doRemove = (who2) => {
+      G[who2].bleed = Math.max(0, G[who2].bleed - 1);
+      updateLifeDisplay(who2);
+      log(`${inst.name}: Removed 1 Bleed from ${who2}.`, 'heal');
+      updateUI();
+    };
+    if (targets2.length === 1) doRemove(targets2[0].who);
+    else showModal(inst.name, 'Choose target:', targets2.map(t => ({ label: t.label, cls: 'btn-secondary', action: () => doRemove(t.who) })));
+    return;
+  }
+
+  // Selfbleed + create token combo (Shadowpack Mistress, Sanguine Batspring, Grimfang Lair, etc.)
+  if (effect.includes('selfbleed') && effect.includes('token')) {
+    const sbN = parseInt((effect.match(/selfbleed (\d+)/) || [])[1] || '1');
+    G.player.bleed += sbN; updateLifeDisplay('player');
+    log(`${inst.name}: Selfbleed ${sbN}.`, 'bleed');
+    const tokenName = effect.includes('bat') ? 'Bat Token' : effect.includes('wolf') ? 'Wolf Token' : effect.includes('zombie') ? 'Zombie Token' : 'Bat Token';
+    const count = effect.includes('create 2') ? 2 : 1;
+    for (let i = 0; i < count; i++) createToken(tokenName, 'player');
+    updateUI(); return;
+  }
+
+  // Create token + selfbleed when they're reversed (Grimfang "Selfbleed 2, create 1 Wolf token")
+  if (effect.includes('create') && effect.includes('token') && !effect.includes('selfbleed')) {
+    const tokenName = effect.includes('bat') ? 'Bat Token' : effect.includes('wolf') ? 'Wolf Token' : effect.includes('zombie') ? 'Zombie Token' : 'Bat Token';
+    const count = effect.includes('create 2') ? 2 : 1;
+    for (let i = 0; i < count; i++) createToken(tokenName, 'player');
+    updateUI(); return;
+  }
+
+  // Draw + selfbleed (Dawnscribe Codex: "Draw a card Selfbleed 1")
+  if (effect.includes('draw') && effect.includes('selfbleed')) {
+    drawFromDeck('player', G.player.main.length > 0 ? 'main' : 'land');
+    const sbN2 = parseInt((effect.match(/selfbleed (\d+)/) || [])[1] || '1');
+    G.player.bleed += sbN2; updateLifeDisplay('player');
+    log(`${inst.name}: Drew a card + Selfbleed ${sbN2}.`, 'bleed');
+    updateUI(); return;
+  }
+
+  // Glimpse 3 + draw (Aetheric Diviner)
+  if (effect.includes('glimpse') && effect.includes('draw')) {
+    const gN = parseInt((effect.match(/glimpse (\d+)/) || [])[1] || '1');
+    doGlimpse('player', gN, inst.name, false, () => {
+      drawFromDeck('player', G.player.main.length > 0 ? 'main' : 'land');
+      log(`${inst.name}: Drew a card after Glimpse.`, 'heal');
+      updateUI();
+    });
+    return;
+  }
+
+  // Return creature from discard to hand (Korzathrax)
+  if (effect.includes('return') && effect.includes('creature') && effect.includes('discard')) {
+    const pile = G.player.discard.filter(i => i.type === 'Creature');
+    if (pile.length === 0) { log(`${inst.name}: No creatures in discard.`, ''); return; }
+    const doReturn = (card) => {
+      G.player.discard = G.player.discard.filter(i => i.instId !== card.instId);
+      card.exhaustState = 'renewed'; G.player.hand.push(card);
+      log(`${inst.name}: ${card.name} returned to hand.`, 'heal'); updateUI();
+    };
+    if (pile.length === 1) doReturn(pile[0]);
+    else showModal(inst.name, 'Return which creature?', pile.map(c => ({ label: c.name, cls: 'btn-secondary', action: () => doReturn(c) })));
+    return;
+  }
+
+  // Destroy self + destroy target relic (Soulforge Anvil: + Golem Token)
+  if (effect.includes('destroy this card') && effect.includes('target relic')) {
+    const relics = [...G.player.battlefield.filter(i => i.type==='Relic'), ...G.ai.battlefield.filter(i => i.type==='Relic')];
+    if (relics.length === 0) { log(`${inst.name}: No relics to target.`, ''); return; }
+    const doDestroy = (relic) => {
+      const owner3 = G.player.battlefield.includes(relic) ? 'player' : 'ai';
+      destroyCreature(relic, owner3);
+      destroyCreature(inst, 'player');
+      if (effect.includes('golem')) createToken('Golem Token', owner3 === 'ai' ? 'player' : 'ai');
+      else if (effect.includes('3 power')) createToken('Golem Token', 'player');
+      log(`${inst.name}: Destroyed self + ${relic.name}.`, ''); updateUI();
+    };
+    if (relics.length === 1) doDestroy(relics[0]);
+    else showModal(inst.name, 'Choose relic to destroy:', relics.map(r => ({ label: r.name, cls: 'btn-danger', action: () => doDestroy(r) })));
+    return;
+  }
+
+  // Return relic from discard to play (Legacy Chronovault)
+  if (effect.includes('return') && effect.includes('relic') && effect.includes('discard')) {
+    const relicPile = G.player.discard.filter(i => i.type === 'Relic');
+    if (relicPile.length === 0) { log(`${inst.name}: No relics in discard.`, ''); return; }
+    const doReturnRelic = (relic) => {
+      G.player.discard = G.player.discard.filter(i => i.instId !== relic.instId);
+      relic.exhaustState = 'renewed'; G.player.hand.push(relic);
+      log(`${inst.name}: ${relic.name} returned to hand.`, 'heal'); updateUI();
+    };
+    if (relicPile.length === 1) doReturnRelic(relicPile[0]);
+    else showModal(inst.name, 'Return which relic?', relicPile.map(r => ({ label: r.name, cls: 'btn-secondary', action: () => doReturnRelic(r) })));
+    return;
+  }
+
+  // Shuffle a card from discard back into deck (Runed Pageweaver)
+  if (effect.includes('shuffle') && effect.includes('discard')) {
+    const mainDiscard = G.player.discard.filter(i => i.type !== 'Land');
+    if (mainDiscard.length === 0) { log(`${inst.name}: Discard pile empty.`, ''); return; }
+    const doShuffle = (card) => {
+      G.player.discard = G.player.discard.filter(i => i.instId !== card.instId);
+      G.player.main.push(card.cardId);
+      G.player.main = shuffle(G.player.main);
+      log(`${inst.name}: ${card.name} shuffled back into deck.`, 'heal');
+      // Gain 1 life if pageweaver
+      if (effect.includes('gain 1 life') || effect.includes('gain life')) {
+        G.player.life++; updateLifeDisplay('player');
+        log(`${inst.name}: Gained 1 life.`, 'heal');
+      }
+      updateUI();
+    };
+    if (mainDiscard.length === 1) doShuffle(mainDiscard[0]);
+    else showModal(inst.name, 'Shuffle which card back?', mainDiscard.map(c => ({ label: c.name, cls: 'btn-secondary', action: () => doShuffle(c) })));
+    return;
+  }
+
+  // Target attacking creature with power ≤ N gets +1 power (Gun Store)
+  if (effect.includes('target attacking') && effect.includes('power') && effect.includes('or less') && effect.includes('+1 power')) {
+    const capMatch = effect.match(/power of (\d+) or less/);
+    const cap = capMatch ? parseInt(capMatch[1]) : 2;
+    const validAtk = G.ai.battlefield.filter(i => i.attacking && getEffectivePower(i) <= cap);
+    if (validAtk.length === 0) { log(`${inst.name}: No attacking creatures with power ≤${cap}.`, ''); return; }
+    const doGunStore = (t) => { t.powerMods.push({ amount: 1, until: 'eot' }); log(`${inst.name}: ${t.name} gets +1 power.`, 'heal'); updateUI(); };
+    if (validAtk.length === 1) doGunStore(validAtk[0]);
+    else showModal(inst.name, 'Choose target:', validAtk.map(t => ({ label: `${t.name} [${getEffectivePower(t)}]`, cls: 'btn-secondary', action: () => doGunStore(t) })));
     return;
   }
 
@@ -6401,6 +6628,48 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     const n = parseInt(seg.match(/self bleed (\d+)/)?.[1] || '1');
     G[who].bleed += n; updateLifeDisplay(who);
     log(`${inst.name}: Self Bleed ${n}.`, 'bleed');
+  }
+  // Echo Reliquary: remove top card of deck, play if relic else discard
+  else if (seg.includes('remove and reveal') || (seg.includes('top card') && seg.includes('relic') && seg.includes('discard'))) {
+    const deck = G[who].main;
+    if (deck.length === 0) { log(`${inst.name}: Main deck is empty.`, ''); updateUI(); return; }
+    const topCardId = deck[0];
+    G[who].main = deck.slice(1);
+    const cardDef = CARD_MAP[topCardId];
+    if (!cardDef) { log(`${inst.name}: Unknown card revealed.`, ''); updateUI(); return; }
+    log(`${inst.name}: Revealed ${cardDef.name} [${cardDef.type}].`, 'important');
+    if (cardDef.type === 'Relic') {
+      showModal(
+        `Echo Reliquary — ${cardDef.name}`,
+        `Revealed: ${cardDef.name}\nCost: ${cardDef.cost || 'Free'}\n${cardDef.abilities || ''}\n\nPlay this Relic now, or discard it?`,
+        [
+          { label: `PLAY — ${cardDef.name}`, cls: 'btn-secondary', action: () => {
+            if (!canPayCost(who, cardDef.cost || '')) {
+              log(`${inst.name}: Cannot afford ${cardDef.name} — discarded.`, '');
+              const di = makeInst(topCardId, who); G[who].discard.push(di);
+            } else {
+              payCost(who, cardDef.cost || '');
+              const pi = makeInst(topCardId, who);
+              pi.exhaustState = 'renewed'; pi.newlyTurned = false;
+              G[who].battlefield.push(pi);
+              fireEnterTrigger(pi, who);
+              log(`${inst.name}: ${cardDef.name} enters play!`, 'heal');
+            }
+            updateUI();
+          }},
+          { label: 'DISCARD IT', cls: 'btn-muted', action: () => {
+            const di = makeInst(topCardId, who); G[who].discard.push(di);
+            log(`${inst.name}: ${cardDef.name} discarded.`, '');
+            updateUI();
+          }}
+        ]
+      );
+    } else {
+      const di = makeInst(topCardId, who); G[who].discard.push(di);
+      log(`${inst.name}: ${cardDef.name} is not a Relic — discarded.`, '');
+      updateUI();
+    }
+    return;
   }
   else {
     log(`${inst.name}: Ability activated.`, '');
@@ -7642,7 +7911,7 @@ function renderSide(who) {
 
   // Lands — compact stacked mode for core lands, individual for specials
   const CORE_LAND_IDS = new Set([601, 602, 603, 604, 605]);
-  if (who === 'player' && landCompactMode) {
+  if (landCompactMode) {  // applies to both player and AI
     // Group core lands by cardId + exhaustState
     const groups = {};
     const specialLands = [];
@@ -7714,15 +7983,17 @@ function renderSide(who) {
       info.innerHTML = `<span class="avail">▶ ${renewedCount}</span> <span class="used">· ${group.exhausted.length} tapped</span>`;
       stack.appendChild(info);
 
-      // Click: tap one renewed land
-      stack.addEventListener('click', () => {
-        if (renewedCount === 0) { log(`${base.name}: All tapped.`, ''); return; }
-        tapLandForMana(group.renewed[0]);
-      });
-
-      // Hover glow using faction color
-      if (renewedCount > 0 && G.activePlayer === 'player') {
-        stack.style.cursor = 'pointer';
+      // Click: tap one renewed land (player only)
+      if (who === 'player') {
+        stack.addEventListener('click', () => {
+          if (renewedCount === 0) { log(`${base.name}: All tapped.`, ''); return; }
+          tapLandForMana(group.renewed[0]);
+        });
+        if (renewedCount > 0 && G.activePlayer === 'player') {
+          stack.style.cursor = 'pointer';
+        }
+      } else {
+        stack.style.cursor = 'default';
       }
 
       landRow.appendChild(stack);
