@@ -5107,6 +5107,228 @@ function castSpellWithTargeting(inst, caster, onDone) {
   const txt = (inst.abilities || '').toLowerCase();
   const opp = caster === 'player' ? 'ai' : 'player';
 
+  // ── MULTI-STEP SPELLS (need multiple targets in sequence) ──────
+
+  // Blending In: "Exhaust one creature you control to deal damage equal to its power to another creature.
+  //   If that creature is destroyed, its owner receives one Bleed counter"
+  if (txt.includes('exhaust one creature') && txt.includes('deal damage equal to its power')) {
+    const ownCreatures = G[caster].battlefield.filter(i =>
+      i.type === 'Creature' && i.exhaustState === 'renewed' && !i.newlyTurned
+    );
+    if (ownCreatures.length === 0) {
+      log(`${inst.name}: No renewed creatures to exhaust.`, '');
+      onDone(); return;
+    }
+    // Step 1: Choose your creature to exhaust
+    log(`${inst.name}: Choose one of your creatures to exhaust.`, 'important');
+    beginTargeting(inst, caster, 'own-creature', (source, srcOwner) => {
+      if (source.exhaustState !== 'renewed') {
+        log(`${source.name} is not renewed.`, ''); onDone(); return;
+      }
+      source.exhaustState = 'exhausted';
+      const dmg = getEffectivePower(source);
+      log(`${inst.name}: ${source.name} exhausted (${dmg} power).`, '');
+      updateUI();
+      // Step 2: Choose the creature to deal damage to
+      log(`${inst.name}: Choose a creature to deal ${dmg} damage to.`, 'important');
+      beginTargeting(inst, caster, 'any-creature', (target, tgtOwner) => {
+        const tgtPow = getEffectivePower(target);
+        if (tgtPow <= dmg) {
+          // Destroyed
+          destroyCreature(target, tgtOwner);
+          log(`${inst.name}: ${target.name} takes ${dmg} damage and is destroyed!`, 'damage');
+          // Owner of destroyed creature gets 1 Bleed counter
+          G[tgtOwner].bleed += 1;
+          updateLifeDisplay(tgtOwner);
+          log(`${inst.name}: ${tgtOwner} gains 1 Bleed counter.`, 'bleed');
+          // Mission tracking
+          if (G[caster+'Mission']) {
+            G[caster+'Mission'].bleedDealt = (G[caster+'Mission'].bleedDealt||0) + 1;
+            checkMissionObjective(caster, 'scorched_veins');
+          }
+        } else {
+          target.powerMods.push({ amount: -dmg, until: 'eot' });
+          log(`${inst.name}: ${target.name} takes ${dmg} damage (survives).`, 'damage');
+        }
+        sfx('damage');
+        checkWin();
+        updateUI();
+        onDone();
+      });
+    });
+    return;
+  }
+
+  // "Destroy any token under your control to give +3 power to another token" (Token Fusion)
+  if (txt.includes('destroy') && txt.includes('token') && txt.includes('+3 power') && txt.includes('another token')) {
+    const ownTokens = G[caster].battlefield.filter(i => i.isToken && i.type === 'Creature');
+    if (ownTokens.length < 2) {
+      log(`${inst.name}: Need at least 2 tokens.`, '');
+      onDone(); return;
+    }
+    log(`${inst.name}: Choose a token to sacrifice.`, 'important');
+    beginTargeting(inst, caster, 'own-creature', (sacrifice, sacOwner) => {
+      if (!sacrifice.isToken) { log('Must be a token.', ''); onDone(); return; }
+      removeFromBattlefield(sacrifice, sacOwner);
+      log(`${inst.name}: ${sacrifice.name} sacrificed.`, 'damage');
+      updateUI();
+      const remaining = G[caster].battlefield.filter(i => i.isToken && i.type === 'Creature');
+      if (remaining.length === 0) { log(`${inst.name}: No tokens left to buff.`, ''); onDone(); return; }
+      log(`${inst.name}: Choose a token to give +3 power.`, 'important');
+      beginTargeting(inst, caster, 'own-creature', (target) => {
+        if (!target.isToken) { log('Must be a token.', ''); onDone(); return; }
+        target.powerMods.push({ amount: 3, until: 'eot' });
+        log(`${inst.name}: ${target.name} gets +3 power!`, 'heal');
+        updateUI(); onDone();
+      });
+    });
+    return;
+  }
+
+  // "Exhaust one creature you control to deal damage equal to its power to another creature" (Blending In variant)
+  // "Destroy a bat token under your control, gain 1 life and create two Bat tokens" (Bat Proliferation)
+  if (txt.includes('destroy a bat token') && txt.includes('create') && txt.includes('bat token')) {
+    const bats = G[caster].battlefield.filter(i => i.isToken && i.name.includes('Bat'));
+    if (bats.length === 0) { log(`${inst.name}: No Bat tokens.`, ''); onDone(); return; }
+    const doIt = (bat) => {
+      removeFromBattlefield(bat, caster);
+      if (txt.includes('gain') && txt.includes('life')) {
+        const n = parseInt(txt.match(/gain (\d+) life/)?.[1] || '1');
+        G[caster].life += n; updateLifeDisplay(caster);
+        log(`${inst.name}: Gained ${n} life.`, 'heal');
+      }
+      const n = parseInt(txt.match(/create.*?(\d+).*?bat token/)?.[1] || '2');
+      for (let i = 0; i < n; i++) createToken('Bat Token', caster);
+      log(`${inst.name}: Created ${n} Bat tokens!`, 'heal');
+      updateUI(); onDone();
+    };
+    if (bats.length === 1) doIt(bats[0]);
+    else showModal(inst.name, 'Choose a Bat token to sacrifice:', bats.map(b => ({
+      label: b.name, cls:'btn-danger', action:()=>doIt(b)
+    })));
+    return;
+  }
+
+  // "Destroy a relic you control: Gain 5 life, if you have bleed counters draw one card"
+  if (txt.includes('destroy') && txt.includes('relic you control') && txt.includes('gain') && txt.includes('life')) {
+    const ownRelics = G[caster].battlefield.filter(i => i.type === 'Relic');
+    if (ownRelics.length === 0) { log(`${inst.name}: No relics to destroy.`, ''); onDone(); return; }
+    const doIt = (relic) => {
+      removeFromBattlefield(relic, caster);
+      const n = parseInt(txt.match(/gain (\d+) life/)?.[1] || '5');
+      G[caster].life += n; updateLifeDisplay(caster);
+      log(`${inst.name}: Destroyed ${relic.name}, gained ${n} life.`, 'heal');
+      if (txt.includes('bleed') && txt.includes('draw') && G[caster].bleed > 0) {
+        drawFromDeck(caster, G[caster].main.length > 0 ? 'main' : 'land');
+        log(`${inst.name}: Had bleed counters — drew a card!`, 'heal');
+      }
+      updateUI(); onDone();
+    };
+    if (ownRelics.length === 1) doIt(ownRelics[0]);
+    else showModal(inst.name, 'Choose a relic to destroy:', ownRelics.map(r => ({
+      label: r.name, cls:'btn-danger', action:()=>doIt(r)
+    })));
+    return;
+  }
+
+  // "Destroy target Token creature under your control to exhaust target creature" (token sacrifice exhaust)
+  if (txt.includes('destroy') && txt.includes('token') && txt.includes('you control') &&
+      txt.includes('exhaust') && txt.includes('target creature')) {
+    const ownTokens = G[caster].battlefield.filter(i => i.isToken && i.type === 'Creature');
+    if (ownTokens.length === 0) { log(`${inst.name}: No tokens to sacrifice.`, ''); onDone(); return; }
+    log(`${inst.name}: Choose a token to sacrifice.`, 'important');
+    beginTargeting(inst, caster, 'own-creature', (sacrifice, sacOwner) => {
+      if (!sacrifice.isToken) { log('Must be a token.', ''); onDone(); return; }
+      removeFromBattlefield(sacrifice, sacOwner);
+      log(`${inst.name}: ${sacrifice.name} sacrificed.`, 'damage');
+      updateUI();
+      log(`${inst.name}: Choose a creature to exhaust.`, 'important');
+      beginTargeting(inst, caster, 'opponent-creature', (target) => {
+        target.exhaustState = 'exhausted';
+        log(`${inst.name}: ${target.name} exhausted!`, '');
+        updateUI(); onDone();
+      });
+    });
+    return;
+  }
+
+  // "Gain control of target creature, it is renewed and has Haste. Return at end of turn."
+  if (txt.includes('gain control') && txt.includes('target creature') && txt.includes('haste') && txt.includes('return')) {
+    log(`${inst.name}: Choose a creature to steal.`, 'important');
+    beginTargeting(inst, caster, 'opponent-creature', (target, tgtOwner) => {
+      G[tgtOwner].battlefield = G[tgtOwner].battlefield.filter(i => i.instId !== target.instId);
+      target._tempControlOwner = tgtOwner;
+      target.owner = caster;
+      target.exhaustState = 'renewed';
+      target.newlyTurned = false;
+      target.tempKeywords = target.tempKeywords || {};
+      target.tempKeywords.haste = true;
+      G[caster].battlefield.push(target);
+      log(`${inst.name}: Took control of ${target.name} — Haste, returns at end of turn!`, 'heal');
+      updateUI(); onDone();
+    });
+    return;
+  }
+
+  // "Spend X amount of {B} to do 1+X damage to target creature and gain life equal" (Drain Essence)
+  if (txt.includes('spend x') && txt.includes('damage') && txt.includes('gain life')) {
+    const oppCreatures = G[opp].battlefield.filter(i => i.type === 'Creature');
+    if (oppCreatures.length === 0) { log(`${inst.name}: No creatures to target.`, ''); onDone(); return; }
+    log(`${inst.name}: Choose a creature to drain.`, 'important');
+    beginTargeting(inst, caster, 'opponent-creature', (target, tgtOwner) => {
+      const maxX = Math.min(G[caster].mana.B || 0, getEffectivePower(target));
+      const doX = (x) => {
+        const dmg = 1 + x;
+        for (let i = 0; i < x; i++) G[caster].mana.B--;
+        updateManaDisplay(caster);
+        const tgtPow = getEffectivePower(target);
+        if (tgtPow <= dmg) {
+          destroyCreature(target, tgtOwner);
+          log(`${inst.name}: ${target.name} takes ${dmg} damage — destroyed!`, 'damage');
+        } else {
+          target.powerMods.push({ amount: -dmg, until: 'eot' });
+          log(`${inst.name}: ${target.name} takes ${dmg} damage.`, 'damage');
+        }
+        G[caster].life += dmg; updateLifeDisplay(caster);
+        log(`${inst.name}: Gained ${dmg} life.`, 'heal');
+        sfx('damage'); checkWin(); updateUI(); onDone();
+      };
+      if (maxX <= 0) { doX(0); return; }
+      const options = [];
+      for (let x = 0; x <= maxX; x++) {
+        options.push({ label: `X=${x} (${1+x} damage, spend ${x} {B})`, cls:'btn-secondary', action:()=>doX(x) });
+      }
+      showModal(inst.name, `Choose X (you have ${G[caster].mana.B} {B}):`, options);
+    });
+    return;
+  }
+
+  // "Destroy target relic. If under your control, gain life equal to blood cost" (Relic Smash)
+  if (txt.includes('destroy target relic')) {
+    const allRelics = [
+      ...G.player.battlefield.filter(i=>i.type==='Relic').map(i=>({inst:i,owner:'player'})),
+      ...G.ai.battlefield.filter(i=>i.type==='Relic').map(i=>({inst:i,owner:'ai'})),
+    ];
+    if (allRelics.length === 0) { log(`${inst.name}: No relics.`, ''); onDone(); return; }
+    const doDestroy = ({inst:relic, owner:rOwner}) => {
+      removeFromBattlefield(relic, rOwner);
+      log(`${inst.name}: ${relic.name} destroyed!`, 'damage');
+      if (txt.includes('your control') && txt.includes('gain life') && rOwner === caster) {
+        const bloodCost = (relic.cost||'').replace(/[GC]/g,'').length;
+        if (bloodCost > 0) {
+          G[caster].life += bloodCost; updateLifeDisplay(caster);
+          log(`${inst.name}: Gained ${bloodCost} life (blood cost).`, 'heal');
+        }
+      }
+      updateUI(); onDone();
+    };
+    if (allRelics.length === 1) doDestroy(allRelics[0]);
+    else showModal(inst.name, 'Choose a relic:', allRelics.map(r => ({
+      label: `${r.inst.name} (${r.owner})`, cls:'btn-danger', action:()=>doDestroy(r)
+    })));
+    return;
+  }
+
   // Does this spell target a creature at all?
   if (!txt.includes('target creature') && !txt.includes('target attacking') && !txt.includes('target blocking')) {
     resolveSpell(inst, caster);
