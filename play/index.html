@@ -3267,6 +3267,8 @@ function endPlayerTurn() {
   // Bleed resolution
   if (G.player.bleed > 0) {
     const dmg = G.player.bleed;
+    // Mission: Blood Circuit (opponent has 3+ bleed before resolving)
+    checkMissionObjective('ai', 'blood_circuit');
     G.player.life -= dmg;
     sfx('bleed');
     log(`Bleed resolves: you take ${dmg} damage from ${dmg} Bleed counters.`, 'bleed');
@@ -3293,6 +3295,23 @@ function endPlayerTurn() {
   sfx('turn_end', 0.5);
 
   G.turn++;
+
+  // Extra turn check — if player earned an extra turn, don't switch to AI
+  if (G._extraTurn === 'player') {
+    G._extraTurn = null;
+    G.activePlayer = 'player';
+    G.player.hasAttackedThisTurn = false;
+    document.getElementById('turn-info').textContent = 'TURN ' + G.turn + ' (EXTRA TURN)';
+    log('⚡ EXTRA TURN!', 'important');
+    setPhase('renew');
+    renewPhase('player');
+    setPhase('draw');
+    updateUI();
+    showBanner('EXTRA TURN!');
+    setTimeout(() => promptDrawChoice(), 600);
+    return;
+  }
+
   G.activePlayer = 'ai';
 
   document.getElementById('turn-info').textContent = 'TURN ' + G.turn + ' (AI)';
@@ -3539,10 +3558,12 @@ async function aiPlayCards() {
       fireEnterTrigger(inst, 'ai');
     } else if (inst.type === 'Relic') {
       inst.newlyTurned = false;
-      inst.exhaustState = 'renewed';
+      const entersExhausted = (inst.abilities||'').toLowerCase().includes('enters exhausted') ||
+                              (inst.abilities||'').toLowerCase().includes('enters play exhausted');
+      inst.exhaustState = entersExhausted ? 'exhausted' : 'renewed';
       ai.battlefield.push(inst);
       sfx('card_play', 0.4);
-      log(`AI plays ${inst.name} [Relic].`, '');
+      log(`AI plays ${inst.name} [Relic].${entersExhausted?' (enters exhausted)':''}`, '');
       fireEnterTrigger(inst, 'ai');
     } else if (inst.type === 'Spell') {
       sfx('card_play', 0.4);
@@ -3816,6 +3837,11 @@ async function aiDeclareAttack() {
   // Apply "while attacking" auras from AI's battlefield
   applyWhileAttackingAuras('ai', myAttackers);
 
+  // Fire attack triggers for AI attackers (Nightwing Defiler, Salizer Shade, etc.)
+  myAttackers.forEach(inst => {
+    fireAttackTrigger(inst, 'ai');
+  });
+
   // Self Bleed on AI attackers — only for cards with static selfBleed keyword
   // that do NOT also have 'when attacking selfbleed' text (which fires via fireAttackTrigger)
   myAttackers.forEach(inst => {
@@ -4025,7 +4051,7 @@ function toggleAttacker(inst) {
     attackers.push(inst.instId);
     inst.attacking = true;
     log(`${inst.name} → attacking!`, 'important');
-    fireAttackTrigger(inst, 'player');
+    // Note: attack triggers fire at confirmAttack, not here (so deselecting doesn't leave orphaned effects)
   }
   updateUI(); // must call full updateUI so setPhase keeps button as CONFIRM ATTACK
 }
@@ -4039,6 +4065,9 @@ function confirmAttack() {
 
   combatPhase = 'resolving';
   document.getElementById('btn-attack').style.display = 'none';
+
+  // Fire attack triggers now that attack is confirmed
+  atkInsts.forEach(inst => fireAttackTrigger(inst, 'player'));
 
   // Apply static selfBleed keyword for player's attackers
   // (cards with "Selfbleed N" as a standing keyword, not "When attacking Selfbleed N")
@@ -4158,7 +4187,12 @@ function removeFromBattlefield(inst, owner) {
   const idx = G[owner].battlefield.findIndex(i => i.instId === inst.instId);
   if (idx !== -1) {
     G[owner].battlefield.splice(idx, 1);
-    G[owner].discard.push(inst);
+    // Tokens are removed from the game entirely — NOT sent to discard
+    if (inst.isToken) {
+      log(`${inst.name} (token) removed from the game.`, '');
+    } else {
+      G[owner].discard.push(inst);
+    }
     // Fire on-destroy triggers
     fireDestroyTrigger(inst, owner);
   }
@@ -4200,6 +4234,13 @@ function fireEnterTrigger(inst, who) {
     for (let i = 0; i < n; i++) createToken('Raven Token', who);
     log(`${inst.name}: Raven Token created.`, 'heal');
   }
+  // Selfbleed companion on enter (Ebonwing Matriarch: "...and Selfbleed 1")
+  if (txt.includes('enter') && txt.includes('selfbleed') && !txt.includes('see') && !txt.includes('hand')) {
+    const sbN = parseInt(txt.match(/selfbleed (\d+)/)?.[1] || '1');
+    G[who].bleed += sbN;
+    updateLifeDisplay(who);
+    log(`${inst.name}: Selfbleed ${sbN} on entry.`, 'bleed');
+  }
   // "When this enters, gain X life"
   const lifeMatch = txt.match(/when this.*enters.*gain (\d+) life/);
   if (lifeMatch) {
@@ -4221,9 +4262,9 @@ function fireEnterTrigger(inst, who) {
       doGlimpse(who, n, inst.name);
     }
   }
-  // "When this enters you may pay 2 life to see target player's hand" (Perch Watcher)
-  if (txt.includes('enter') && txt.includes('pay') && txt.includes('life') && txt.includes('hand')) {
-    const costMatch = txt.match(/pay (\d+) life/);
+  // "When this enters you may Selfbleed 2 to see target player's hand" (Perch Watcher)
+  if (txt.includes('enter') && txt.includes('selfbleed') && txt.includes('hand') && txt.includes('see')) {
+    const costMatch = txt.match(/selfbleed (\d+)/);
     const cost = costMatch ? parseInt(costMatch[1]) : 2;
     if (who === 'player') {
       showModal(
@@ -4235,11 +4276,11 @@ function fireEnterTrigger(inst, who) {
             cls: 'btn-danger',
             action: () => {
               if (G.player.life > cost) {
-                G.player.life -= cost;
+                G.player.bleed += cost;
                 updateLifeDisplay('player');
                 const handNames = G.ai.hand.map(c => `• ${c.name} (${c.cost || 'free'})`).join('\n');
                 showModal("AI's Hand", handNames || 'Empty', [{ label:'CLOSE', cls:'btn-muted', action:()=>{} }]);
-                log(`${inst.name}: Paid ${cost} life to see AI hand.`, 'bleed');
+                log(`${inst.name}: Selfbleed ${cost} to see AI hand.`, 'bleed');
               } else {
                 log('Not enough life.', '');
               }
@@ -4248,6 +4289,32 @@ function fireEnterTrigger(inst, who) {
           { label: 'SKIP', cls: 'btn-muted', action: () => { if(G) updateUI(); } }
         ]
       );
+    }
+  }
+  // "When this card enters play deal N damage to all creatures" (Veinstorm Detonator)
+  if (txt.includes('enter') && txt.includes('deal') && txt.includes('damage') && txt.includes('all creature')) {
+    const dmg = parseInt(txt.match(/deal (\d+) damage/)?.[1] || '1');
+    const opp = who === 'player' ? 'ai' : 'player';
+    // Damage all creatures on both sides (except this creature itself)
+    const allCreatures = [
+      ...G[opp].battlefield.filter(i => i.type === 'Creature').map(i => ({ inst: i, owner: opp })),
+      ...G[who].battlefield.filter(i => i.type === 'Creature' && i.instId !== inst.instId).map(i => ({ inst: i, owner: who })),
+    ];
+    const toDestroy = allCreatures.filter(({ inst: c }) => getEffectivePower(c) <= dmg);
+    toDestroy.forEach(({ inst: c, owner: o }) => {
+      removeFromBattlefield(c, o);
+    });
+    if (toDestroy.length > 0) sfx('destroy');
+    log(`${inst.name}: Deals ${dmg} damage to all creatures. ${toDestroy.length} destroyed.`, 'damage');
+    updateUI();
+  }
+  // "When this creature enters play, all relics you control are renewed" (Count Vladislav)
+  if (txt.includes('enter') && txt.includes('relic') && txt.includes('renewed')) {
+    const relics = G[who].battlefield.filter(i => i.type === 'Relic');
+    relics.forEach(r => { r.exhaustState = 'renewed'; });
+    if (relics.length > 0) {
+      log(`${inst.name}: All your relics are renewed!`, 'heal');
+      updateUI();
     }
   }
 }
@@ -4356,6 +4423,25 @@ function fireDirectDamageTrigger(inst, attackingSide, damage) {
     }
   }
 
+  // Grimoire Scribe: "deals combat damage directly, they must overexhaust a card"
+  if (txt.includes('deals') && txt.includes('directly') && txt.includes('overexhaust')) {
+    const defendSide = attackingSide === 'player' ? 'ai' : 'player';
+    const renewedCards = G[defendSide].battlefield.filter(i => i.exhaustState !== 'overexhausted');
+    if (renewedCards.length > 0) {
+      if (defendSide === 'ai') {
+        // AI auto-picks least valuable
+        const target = renewedCards.sort((a,b) => getEffectivePower(a) - getEffectivePower(b))[0];
+        target.exhaustState = 'overexhausted';
+        log(`${inst.name}: ${target.name} forced to overexhaust!`, '');
+      } else {
+        showModal(inst.name, 'Choose a card to overexhaust:', renewedCards.map(c => ({
+          label: c.name, cls: 'btn-danger',
+          action: () => { c.exhaustState = 'overexhausted'; log(`${c.name} overexhausted by ${inst.name}.`, ''); updateUI(); }
+        })));
+      }
+    }
+  }
+
   // "Whenever this deals damage directly, draw a card"
   if (txt.includes('deals damage') && txt.includes('draw a card')) {
     drawFromDeck(attackingSide, G[attackingSide].main.length > 0 ? 'main' : 'land');
@@ -4365,6 +4451,11 @@ function fireDirectDamageTrigger(inst, attackingSide, damage) {
   // Hemorrhage: on-hit scaling effects
   if (inst.keywords?.hemorrhage && hemorrhageActive(inst)) {
     const hEff = getHemorrhageEffect(inst.abilities || '').toLowerCase();
+    // Rothollow Packmaster: "create 1 Wolf token" on direct damage
+    if (hEff.includes('create') && hEff.includes('wolf token')) {
+      createToken('Wolf Token', attackingSide);
+      log(`${inst.name}: Hemorrhage — created a Wolf Token!`, 'heal');
+    }
     // Nano Vein Flexer: '+1 Bleed for each Bleed counter on you'
     if (hEff.includes('+1 bleed for each bleed counter')) {
       const bc = hemorrhageBleedCount(inst);
@@ -4455,11 +4546,68 @@ function fireAttackTrigger(inst, who) {
     inst._exhaustBlockers = true;
   }
 
+  // "When this creature attacks, each Wolf token you control gets +1 power until end of turn" (Rothollow Packmaster)
+  if (txt.includes('attack') && txt.includes('wolf token') && txt.includes('+1 power')) {
+    const wolves = G[who].battlefield.filter(i => i.isToken && i.name.includes('Wolf'));
+    if (wolves.length > 0) {
+      wolves.forEach(w => { w.powerMods.push({ amount: 1, until: 'eot' }); });
+      log(`${inst.name}: ${wolves.length} Wolf token(s) get +1 power!`, 'heal');
+    }
+  }
+
+  // "When attacking, you may exhaust up to 2 target creature cards" (Nightwing Defiler)
+  if (txt.includes('when attacking') && txt.includes('exhaust up to') && !txt.includes('selfbleed')) {
+    const opp = who === 'player' ? 'ai' : 'player';
+    const targets = G[opp].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed').slice(0,2);
+    targets.forEach(t => { t.exhaustState = 'exhausted'; log(`${inst.name}: ${t.name} exhausted.`, ''); });
+    if (targets.length > 0) {
+      // Overexhaust self at end of combat
+      inst._overexhaustAfterCombat = true;
+    }
+  }
+
 }
 // Called BEFORE damage so all creatures still exist for checks
 // Attacker-overexhaust triggers are deferred to run AFTER damage via returned callbacks
 function fireCombatTriggers(atkInsts, blkMap, defendingSide) {
   const attackingSide = defendingSide === 'ai' ? 'player' : 'ai';
+
+  // ── PRE-DAMAGE: Apply blocking power bonuses/penalties ──────
+  // Snowfleece Elder, Marble Shield Sentinel: "When blocking +1 power"
+  // Neon Revenant Striker: "-1 power while blocking"
+  // Flame Bully Crew: "+1 power when blocked"
+  const allBlockerInsts = Object.keys(blkMap).map(bid =>
+    G[defendingSide].battlefield.find(i => i.instId === parseInt(bid))
+  ).filter(Boolean);
+
+  allBlockerInsts.forEach(blk => {
+    const blkTxt = (blk.abilities || '').toLowerCase();
+    // "When blocking +1 power until end of turn"
+    if (blkTxt.includes('when blocking') && blkTxt.includes('+1 power')) {
+      blk.powerMods.push({ amount: 1, until: 'eot' });
+      log(`${blk.name}: +1 power while blocking.`, 'heal');
+    }
+    // "-1 power while blocking" (Neon Revenant Striker)
+    if (blkTxt.includes('-1 power while blocking') || blkTxt.includes('-1 power when blocking')) {
+      blk.powerMods.push({ amount: -1, until: 'eot' });
+      log(`${blk.name}: -1 power while blocking.`, '');
+    }
+  });
+
+  // "+1 power when blocked" (Flame Bully Crew)
+  atkInsts.forEach(atk => {
+    if (!atk) return;
+    const atkTxt2 = (atk.abilities || '').toLowerCase();
+    if (atkTxt2.includes('+1 power when blocked') || atkTxt2.includes('+1 power if blocked')) {
+      const isBlocked = Object.values(blkMap).some(aid =>
+        String(aid).split('|').includes(String(atk.instId))
+      );
+      if (isBlocked) {
+        atk.powerMods.push({ amount: 1, until: 'eot' });
+        log(`${atk.name}: +1 power (blocked).`, 'heal');
+      }
+    }
+  });
 
   atkInsts.forEach(atk => {
     if (!atk) return;
@@ -4505,7 +4653,11 @@ function fireCombatTriggers(atkInsts, blkMap, defendingSide) {
       if (atk.keywords?.hemorrhage && hemorrhageActive(atk)) {
         const hEff = getHemorrhageEffect(atk.abilities || '').toLowerCase();
         if (hEff.includes('blocking it with power of 2 or less') || hEff.includes('power of 2 or less')) {
-          const weakBlockers = blkList.filter(b => getEffectivePower(b) <= 2).length;
+          // Gather all blocker instances for this attacker
+          const allBlockerInsts = myBlockerIds
+            .map(bid => G[defendingSide].battlefield.find(i => i.instId === bid))
+            .filter(Boolean);
+          const weakBlockers = allBlockerInsts.filter(b => getEffectivePower(b) <= 2).length;
           if (weakBlockers > 0) {
             atk.powerMods.push({ amount: weakBlockers, until: 'eot' });
             log(`${atk.name}: Hemorrhage — +${weakBlockers} power (${weakBlockers} weak blocker(s)).`, 'heal');
@@ -4568,8 +4720,16 @@ function combatResolutionMulti(atk, blockerInsts, defendingSide) {
   log(`${atk.name}[${atkP}${atkDealsNoDamage?',no dmg':''}] vs ${blockerInsts.map(b=>b.name+(hasKeyword(b,'wall')?'[W]':'')+'['+getEffectivePower(b)+']').join(' + ')} (effective blocker power: ${totalBlkP})`, '');
 
   // ── Blocker damage to attacker ─────────────────────────────────
-  // Attacker is destroyed only by NON-wall blocker power
-  const atkDestroyed = totalBlkP >= atkP;
+  // Elias Veyr: "Blocker damage dealt to this card is reduced by 2"
+  let dmgReduction = 0;
+  const atkAbil = (atk.abilities || '').toLowerCase();
+  if (atkAbil.includes('blocker damage') && atkAbil.includes('reduced by')) {
+    dmgReduction = parseInt(atkAbil.match(/reduced by (\d+)/)?.[1] || '0');
+  }
+  const effectiveBlkDmg = Math.max(0, totalBlkP - dmgReduction);
+  if (dmgReduction > 0 && totalBlkP > 0) log(`${atk.name}: Blocker damage reduced by ${dmgReduction}.`, 'heal');
+  // Attacker is destroyed only by NON-wall blocker power (after reduction)
+  const atkDestroyed = effectiveBlkDmg >= atkP;
 
   // ── Attacker damage to blockers ────────────────────────────────
   let atkDmgRemaining = atkDealsNoDamage ? 0 : atkP;
@@ -4592,7 +4752,11 @@ function combatResolutionMulti(atk, blockerInsts, defendingSide) {
 
   // Remove destroyed blockers
   destroyedBlockers.forEach(b => removeFromBattlefield(b, defendingSide));
-  if (destroyedBlockers.length > 0) sfx('destroy');
+  if (destroyedBlockers.length > 0) {
+    sfx('destroy');
+    // Mark attacker as having destroyed a creature (for Lyssara trigger)
+    if (!atkDealsNoDamage) atk._destroyedInCombat = true;
+  }
 
   // Wall rule: surviving walls that blocked get -1 permanent power counter
   wallBlockers.forEach(blk => {
@@ -4625,6 +4789,20 @@ function combatResolutionMulti(atk, blockerInsts, defendingSide) {
       sfx('damage');
       log(`→ Breach: ${atkDmgRemaining} excess to ${defendingSide}.`, 'damage');
       updateLifeDisplay(defendingSide);
+      // Breach damage is direct damage to player — triggers Bleed, Siphon
+      if (atk.keywords?.bleed) {
+        const missionBleed = hasMissionReward(attackingSide, 'red_bleed_plus1') ? 1 : 0;
+        const totalBleedBreach = (atk.keywords.bleed||0) + (atk._bleedBoost||0) + missionBleed;
+        G[defendingSide].bleed += totalBleedBreach;
+        log(`+${totalBleedBreach} Bleed on ${defendingSide} (Breach).`, 'bleed');
+        if (G[attackingSide+'Mission']) { G[attackingSide+'Mission'].bleedDealt = (G[attackingSide+'Mission'].bleedDealt||0)+totalBleedBreach; checkMissionObjective(attackingSide,'scorched_veins'); }
+      }
+      if (hasKeyword(atk, 'siphon')) {
+        G[attackingSide].life += atkDmgRemaining;
+        log(`Siphon: ${attackingSide} gains ${atkDmgRemaining} life (Breach).`, 'heal');
+        updateLifeDisplay(attackingSide);
+      }
+      fireDirectDamageTrigger(atk, attackingSide, atkDmgRemaining);
     }
   }
 
@@ -4695,7 +4873,7 @@ function resolveCombat(atkInsts, blkMap, defendingSide) {
         // Mission: Scorched Veins (accumulate bleed dealt)
         if (G[attackingSide+'Mission']) { G[attackingSide+'Mission'].bleedDealt = (G[attackingSide+'Mission'].bleedDealt||0) + totalBleed; checkMissionObjective(attackingSide, 'scorched_veins'); }
       }
-      if (atk.keywords && atk.keywords.siphon) {
+      if (hasKeyword(atk, 'siphon')) {
         G[attackingSide].life += pow;
         log(`Siphon: ${attackingSide} gains ${pow} life.`, 'heal');
         updateLifeDisplay(attackingSide);
@@ -4708,6 +4886,24 @@ function resolveCombat(atkInsts, blkMap, defendingSide) {
     atk.attacking = false;
     atk.noCombatDamage = false;
   });
+
+  // ── Post-combat triggers: "When this creature destroys another" (Lyssara) ──
+  if (G) {
+    G[attackingSide === 'player' ? 'player' : 'ai'].battlefield.forEach(inst => {
+      const aTxt = (inst.abilities || '').toLowerCase();
+      if (aTxt.includes('when this creature destroys') && aTxt.includes('create')) {
+        // Check if this creature actually destroyed something this combat
+        // (simple heuristic: check if any defending creatures were removed)
+        if (inst._destroyedInCombat) {
+          if (aTxt.includes('bat token')) createToken('Bat Token', attackingSide);
+          if (aTxt.includes('wolf token')) createToken('Wolf Token', attackingSide);
+          if (aTxt.includes('zombie token')) createToken('Zombie Token', attackingSide);
+          log(`${inst.name}: Destroyed a creature — tokens created!`, 'heal');
+          inst._destroyedInCombat = false;
+        }
+      }
+    });
+  }
 
   if (!G) return;
   updateUI();
@@ -5070,6 +5266,15 @@ function resolveSpellOnTarget(inst, caster, target, targetOwner) {
   } else if (txt.includes('no combat damage') || txt.includes('deals no')) {
     target.noCombatDamage = true;
     log(`${inst.name}: ${target.name} deals no combat damage this turn.`, '');
+    // Drone Hack: "controller gains Bleed counters equal to half its power rounded up"
+    if (txt.includes('half its power') || txt.includes('half power')) {
+      const halfPow = Math.ceil(getEffectivePower(target) / 2);
+      if (halfPow > 0) {
+        G[targetOwner].bleed += halfPow;
+        updateLifeDisplay(targetOwner);
+        log(`${inst.name}: ${targetOwner} gains ${halfPow} Bleed (half of ${target.name}'s power).`, 'bleed');
+      }
+    }
     // Radiant Reprisal: "you gain life equal to its power"
     if (txt.includes('gain life equal to')) {
       const pow = getEffectivePower(target);
@@ -5112,11 +5317,33 @@ function resolveSpellOnTarget(inst, caster, target, targetOwner) {
       log(`${inst.name}: ${target.name} warded — cannot attack, +2 power.`, 'heal');
     }
   } else if (txt.includes('+2 power')) {
-    target.power = (target.power||0) + 2;
+    target.powerMods.push({ amount: 2, until: 'eot' });
+    // Redline Frenzy: also gains Breach + Bleed +1
+    if (txt.includes('breach')) {
+      target.tempKeywords = target.tempKeywords || {};
+      target.tempKeywords.breach = true;
+      log(`${inst.name}: ${target.name} gains Breach!`, 'heal');
+    }
+    if (txt.includes('bleed +1') || txt.includes('bleed +')) {
+      target.keywords.bleed = (target.keywords.bleed || 0) + 1;
+      log(`${inst.name}: ${target.name} gains Bleed +1!`, '');
+    }
     log(`${inst.name}: ${target.name} gets +2 power.`, 'heal');
   } else if (txt.includes('+1 power') || txt.includes('gains +1')) {
-    target.power = (target.power||0) + 1;
-    log(`${inst.name}: ${target.name} gets +1 power.`, 'heal');
+    let boost = 1;
+    // Overclock Surge: additional +1 if target has Bleed
+    if (txt.includes('additional +1') && txt.includes('bleed') && target.keywords?.bleed) {
+      boost = 2;
+      log(`${inst.name}: ${target.name} has Bleed — +2 power total!`, 'heal');
+    }
+    target.powerMods.push({ amount: boost, until: 'eot' });
+    log(`${inst.name}: ${target.name} gets +${boost} power.`, 'heal');
+  } else if (txt.includes('+1 power') && txt.includes('breach') && !txt.includes('+2')) {
+    // Reckless Surge: +1 power and Breach
+    target.powerMods.push({ amount: 1, until: 'eot' });
+    target.tempKeywords = target.tempKeywords || {};
+    target.tempKeywords.breach = true;
+    log(`${inst.name}: ${target.name} gains +1 power and Breach!`, 'heal');
   } else if (txt.includes('gains breach') || txt.includes('gain breach')) {
     target.keywords.breach = true;
     log(`${inst.name}: ${target.name} gains Breach!`, 'heal');
@@ -5124,7 +5351,22 @@ function resolveSpellOnTarget(inst, caster, target, targetOwner) {
     target.keywords.tireless = true;
     log(`${inst.name}: ${target.name} gains Tireless.`, 'heal');
   } else if (txt.includes('gains siphon') || txt.includes('gain siphon')) {
-    target.keywords.siphon = true;
+    target.tempKeywords = target.tempKeywords || {};
+    target.tempKeywords.siphon = true;
+    // Dawn Defier: also +1 power and Breach
+    if (txt.includes('+1 power')) {
+      target.powerMods.push({ amount: 1, until: 'eot' });
+      log(`${inst.name}: ${target.name} gets +1 power.`, 'heal');
+    }
+    if (txt.includes('breach')) {
+      target.tempKeywords.breach = true;
+      log(`${inst.name}: ${target.name} gains Breach!`, 'heal');
+    }
+    // Ask for Blessings: Tireless + Siphon
+    if (txt.includes('tireless')) {
+      target.tempKeywords.tireless = true;
+      log(`${inst.name}: ${target.name} gains Tireless!`, 'heal');
+    }
     log(`${inst.name}: ${target.name} gains Siphon.`, 'heal');
   } else if (txt.includes('gains haste') || txt.includes('gain haste')) {
     target.keywords.haste = true;
@@ -5169,6 +5411,19 @@ function resolveSpellOnTarget(inst, caster, target, targetOwner) {
       picked._cannotCastThisTurn = true; // cannot be cast this turn
       G[who].hand.push(picked);
       log(`${inst.name}: ${picked.name} retrieved from discard (cannot be cast this turn).`, 'heal');
+    }
+  } else if (txt.includes('gain control') && txt.includes('target creature') && txt.includes('return control')) {
+    // Mindforge Dominion: temp control with Haste
+    if (targetOwner !== caster) {
+      G[targetOwner].battlefield = G[targetOwner].battlefield.filter(i => i.instId !== target.instId);
+      target._tempControlOwner = targetOwner;
+      target.owner = caster;
+      target.exhaustState = 'renewed';
+      target.newlyTurned = false;
+      target.tempKeywords = target.tempKeywords || {};
+      target.tempKeywords.haste = true;
+      G[caster].battlefield.push(target);
+      log(`${inst.name}: Took control of ${target.name} — Haste, returns at end of turn!`, 'heal');
     }
   } else if (txt.includes('returned to') || (txt.includes('return') && txt.includes('hand'))) {
     const arr = G[targetOwner].battlefield;
@@ -5270,6 +5525,42 @@ function aetherCopyCreature(inst, caster, source) {
 function resolveSpell(inst, caster) {
   const txt = (inst.abilities || '').toLowerCase();
 
+  // ── CHOOSE TWO (Alchemical Infusion) ──────────────────────
+  if (txt.includes('choose two')) {
+    const opp = caster === 'player' ? 'ai' : 'player';
+    let choicesRemaining = 2;
+    const doChoice = () => {
+      if (choicesRemaining <= 0) { updateUI(); return; }
+      const options = [
+        { label: 'Gain 2 life', cls: 'btn-secondary', action: () => {
+          G[caster].life += 2; updateLifeDisplay(caster);
+          log(`${inst.name}: Gained 2 life.`, 'heal');
+          choicesRemaining--; doChoice();
+        }},
+        { label: `Remove Bleed from opponent (${G[opp].bleed})`, cls: 'btn-secondary', action: () => {
+          if (G[opp].bleed > 0) { G[opp].bleed -= 1; updateLifeDisplay(opp); log(`${inst.name}: Removed 1 Bleed from opponent.`, 'heal'); }
+          else { log(`${inst.name}: Opponent has no Bleed.`, ''); }
+          choicesRemaining--; doChoice();
+        }},
+        { label: 'Add {W}', cls: 'btn-secondary', action: () => {
+          addMana(caster, 'W', 1);
+          log(`${inst.name}: Added {W}.`, 'heal');
+          choicesRemaining--; doChoice();
+        }},
+      ];
+      if (caster === 'player') {
+        showModal(`${inst.name} — Choice ${3 - choicesRemaining} of 2`, 'Choose an effect:', options);
+      } else {
+        // AI: prefer life gain
+        G[caster].life += 2; updateLifeDisplay(caster);
+        log(`${inst.name}: AI gains 2 life.`, 'heal');
+        choicesRemaining--; if (choicesRemaining > 0) { G[caster].life += 2; updateLifeDisplay(caster); log(`${inst.name}: AI gains 2 life.`, 'heal'); choicesRemaining--; }
+      }
+    };
+    doChoice();
+    return;
+  }
+
   // ── PRISMATIC ACCORD — add {P} then draw from land deck ─
   if (txt.includes('add {p}') && txt.includes('land deck')) {
     addMana(caster, 'P', 1);
@@ -5293,6 +5584,48 @@ function resolveSpell(inst, caster) {
       updateUI();
     }
     return;
+  }
+  // ── CHOOSE TWO (Alchemical Infusion) ─────────────────────────
+  if (txt.includes('choose two')) {
+    // Parse options from "Gain 2 life | Remove bleed | Add {W}" format
+    let choices = 2;
+    const opp = caster === 'player' ? 'ai' : 'player';
+    const doChoice = (remaining) => {
+      if (remaining <= 0) { updateUI(); return; }
+      const options = [];
+      if (txt.includes('gain') && txt.includes('life')) {
+        const n = parseInt(txt.match(/gain (\d+) life/)?.[1] || '2');
+        options.push({ label: `Gain ${n} life`, cls:'btn-secondary', action:() => {
+          G[caster].life += n; updateLifeDisplay(caster);
+          log(`${inst.name}: Gained ${n} life.`, 'heal');
+          doChoice(remaining - 1);
+        }});
+      }
+      if (txt.includes('bleed counter') && txt.includes('target player')) {
+        options.push({ label: `Remove bleed from opponent (${G[opp].bleed})`, cls:'btn-secondary', action:() => {
+          if (G[opp].bleed > 0) { G[opp].bleed--; updateLifeDisplay(opp); log(`${inst.name}: Removed 1 Bleed from ${opp}.`, 'heal'); }
+          else log(`${inst.name}: No bleed to remove.`, '');
+          doChoice(remaining - 1);
+        }});
+      }
+      if (txt.includes('add {w}')) {
+        options.push({ label: 'Add {W} Blood', cls:'btn-secondary', action:() => {
+          addMana(caster, 'W', 1); log(`${inst.name}: +1 White Blood.`, 'heal');
+          doChoice(remaining - 1);
+        }});
+      }
+      if (options.length === 0) { updateUI(); return; }
+      showModal(`${inst.name} — Choose ${remaining > 1 ? 'first' : 'second'} effect`, `${remaining} choice(s) remaining:`, options);
+    };
+    if (caster === 'player') {
+      doChoice(2);
+    } else {
+      // AI: gain life twice is safest
+      const n = parseInt(txt.match(/gain (\d+) life/)?.[1] || '2');
+      G.ai.life += n * 2; updateLifeDisplay('ai');
+      log(`${inst.name}: AI chooses Gain ${n} life × 2.`, 'heal');
+    }
+    updateUI(); return;
   }
   // ── TOKEN CREATION ──────────────────────────────────────────
   if (txt.includes('create') && txt.includes('token')) {
@@ -5508,6 +5841,149 @@ function resolveSpell(inst, caster) {
       return;
     }
   }
+  // ── CHARITABLE DEED ────────────────────────────────────────
+  else if (txt.includes('remove all bleed') && txt.includes('all players')) {
+    const playerBleed = G[caster].bleed;
+    const oppBleed = G[caster==='player'?'ai':'player'].bleed;
+    G.player.bleed = 0; G.ai.bleed = 0;
+    // Add {W} equal to counters removed from caster
+    if (playerBleed > 0 && caster === 'player') {
+      for (let i = 0; i < playerBleed; i++) addMana('player', 'W', 1);
+      log(`${inst.name}: Added ${playerBleed} {W} from your removed Bleed.`, 'heal');
+    } else if (oppBleed > 0 && caster === 'ai') {
+      for (let i = 0; i < oppBleed; i++) addMana('ai', 'W', 1);
+    }
+    updateLifeDisplay('player'); updateLifeDisplay('ai');
+    log(`${inst.name}: All Bleed removed from all players.`, 'heal');
+  }
+  // ── RELIC ABSORPTION ────────────────────────────────────────
+  else if (txt.includes('destroy a relic you control') && txt.includes('gain') && txt.includes('life')) {
+    const ownRelics = G[caster].battlefield.filter(i => i.type === 'Relic');
+    if (ownRelics.length === 0) { log(`${inst.name}: No relics to destroy.`, ''); }
+    else {
+      const doAbsorb = (relic) => {
+        removeFromBattlefield(relic, caster);
+        const lifeGain = parseInt(txt.match(/gain (\d+) life/)?.[1] || '5');
+        G[caster].life += lifeGain; updateLifeDisplay(caster);
+        log(`${inst.name}: Destroyed ${relic.name}, gained ${lifeGain} life.`, 'heal');
+        if (txt.includes('draw') && G[caster].bleed > 0) {
+          drawFromDeck(caster, G[caster].main.length > 0 ? 'main' : 'land');
+          log(`${inst.name}: Had Bleed — drew a card.`, 'heal');
+        }
+        updateUI();
+      };
+      if (caster === 'player') {
+        if (ownRelics.length === 1) doAbsorb(ownRelics[0]);
+        else showModal(inst.name, 'Destroy which relic?', ownRelics.map(r => ({
+          label: r.name, cls: 'btn-danger', action: () => doAbsorb(r)
+        })));
+      } else { doAbsorb(ownRelics[0]); }
+    }
+  }
+  // ── SIPHON LIFE ────────────────────────────────────────
+  else if (txt.includes('destroy') && txt.includes('bat token') && txt.includes('create two')) {
+    const bats = G[caster].battlefield.filter(i => i.isToken && i.name === 'Bat Token');
+    if (bats.length === 0) { log(`${inst.name}: No Bat tokens to sacrifice.`, ''); }
+    else {
+      removeFromBattlefield(bats[0], caster);
+      G[caster].life += 1; updateLifeDisplay(caster);
+      createToken('Bat Token', caster); createToken('Bat Token', caster);
+      log(`${inst.name}: Sacrificed Bat, gained 1 life, created 2 Bat tokens.`, 'heal');
+    }
+  }
+  // ── ECHO SIPHON ────────────────────────────────────────
+  else if (txt.includes('destroy any token') && txt.includes('+3 power') && txt.includes('another token')) {
+    const tokens = G[caster].battlefield.filter(i => i.isToken && i.type === 'Creature');
+    if (tokens.length < 2) { log(`${inst.name}: Need 2+ tokens.`, ''); }
+    else if (caster === 'player') {
+      showModal(inst.name, 'Choose token to SACRIFICE:', tokens.map(t => ({
+        label: t.name + ' [' + getEffectivePower(t) + ']', cls: 'btn-danger',
+        action: () => {
+          removeFromBattlefield(t, caster);
+          const remaining = G[caster].battlefield.filter(i => i.isToken && i.type === 'Creature');
+          if (remaining.length === 0) { log('No tokens left to buff.', ''); updateUI(); return; }
+          if (remaining.length === 1) {
+            remaining[0].powerMods.push({ amount: 3, until: 'eot' });
+            log(`${inst.name}: ${remaining[0].name} gets +3 power!`, 'heal'); updateUI();
+          } else {
+            showModal(inst.name, 'Choose token to get +3 power:', remaining.map(r => ({
+              label: r.name, cls: 'btn-secondary',
+              action: () => { r.powerMods.push({ amount: 3, until: 'eot' }); log(`${r.name} gets +3 power!`, 'heal'); updateUI(); }
+            })));
+          }
+        }
+      })));
+    } else {
+      removeFromBattlefield(tokens[0], caster);
+      if (tokens.length > 1) { tokens[1].powerMods.push({ amount: 3, until: 'eot' }); }
+    }
+  }
+  // ── BINDING OF THE DAMNED ────────────────────────────────
+  else if (txt.includes('destroy target token') && txt.includes('exhaust target creature')) {
+    const tokens = G[caster].battlefield.filter(i => i.isToken && i.type === 'Creature');
+    const opp = caster==='player'?'ai':'player';
+    const oppCreatures = G[opp].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed');
+    if (tokens.length === 0 || oppCreatures.length === 0) { log(`${inst.name}: Need a token to sacrifice and an opponent creature to exhaust.`, ''); }
+    else if (caster === 'player') {
+      showModal(inst.name, 'Choose token to sacrifice:', tokens.map(t => ({
+        label: t.name, cls: 'btn-danger',
+        action: () => {
+          removeFromBattlefield(t, caster);
+          if (oppCreatures.length === 1) {
+            oppCreatures[0].exhaustState = 'exhausted';
+            log(`${inst.name}: Sacrificed ${t.name}, exhausted ${oppCreatures[0].name}.`, ''); updateUI();
+          } else {
+            showModal(inst.name, 'Choose creature to exhaust:', oppCreatures.map(c => ({
+              label: c.name, cls: 'btn-secondary',
+              action: () => { c.exhaustState = 'exhausted'; log(`${inst.name}: ${c.name} exhausted.`, ''); updateUI(); }
+            })));
+          }
+        }
+      })));
+    } else {
+      removeFromBattlefield(tokens[0], caster);
+      if (oppCreatures.length > 0) { oppCreatures[0].exhaustState = 'exhausted'; }
+    }
+  }
+  // ── SWARM SURGE ────────────────────────────────────────
+  // Handled in resolveSpellOnTarget with +2 power + conditional Bleed
+
+  // ── MINDFORGE DOMINION ────────────────────────────────────
+  // (complex control spell — handled in resolveSpellOnTarget)
+
+  // ── PSYCHIC SHARD ────────────────────────────────────────
+  // "Deal 1 damage to target creature or player then Glimpse 1"
+  // Handled via castSpellWithTargeting → resolveSpellOnTarget for creature damage
+
+  // ── ETHERHAND LOCATOR ────────────────────────────────────
+  else if (txt.includes('search') && txt.includes('main deck') && txt.includes('put it in your hand')) {
+    if (caster !== 'player') { 
+      // AI: just draw from main
+      drawFromDeck(caster, 'main');
+      log(`${inst.name}: AI searched deck.`, '');
+    } else {
+      const deck = G.player.main;
+      if (deck.length === 0) { log(`${inst.name}: Main deck empty.`, ''); }
+      else {
+        const cards = deck.map(id => CARD_MAP[id]).filter(Boolean);
+        showModal(inst.name, 'Search your deck — choose a card:',
+          cards.slice(0, 10).map((c, idx) => ({
+            label: `${c.name} (${c.cost || 'free'})`,
+            cls: 'btn-secondary',
+            action: () => {
+              const cardId = deck[idx];
+              G.player.main.splice(idx, 1);
+              const newInst = makeInst(cardId, 'player');
+              if (newInst) G.player.hand.push(newInst);
+              G.player.main = shuffle(G.player.main);
+              log(`${inst.name}: Found ${c.name} — shuffled deck.`, 'heal'); updateUI();
+            }
+          })).concat([{ label:'CANCEL', cls:'btn-muted', action:()=>updateUI() }])
+        );
+      }
+    }
+  }
+
   // ── PREVENT DAMAGE ────────────────────────────────────────
   // Gilded Rebuke: prevent all combat damage target creature would deal, owner loses 2 life
   // Handled in resolveSpellOnTarget (needs target) — already routes via 'no combat damage'
@@ -5844,7 +6320,7 @@ function tryActivateAbility(inst) {
 // Parse pay-only abilities: lines matching "{X}{Y}: effect"
 function parsePayAbilities(abilitiesStr) {
   const results = [];
-  const lines = abilitiesStr.split(/\n/);
+  const lines = abilitiesStr.split(/\\n|\n/);
   lines.forEach(line => {
     const lower = line.toLowerCase().trim();
     // Match lines starting with mana cost symbols, optionally followed by {exhaust} or {overexhaust}
@@ -5891,8 +6367,8 @@ function activatePayAbility(inst, pa) {
   }
   // Handle exhaust/overexhaust cost component
   if (pa.isOverexhaust) {
-    if (inst.exhaustState !== 'exhausted') {
-      log(`${inst.name}: Must be exhausted first (Overexhaust ability).`, '');
+    if (inst.exhaustState !== 'renewed') {
+      log(`${inst.name}: Must be renewed to activate (Overexhaust ability).`, '');
       return;
     }
     inst.exhaustState = 'overexhausted';
@@ -6166,6 +6642,8 @@ function parseActivationCost(txt, mode) {
 
 function abilityNeedsTarget(txt, mode) {
   const seg = getEffectSeg(txt, mode);
+  // Blood Lab Master: "remove all bleed counters from target player" — needs player target
+  if (seg.includes('remove all bleed') && seg.includes('target player')) return true;
   return seg.includes('target creature') || seg.includes('target player') ||
          seg.includes('target token')    || seg.includes('target attacking') ||
          seg.includes('target blocking') || seg.includes('target wolf') ||
@@ -6276,6 +6754,76 @@ function activateAbility(inst, mode) {
     return;
   }
 
+  // ── PLAYER-TARGETING ABILITIES (Blood Lab Master, Faithful Healer) ──
+  const seg_pre = getEffectSeg(txt, mode);
+  if (seg_pre.includes('remove all bleed') && seg_pre.includes('target player')) {
+    // Blood Lab Master: remove all bleed from target player, deal damage = count
+    applyExhaustForAbility(inst, mode);
+    const choices = ['player', 'ai'].filter(w => G[w].bleed > 0);
+    if (choices.length === 0) { log(`${inst.name}: No player has Bleed counters.`, ''); updateUI(); return; }
+    const doBloodLab = (targetWho) => {
+      const count = G[targetWho].bleed;
+      G[targetWho].bleed = 0;
+      G[targetWho].life -= count;
+      updateLifeDisplay(targetWho);
+      if (targetWho === 'player') damageVignette();
+      log(`${inst.name}: Removed ${count} Bleed from ${targetWho}, dealt ${count} damage!`, 'damage');
+      // Mission: Cleansing Rite
+      if (G[who+'Mission']) { G[who+'Mission'].bleedRemoved = (G[who+'Mission'].bleedRemoved||0)+count; checkMissionObjective(who,'cleansing_rite'); }
+      checkWin(); updateUI();
+    };
+    if (choices.length === 1) { doBloodLab(choices[0]); return; }
+    showModal(inst.name, 'Choose target player:', choices.map(w => ({
+      label: `${w.toUpperCase()} (${G[w].bleed} bleed)`, cls:'btn-danger', action:()=>doBloodLab(w)
+    })));
+    return;
+  }
+  // Chrome Fang Berserker: "add N Bleed Tokens to target player and Selfbleed N"
+  if (seg_pre.includes('bleed') && seg_pre.includes('target player') &&
+      !seg_pre.includes('remove') && (seg_pre.includes('add') || seg_pre.includes('token'))) {
+    applyExhaustForAbility(inst, mode);
+    const bleedN = parseInt(seg_pre.match(/(\d+)\s*bleed/)?.[1] || '2');
+    const doBleed = (targetWho) => {
+      G[targetWho].bleed += bleedN;
+      updateLifeDisplay(targetWho);
+      log(`${inst.name}: ${targetWho} gains ${bleedN} Bleed counters!`, 'bleed');
+      // Selfbleed component
+      if (seg_pre.includes('selfbleed')) {
+        const sbN = parseInt(seg_pre.match(/selfbleed (\d+)/)?.[1] || '1');
+        G[who].bleed += sbN; updateLifeDisplay(who);
+        log(`${inst.name}: Selfbleed ${sbN}.`, 'bleed');
+      }
+      checkWin(); updateUI();
+    };
+    showModal(inst.name, 'Choose target player:', [
+      { label: `OPPONENT (${G.ai.bleed} bleed)`, cls:'btn-danger', action:()=>doBleed('ai') },
+      { label: `YOURSELF (${G.player.bleed} bleed)`, cls:'btn-secondary', action:()=>doBleed('player') },
+    ]);
+    return;
+  }
+
+  // Faithful Healer: "Remove N bleed counters from target player"
+  if (seg_pre.includes('remove') && seg_pre.includes('bleed') && seg_pre.includes('target player') &&
+      !seg_pre.includes('remove all bleed')) {
+    applyExhaustForAbility(inst, mode);
+    const remN = mode === 'overexhaust' ? 2 : 1;
+    const choices = ['player', 'ai'].filter(w => G[w].bleed > 0);
+    if (choices.length === 0) { log(`${inst.name}: No Bleed to remove.`, ''); updateUI(); return; }
+    const doRemove = (targetWho) => {
+      const removed = Math.min(remN, G[targetWho].bleed);
+      G[targetWho].bleed -= removed;
+      updateLifeDisplay(targetWho);
+      log(`${inst.name}: Removed ${removed} Bleed from ${targetWho}.`, 'heal');
+      if (G[who+'Mission']) { G[who+'Mission'].bleedRemoved = (G[who+'Mission'].bleedRemoved||0)+removed; checkMissionObjective(who,'cleansing_rite'); }
+      updateUI();
+    };
+    if (choices.length === 1) { doRemove(choices[0]); return; }
+    showModal(inst.name, 'Choose target player:', choices.map(w => ({
+      label: `${w.toUpperCase()} (${G[w].bleed} bleed)`, cls:'btn-secondary', action:()=>doRemove(w)
+    })));
+    return;
+  }
+
   if (needsTarget) {
     const targetMode = getAbilityTargetMode(txt, mode, 'player');
     const seg = getEffectSeg(txt, mode);
@@ -6372,6 +6920,18 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     } else if (seg.includes('overexhaust target') || (seg.includes('overexhaust') && seg.includes('target'))) {
       target.exhaustState = 'overexhausted';
       log(`${inst.name}: ${target.name} overexhausted.`, '');
+    } else if (seg.includes('destroy this') && seg.includes('damage') && seg.includes('target')) {
+      // Zombie Token: "Destroy this token creature to deal 2 damage to target creature"
+      const dmg = parseInt(seg.match(/(\d+) damage/)?.[1] || '2');
+      const effP = getEffectivePower(target);
+      removeFromBattlefield(inst, who); // destroy self
+      if (effP <= dmg) {
+        destroyCreature(target, targetOwner);
+        log(`${inst.name}: Self-destructed, dealt ${dmg} damage — ${target.name} destroyed!`, 'damage');
+      } else {
+        target.powerMods.push({ amount: -dmg, until: 'eot' });
+        log(`${inst.name}: Self-destructed, dealt ${dmg} damage to ${target.name}.`, 'damage');
+      }
     } else if (seg.includes('destroy') && seg.includes('target')) {
       destroyCreature(target, targetOwner, true);
       log(`${inst.name}: ${target.name} destroyed.`, 'damage');
@@ -6380,6 +6940,10 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
         drawFromDeck(who, G[who].main.length > 0 ? 'main' : 'land');
         log(`${inst.name}: Drew a card.`, 'heal');
       }
+    } else if (seg.includes('remove all bleed') && seg.includes('damage equal')) {
+      // Blood Lab Master: remove all bleed from target player, deal damage equal to count
+      // 'target' here is used as a player indicator — we need player targeting
+      // This is handled via the player-target path below
     } else if (seg.includes('gain control') && seg.includes('token')) {
       // Permanently steal target token — move from opponent to player
       if (targetOwner !== who && target.isToken) {
@@ -6406,11 +6970,20 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
         target.newlyTurned = false;
         G[who].battlefield.push(target);
         log(`${inst.name}: Temporarily controlling ${target.name} until end of turn!`, 'heal');
-        // Apply Self Bleed 2 (Ghostjacker's cost)
-        G[who].bleed += 2;
-        updateLifeDisplay(who);
-        log(`${inst.name}: Self Bleed 2 on activation.`, 'bleed');
+        // Apply Self Bleed from ability text (Ghostjacker)
+        if (seg.includes('selfbleed')) {
+          const sbN = parseInt(seg.match(/selfbleed (\d+)/)?.[1] || '1');
+          G[who].bleed += sbN;
+          updateLifeDisplay(who);
+          log(`${inst.name}: Selfbleed ${sbN}.`, 'bleed');
+        }
       }
+    } else if (seg.includes('reduce all') && seg.includes('damage') && seg.includes('0') && seg.includes('destroy this')) {
+      // Loyal Butler: destroy self, target creature's damage to player = 0 this turn
+      G[who]._butlerShield = true;
+      target.noCombatDamage = true;
+      removeFromBattlefield(inst, who);
+      log(`${inst.name}: Sacrificed — ${target.name}'s damage negated this turn!`, 'heal');
     } else if (seg.includes('cannot be destroyed by spells') || seg.includes('cannot be destroyed by spell')) {
       // Fleshwoven Lurker — token gets spell protection this turn
       target._spellProtect = true;
@@ -6439,6 +7012,12 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     } else if (seg.includes('gains bleed') || seg.includes('bleed +1')) {
       target.keywords.bleed = (target.keywords.bleed || 0) + 1;
       log(`${inst.name}: ${target.name} gains Bleed +1.`, '');
+      // Selfbleed on the caster (Blood Vial Toolbelt)
+      if (seg.includes('selfbleed')) {
+        const sbN = parseInt(seg.match(/selfbleed (\d+)/)?.[1] || '1');
+        G[who].bleed += sbN; updateLifeDisplay(who);
+        log(`${inst.name}: Selfbleed ${sbN}.`, 'bleed');
+      }
     } else if (seg.includes('gains tireless')) {
       target.keywords.tireless = true;
       log(`${inst.name}: ${target.name} gains Tireless.`, 'heal');
@@ -6450,8 +7029,21 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
       log(`${inst.name}: ${target.name} gains Breach.`, 'heal');
     } else if (seg.includes('take') && seg.includes('damage')) {
       const dmg = parseInt(seg.match(/(\d+)\s*damage/)?.[1] || '1');
-      target.power = Math.max(0, (target.power || 0) - dmg);
-      log(`${inst.name}: ${target.name} takes ${dmg} damage.`, 'damage');
+      const effP = getEffectivePower(target);
+      if (effP <= dmg) {
+        destroyCreature(target, targetOwner);
+        log(`${inst.name}: ${target.name} takes ${dmg} damage and is destroyed!`, 'damage');
+      } else {
+        target.powerMods.push({ amount: -dmg, until: 'eot' });
+        log(`${inst.name}: ${target.name} takes ${dmg} damage.`, 'damage');
+      }
+      // "controller gains N Bleed counter" (Vein Hacker)
+      if (seg.includes('controller') && seg.includes('bleed')) {
+        const bleedN = parseInt(seg.match(/(\d+) bleed/)?.[1] || '1');
+        G[targetOwner].bleed += bleedN;
+        updateLifeDisplay(targetOwner);
+        log(`${inst.name}: ${targetOwner} gains ${bleedN} Bleed counter.`, 'bleed');
+      }
     } else {
       log(`${inst.name} targets ${target.name}.`, '');
     }
@@ -6488,6 +7080,20 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     // target is set — handled in target block, but if no target given, prompt for one
     // This is handled as a targeted ability via abilityNeedsTarget catching 'creature'
   }
+  // Bogveil Packwitch exhaust: "Wolf tokens gain Siphon and Bleed 1"
+  if (seg.includes('wolf token') && (seg.includes('siphon') || seg.includes('tireless') || seg.includes('+1 power'))) {
+    const wolves = G[who].battlefield.filter(i => i.isToken && i.name.includes('Wolf'));
+    if (wolves.length === 0) { log(`${inst.name}: No Wolf tokens.`, ''); updateUI(); return; }
+    wolves.forEach(w => {
+      if (seg.includes('siphon')) { w.tempKeywords = w.tempKeywords||{}; w.tempKeywords.siphon = true; }
+      if (seg.includes('bleed 1') || seg.includes('bleed +1')) { w.keywords.bleed = (w.keywords.bleed||0)+1; }
+      if (seg.includes('+1 power')) { w.powerMods.push({ amount: 1, until: 'eot' }); }
+      if (seg.includes('haste')) { w.tempKeywords = w.tempKeywords||{}; w.tempKeywords.haste = true; w.newlyTurned = false; }
+      if (seg.includes('tireless')) { w.tempKeywords = w.tempKeywords||{}; w.tempKeywords.tireless = true; }
+    });
+    log(`${inst.name}: Wolf tokens buffed!`, 'heal');
+    updateUI(); return;
+  }
   // Crystal Ward Guardian: walls take no damage this turn
   if (seg.includes('walls') && seg.includes('take no damage')) {
     G[who].battlefield.filter(i => i.type === 'Creature' && hasKeyword(i, 'wall'))
@@ -6514,6 +7120,21 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     return;
   }
 
+  // Equilibrium Pulse: destroy self + all creatures
+  if (seg.includes('destroy this card') && seg.includes('all creatures')) {
+    removeFromBattlefield(inst, who);
+    const allCreatures = [
+      ...G.player.battlefield.filter(i => i.type==='Creature'),
+      ...G.ai.battlefield.filter(i => i.type==='Creature'),
+    ];
+    const playerCreatures = G.player.battlefield.filter(i => i.type==='Creature');
+    const aiCreatures = G.ai.battlefield.filter(i => i.type==='Creature');
+    playerCreatures.forEach(c => removeFromBattlefield(c, 'player'));
+    aiCreatures.forEach(c => removeFromBattlefield(c, 'ai'));
+    log(`${inst.name}: Board wiped! All creatures and this relic destroyed.`, 'damage');
+    screenShake(2);
+    updateUI(); return;
+  }
   // Aristocrat Seer — destroy own wall or relic to draw a card
   if (seg.includes('destroy a wall or relic') && seg.includes('draw a card')) {
     const targets = G[who].battlefield.filter(i =>
@@ -6595,8 +7216,32 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     log(`${inst.name}: +${n} Black mana.`, '');
   }
   else if (seg.includes('add {g}') || (seg.includes('add') && seg.includes('{g}'))) {
+    // Check for combined add {G} + Selfbleed (Crimson Vein Miner)
+    if (seg.includes('selfbleed')) {
+      const sbN = parseInt(seg.match(/selfbleed (\d+)/)?.[1] || '1');
+      G[who].bleed += sbN; updateLifeDisplay(who);
+      log(`${inst.name}: Selfbleed ${sbN}.`, 'bleed');
+    }
     addMana(who, 'G', 1);
     log(`${inst.name}: +1 Gold.`, '');
+  }
+  else if (seg.includes('add {c}') || (seg.includes('add') && seg.includes('{c}'))) {
+    const n = mode === 'overexhaust' ? 2 : 1;
+    addMana(who, 'C', n);
+    log(`${inst.name}: +${n} Colorless mana.`, '');
+  }
+  // Blood Vending Machine: "Add Blood of any color able to be produced by land you control"
+  else if (seg.includes('blood of any color') && seg.includes('land you control')) {
+    // Find colors produced by player's lands
+    const colors = new Set();
+    G[who].battlefield.filter(i => i.type === 'Land' && i.produces).forEach(l => {
+      if (l.produces.length === 1 && 'RWBP'.includes(l.produces)) colors.add(l.produces);
+    });
+    if (colors.size === 0) { log(`${inst.name}: No blood-producing lands.`, ''); updateUI(); return; }
+    if (colors.size === 1) { const c = [...colors][0]; addMana(who, c, 1); log(`${inst.name}: Added {${c}}.`, 'heal'); }
+    else {
+      showManaChoice({ name: inst.name, owner: who }, [...colors], () => updateUI());
+    }
   }
   else if (seg.includes('add {r}')) {
     addMana(who, 'R', 1);
@@ -6689,10 +7334,75 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     drawFromDeck(who, G[who].main.length > 0 ? 'main' : 'land');
     log(`${inst.name}: Drew a card.`, '');
   }
+  // "Look at the top N cards of your main deck, put them back in any order" (Perch Watcher exhaust)
+  else if ((seg.includes('look at the top') || seg.includes('look at top')) && seg.includes('card') && seg.includes('deck')) {
+    const n = parseInt(seg.match(/top (\d+) cards?/)?.[1] || '2');
+    // Apply selfbleed if ability text includes it
+    if (seg.includes('selfbleed')) {
+      const sbN = parseInt(seg.match(/selfbleed (\d+)/)?.[1] || '1');
+      G[who].bleed += sbN; updateLifeDisplay(who);
+      log(`${inst.name}: Selfbleed ${sbN}.`, 'bleed');
+    }
+    if (who === 'player') {
+      doGlimpse(who, n, inst.name);
+    } else {
+      log(`${inst.name}: AI peeks at top ${n} cards.`, '');
+    }
+  }
+  // "Search your main deck for a relic card and put it into your hand" (Crystal Ward Guardian overexhaust)
+  else if (seg.includes('search') && seg.includes('deck') && seg.includes('hand')) {
+    const isRelic = seg.includes('relic');
+    const deck = G[who].main;
+    if (deck.length === 0) { log(`${inst.name}: Deck is empty.`, ''); }
+    else if (who === 'player') {
+      const cards = deck.map(id => CARD_MAP[id]).filter(Boolean);
+      const filtered = isRelic ? cards.filter(c => c.type === 'Relic') : cards;
+      if (filtered.length === 0) { log(`${inst.name}: No matching cards in deck.`, ''); }
+      else {
+        showModal(inst.name, `Choose a ${isRelic ? 'relic ' : ''}card:`,
+          filtered.map(c => ({
+            label: `${c.name} (${c.cost || 'free'})`,
+            cls: 'btn-secondary',
+            action: () => {
+              const idx = G.player.main.indexOf(c.id);
+              if (idx !== -1) {
+                G.player.main.splice(idx, 1);
+                const drawn = makeInst(c.id, 'player');
+                if (drawn) G.player.hand.push(drawn);
+                log(`${inst.name}: ${c.name} added to hand. Deck shuffled.`, 'heal');
+                G.player.main = shuffle(G.player.main);
+                updateUI();
+              }
+            }
+          }))
+        );
+      }
+    } else {
+      // AI: grab first matching card
+      const cards = deck.map(id => CARD_MAP[id]).filter(Boolean);
+      const filtered = isRelic ? cards.filter(c => c.type === 'Relic') : cards;
+      if (filtered.length > 0) {
+        const picked = filtered[0];
+        const idx = G.ai.main.indexOf(picked.id);
+        if (idx !== -1) {
+          G.ai.main.splice(idx, 1);
+          const drawn = makeInst(picked.id, 'ai');
+          if (drawn) G.ai.hand.push(drawn);
+          log(`${inst.name}: AI searched deck for ${picked.name}.`, '');
+        }
+      }
+    }
+  }
   // (lose-life-add-mana handled above)
   else if (seg.includes('reverse glimpse')) {
     const n = parseInt(seg.match(/reverse glimpse (\d+)/)?.[1] || '3');
     doReverseGlimpse(who, n, inst.name);
+  }
+  else if (seg.includes('glimpse x') || (seg.includes('glimpse') && seg.includes('number of relics'))) {
+    // Prophecy Foretold: Glimpse X where X = number of relics you control
+    const relicCount = G[who].battlefield.filter(i => i.type === 'Relic').length;
+    if (relicCount === 0) { log(`${inst.name}: No relics — Glimpse 0.`, ''); }
+    else { doGlimpse(who, relicCount, inst.name); log(`${inst.name}: Glimpse ${relicCount} (${relicCount} relics).`, 'important'); }
   }
   else if (seg.includes('glimpse')) {
     let n;
@@ -6755,6 +7465,185 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
       updateUI();
     }
     return;
+  }
+  // "Destroy a relic under your control to add blood of any color equal to the total cost of the relic"
+  else if (seg.includes('destroy') && seg.includes('relic') && seg.includes('equal to') && seg.includes('cost')) {
+    const ownRelics = G[who].battlefield.filter(i => i.type === 'Relic');
+    if (ownRelics.length === 0) { log(`${inst.name}: No relics to sacrifice.`, ''); updateUI(); return; }
+    const doSacRelic = (relic) => {
+      const costLen = (relic.cost || '').length;
+      removeFromBattlefield(relic, who);
+      if (who === 'player') {
+        showManaChoice({ name: inst.name, owner: who }, null, () => {
+          // Add remaining mana as Gold
+          for (let i = 1; i < costLen; i++) addMana(who, 'G', 1);
+          log(`${inst.name}: Sacrificed ${relic.name} — added ${costLen} mana.`, 'heal');
+          updateUI();
+        });
+      } else {
+        for (let i = 0; i < costLen; i++) addMana(who, 'G', 1);
+        log(`${inst.name}: AI sacrificed ${relic.name} — added ${costLen} mana.`, '');
+      }
+    };
+    if (ownRelics.length === 1) doSacRelic(ownRelics[0]);
+    else showModal(inst.name, 'Choose a relic to sacrifice:', ownRelics.map(r => ({
+      label: `${r.name} (cost: ${r.cost || '0'})`, cls: 'btn-danger', action: () => doSacRelic(r)
+    })));
+    return;
+  }
+  // "Destroy this relic, target creature cannot be blocked until end of turn" (Stealth Beacon)
+  else if (seg.includes('destroy this') && seg.includes('cannot be blocked')) {
+    removeFromBattlefield(inst, who);
+    if (target) {
+      target.tempKeywords = target.tempKeywords || {};
+      target.tempKeywords.unblockable = true;
+      log(`${inst.name}: Destroyed — ${target.name} cannot be blocked this turn!`, 'heal');
+    } else {
+      // Prompt for target
+      const ownCreatures = G[who].battlefield.filter(i => i.type === 'Creature');
+      if (ownCreatures.length > 0) {
+        log(`${inst.name}: Choose a creature to make unblockable.`, 'important');
+        beginTargeting({ name: inst.name, abilities: inst.abilities }, who, 'own-creature', (t) => {
+          t.tempKeywords = t.tempKeywords || {};
+          t.tempKeywords.unblockable = true;
+          log(`${inst.name}: ${t.name} cannot be blocked this turn!`, 'heal');
+          updateUI();
+        });
+      }
+    }
+    updateUI(); return;
+  }
+  // "Gain control of target relic until end of turn" (Relic Thief)
+  else if (seg.includes('gain control') && seg.includes('relic')) {
+    if (target && target.type === 'Relic' && targetOwner !== who) {
+      G[targetOwner].battlefield = G[targetOwner].battlefield.filter(i => i.instId !== target.instId);
+      target._tempControlOwner = targetOwner;
+      target.owner = who;
+      target.exhaustState = 'renewed';
+      G[who].battlefield.push(target);
+      log(`${inst.name}: Took control of ${target.name} until end of turn!`, 'heal');
+    }
+    updateUI(); return;
+  }
+  // "Destroy this relic and lose half your life rounded up, take an extra turn" (Hourglass)
+  else if (seg.includes('destroy this') && seg.includes('extra turn')) {
+    removeFromBattlefield(inst, who);
+    const halfLife = Math.ceil(G[who].life / 2);
+    G[who].life -= halfLife;
+    updateLifeDisplay(who);
+    if (who === 'player') damageVignette();
+    log(`${inst.name}: Destroyed — lost ${halfLife} life. You take an extra turn!`, 'important');
+    if (!checkWin()) {
+      // Flag for extra turn — after this turn ends, player goes again
+      G._extraTurn = who;
+    }
+    updateUI(); return;
+  }
+  // Overexhaust wolf surge: "+2 power until EOT and destroyed at EOT"
+  else if (seg.includes('wolf token') && seg.includes('+2 power') && seg.includes('destroyed')) {
+    const wolves = G[who].battlefield.filter(i => i.isToken && i.name.includes('Wolf'));
+    wolves.forEach(w => {
+      if (seg.includes('siphon')) { w.tempKeywords = w.tempKeywords||{}; w.tempKeywords.siphon = true; }
+      w.powerMods.push({ amount: 2, until: 'eot' });
+      w._destroyAtEot = true;
+    });
+    log(`${inst.name}: Wolf tokens gain +2 power — destroyed at end of turn!`, 'heal');
+    updateUI(); return;
+  }
+  // "{Overexhaust}: Remove all creature cards from discard, create Wolf token per card" (id:250)
+  else if (seg.includes('remove all creature') && seg.includes('discard') && seg.includes('wolf token')) {
+    const creatures = G[who].discard.filter(i => i.type === 'Creature');
+    const count = creatures.length;
+    G[who].discard = G[who].discard.filter(i => i.type !== 'Creature');
+    for (let i = 0; i < count; i++) createToken('Wolf Token', who);
+    log(`${inst.name}: Removed ${count} creatures from discard — created ${count} Wolf tokens!`, 'heal');
+    updateUI(); return;
+  }
+  // "Destroy this relic, Search your land deck for a land card and put it in play" (Eternal Archive)
+  else if (seg.includes('destroy this') && seg.includes('land deck') && seg.includes('land')) {
+    removeFromBattlefield(inst, who);
+    if (G[who].land.length > 0) {
+      const landId = G[who].land.shift();
+      const landInst = makeInst(landId, who);
+      if (landInst) {
+        landInst.exhaustState = 'renewed';
+        landInst.newlyTurned = false;
+        G[who].battlefield.push(landInst);
+        log(`${inst.name}: Destroyed — ${landInst.name} enters play renewed!`, 'heal');
+      }
+      // Shuffle remaining land deck
+      G[who].land = shuffle(G[who].land);
+    } else {
+      log(`${inst.name}: Land deck is empty.`, '');
+    }
+    updateUI(); return;
+  }
+  // "Destroy a relic under your control to add blood of any color equal to the total cost" (Relic Recycler)
+  else if (seg.includes('destroy') && seg.includes('relic') && (seg.includes('equal to') || seg.includes('total cost'))) {
+    const ownRelics = G[who].battlefield.filter(i => i.type === 'Relic' && i.instId !== inst.instId);
+    if (ownRelics.length === 0) { log(`${inst.name}: No relics to sacrifice.`, ''); updateUI(); return; }
+    const doSalvage = (relic) => {
+      const totalCost = (relic.cost || '').length;
+      removeFromBattlefield(relic, who);
+      if (who === 'player' && totalCost > 0) {
+        showManaChoice({ name: inst.name, owner: who }, null, () => {
+          for (let i = 1; i < totalCost; i++) addMana(who, 'G', 1);
+          log(`${inst.name}: Destroyed ${relic.name} — added ${totalCost} mana!`, 'heal');
+          updateUI();
+        });
+      } else {
+        for (let i = 0; i < totalCost; i++) addMana(who, aiFactionColor(), 1);
+        log(`${inst.name}: Destroyed ${relic.name} for ${totalCost} mana.`, 'heal');
+      }
+    };
+    if (ownRelics.length === 1) doSalvage(ownRelics[0]);
+    else showModal(inst.name, 'Choose a relic to destroy:', ownRelics.map(r => ({
+      label: `${r.name} (cost: ${r.cost||'0'})`, cls:'btn-danger', action:()=>doSalvage(r)
+    })));
+    return;
+  }
+  // "Selfbleed N, Target token creature can block up to 2 creatures this turn"
+  else if (seg.includes('selfbleed') && seg.includes('block up to')) {
+    if (seg.includes('selfbleed')) {
+      const sbN = parseInt(seg.match(/selfbleed (\d+)/)?.[1] || '1');
+      G[who].bleed += sbN; updateLifeDisplay(who);
+      log(`${inst.name}: Selfbleed ${sbN}.`, 'bleed');
+    }
+    if (target && target.isToken) {
+      target._multiBlock = true;
+      log(`${inst.name}: ${target.name} can block up to 2 creatures this turn!`, 'heal');
+    }
+    updateUI(); return;
+  }
+  // "{Exhaust} target land" — exhaust or overexhaust enemy land + create Skeleton token
+  else if (seg.includes('target land') || (seg.includes('{exhaust}') && seg.includes('land') && seg.includes('skeleton'))) {
+    if (seg.includes('skeleton token') || seg.includes('skeleton')) {
+      createTokenCustom('Skeleton Token', 2, 'Wall', who);
+      log(`${inst.name}: Skeleton Token (2 power, Wall) created!`, 'heal');
+    }
+    const opp2 = who === 'player' ? 'ai' : 'player';
+    const lands = G[opp2].battlefield.filter(i => i.type === 'Land' && i.exhaustState !== 'overexhausted');
+    if (lands.length > 0) {
+      const doExhLand = (land) => {
+        if (land.exhaustState === 'exhausted') {
+          land.exhaustState = 'overexhausted';
+          log(`${inst.name}: ${land.name} overexhausted!`, '');
+        } else {
+          land.exhaustState = 'exhausted';
+          log(`${inst.name}: ${land.name} exhausted.`, '');
+        }
+        updateUI();
+      };
+      if (who === 'player') {
+        if (lands.length === 1) doExhLand(lands[0]);
+        else showModal(inst.name, 'Choose a land to exhaust:', lands.map(l => ({
+          label: l.name + (l.exhaustState==='exhausted'?' [→OE]':''), cls:'btn-secondary', action:()=>doExhLand(l)
+        })));
+      } else {
+        doExhLand(lands[0]);
+      }
+    }
+    updateUI(); return;
   }
   else {
     log(`${inst.name}: Ability activated.`, '');
@@ -7091,7 +7980,34 @@ function confirmGlimpse() {
 function hasKeyword(inst, kw) {
   // If tempKeywords explicitly negates the keyword, return false
   if (inst.tempKeywords && kw in inst.tempKeywords && inst.tempKeywords[kw] === false) return false;
-  return !!(inst.keywords?.[kw] || inst.tempKeywords?.[kw]);
+  if (inst.keywords?.[kw] || inst.tempKeywords?.[kw]) return true;
+  // Static auras: check if battlefield auras grant this keyword
+  if (G && inst.isToken && inst.type === 'Creature') {
+    const owner = G.player.battlefield.includes(inst) ? 'player' :
+                  G.ai.battlefield.includes(inst) ? 'ai' : null;
+    if (owner) {
+      for (const aura of G[owner].battlefield) {
+        if (aura.instId === inst.instId) continue;
+        const at = (aura.abilities || '').toLowerCase();
+        // Lupine Countess: "Wolf tokens under your control gain Tireless"
+        if (kw === 'tireless' && inst.name.includes('Wolf') &&
+            at.includes('wolf') && at.includes('tireless') && (at.includes('while') || at.includes('gain tireless'))) {
+          return true;
+        }
+        // Fenlily Seraphine: "Zombie tokens gain Siphon"
+        if (kw === 'siphon' && inst.name.includes('Zombie') &&
+            at.includes('zombie') && at.includes('siphon') && at.includes('while')) {
+          return true;
+        }
+        // Ebonwing Matriarch: "Bat tokens under your control gain Siphon"
+        if (kw === 'siphon' && inst.name.includes('Bat') &&
+            at.includes('bat') && at.includes('siphon') && at.includes('while')) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 // ── HEMORRHAGE SYSTEM ─────────────────────────────────────────
