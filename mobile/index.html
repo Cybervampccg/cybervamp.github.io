@@ -3073,6 +3073,18 @@ function confirmAttack() {
   combatPhase = 'resolving';
   document.getElementById('btn-attack').style.display = 'none';
 
+  // Apply static selfBleed keyword for player's attackers
+  // (cards with "Selfbleed N" as a standing keyword, not "When attacking Selfbleed N")
+  atkInsts.forEach(inst => {
+    const abl = (inst.abilities || '').toLowerCase();
+    const hasWhenAttacking = abl.includes('when attacking') && abl.includes('selfbleed');
+    if (inst.keywords.selfBleed && !hasWhenAttacking) {
+      G.player.bleed += inst.keywords.selfBleed;
+      updateLifeDisplay('player');
+      log(`${inst.name}: Selfbleed ${inst.keywords.selfBleed}.`, 'bleed');
+    }
+  });
+
   log(`⚔ ATTACKING: ${atkInsts.map(i => i.name+'['+getEffectivePower(i)+']').join(', ')}`, 'phase');
   // Mission: Overload (4+ attackers)
   checkMissionObjective('player', 'overload', atkInsts.length);
@@ -4080,9 +4092,14 @@ function resolveSpellOnTarget(inst, caster, target, targetOwner) {
     illusion._exiledCard  = target;
     illusion._exiledOwner = targetOwner;
     log(`${inst.name}: ${targetOwner} gets an Illusion Token — destroy it to return ${target.name}!`, 'heal');
-  } else if (txt.includes('destroy') && !txt.includes('overexhausted')) {
-    destroyCreature(target, targetOwner);
-    log(`${inst.name}: ${target.name} destroyed.`, 'damage');
+  } else if (txt.includes('destroy')) {
+    // Curse of Fatigue etc: destroy overexhausted / any target creature
+    if (txt.includes('overexhausted') && target.exhaustState !== 'overexhausted') {
+      log(`${inst.name}: ${target.name} is not overexhausted — fizzled.`, '');
+    } else {
+      destroyCreature(target, targetOwner);
+      log(`${inst.name}: ${target.name} destroyed.`, 'damage');
+    }
   } else if (txt.includes('no combat damage') || txt.includes('deals no')) {
     target.noCombatDamage = true;
     log(`${inst.name}: ${target.name} deals no combat damage this turn.`, '');
@@ -4286,8 +4303,8 @@ function aetherCopyCreature(inst, caster, source) {
 function resolveSpell(inst, caster) {
   const txt = (inst.abilities || '').toLowerCase();
 
-  // ── PRISMATIC ACCORD — add {P} + 1 any-color + draw from land deck ─
-  if (txt.includes('add {p}') && txt.includes('any color') && txt.includes('land deck')) {
+  // ── PRISMATIC ACCORD — add {P} then draw from land deck ─
+  if (txt.includes('add {p}') && txt.includes('land deck')) {
     addMana(caster, 'P', 1);
     log(`${inst.name}: Added {P} to your pool.`, 'heal');
     // Draw from land deck first
@@ -4860,17 +4877,22 @@ function tryActivateAbility(inst) {
 // Parse pay-only abilities: lines matching "{X}{Y}: effect"
 function parsePayAbilities(abilitiesStr) {
   const results = [];
-  // Split by newlines and look for lines that start with mana cost pattern
   const lines = abilitiesStr.split(/\n/);
   lines.forEach(line => {
     const lower = line.toLowerCase().trim();
-    // Must start with {x} mana symbols and have a colon
-    const costMatch = lower.match(/^(\{[rgbpwc]\})+:/);
+    // Match lines starting with mana cost symbols, optionally followed by {exhaust} or {overexhaust}
+    // e.g. {P}: ... OR {P}{P}{Overexhaust}: ...
+    const costMatch = lower.match(/^(\{[rgbpwce]\}|\{overexhaust\}|\{exhaust\})+:/i);
     if (!costMatch) return;
-    const costStr = lower.substring(0, lower.indexOf(':')).replace(/[{}]/g,'').toUpperCase();
+    const colonIdx = lower.indexOf(':');
+    const rawCostPart = lower.substring(0, colonIdx);
+    // Extract mana letters only for cost string
+    const manaStr = rawCostPart.replace(/\{exhaust\}|\{overexhaust\}/g, '').replace(/[{}]/g,'').toUpperCase();
+    const isOverexhaust = rawCostPart.includes('{overexhaust}');
+    const isExhaust     = !isOverexhaust && rawCostPart.includes('{exhaust}');
     const effect  = line.substring(line.indexOf(':') + 1).trim();
     const desc = describeEffect(effect.toLowerCase());
-    results.push({ cost: costStr, effect, desc, raw: line });
+    results.push({ cost: manaStr, effect, desc, raw: line, isOverexhaust, isExhaust });
   });
   return results;
 }
@@ -4893,16 +4915,29 @@ function activatePayAbility(inst, pa) {
     log(`${inst.name}: Already used this turn.`, ''); return;
   }
 
-  // Don't auto-tap — player taps lands manually first to build their pool.
-  // Just check that enough mana is already available.
-  if (!canPayCost('player', pa.cost)) {
+  // Check mana cost
+  if (pa.cost && !canPayCost('player', pa.cost)) {
     const colorNames = { R:'Red', W:'White', B:'Black', P:'Purple', G:'Gold', C:'Colorless' };
     const needed = pa.cost.split('').map(c => colorNames[c] || c).join(' + ');
     log(`${inst.name}: Need ${needed} Blood in your pool. Tap lands first, then click again.`, '');
     return;
   }
-  payCost('player', pa.cost);
-  log(`Paid ${pa.cost} — activating ${inst.name}.`, '');
+  // Handle exhaust/overexhaust cost component
+  if (pa.isOverexhaust) {
+    if (inst.exhaustState !== 'exhausted') {
+      log(`${inst.name}: Must be exhausted first (Overexhaust ability).`, '');
+      return;
+    }
+    inst.exhaustState = 'overexhausted';
+  } else if (pa.isExhaust) {
+    if (inst.exhaustState !== 'renewed') {
+      log(`${inst.name}: Already exhausted.`, '');
+      return;
+    }
+    inst.exhaustState = 'exhausted';
+  }
+  if (pa.cost) payCost('player', pa.cost);
+  log(`Activated ${inst.name}${pa.cost?' (cost: '+pa.cost+')':''}.`, '');
 
   // Resolve the effect
   const effect = pa.effect.toLowerCase();
@@ -5619,13 +5654,57 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     for (let i = 0; i < batN; i++) createToken('Bat Token', who);
   }
   else if (seg.includes('create') && seg.includes('wolf token')) {
-    createToken('Wolf Token', who);
+    const wolfN = parseInt(seg.match(/(\d+) wolf token/)?.[1] || '1');
+    for (let i = 0; i < wolfN; i++) createToken('Wolf Token', who);
+    log(`${inst.name}: Created ${wolfN} Wolf Token${wolfN>1?'s':''}.`, 'heal');
   }
   else if (seg.includes('create') && seg.includes('zombie token')) {
-    createToken('Zombie Token', who);
+    const zombieN = parseInt(seg.match(/(\d+) zombie token/)?.[1] || '1');
+    for (let i = 0; i < zombieN; i++) createToken('Zombie Token', who);
   }
   else if (seg.includes('create') && seg.includes('raven token')) {
     createToken('Raven Token', who);
+  }
+  // Key to the Last Page: play one Purple card with cost < 3 for free from hand
+  else if (seg.includes('play') && seg.includes('purple') && seg.includes('without paying')) {
+    if (who !== 'player') { log(`${inst.name}: AI ignores this ability.`, ''); updateUI(); return; }
+    const costLimit = parseInt(seg.match(/cost less than (\d+)/)?.[1] || '3');
+    const validCards = G.player.hand.filter(c =>
+      c.color === 'Purple' && (c.cost || '').length < costLimit
+    );
+    if (validCards.length === 0) {
+      log(`${inst.name}: No Purple cards with cost < ${costLimit} in hand.`, '');
+      updateUI(); return;
+    }
+    const playFree = (card) => {
+      G.player.hand = G.player.hand.filter(i => i.instId !== card.instId);
+      if (card.type === 'Creature') {
+        card.newlyTurned = !hasKeyword(card,'haste');
+        card.exhaustState = 'renewed';
+        G.player.battlefield.push(card);
+        fireEnterTrigger(card, 'player');
+        log(`${inst.name}: ${card.name} played for free!`, 'heal');
+      } else if (card.type === 'Relic') {
+        card.exhaustState = 'renewed'; card.newlyTurned = false;
+        G.player.battlefield.push(card);
+        fireEnterTrigger(card, 'player');
+        log(`${inst.name}: ${card.name} played for free!`, 'heal');
+      } else if (card.type === 'Spell') {
+        log(`${inst.name}: ${card.name} cast for free!`, 'heal');
+        castSpellWithTargeting(card, 'player', () => {
+          G.player.discard.push(card); updateUI();
+        });
+      }
+      updateUI();
+    };
+    if (validCards.length === 1) { playFree(validCards[0]); }
+    else {
+      showModal(inst.name, `Play a Purple card (cost < ${costLimit}) for free:`,
+        validCards.map(c => ({ label:`${c.name} (${c.cost||'free'})`, cls:'btn-secondary', action:()=>playFree(c) }))
+          .concat([{ label:'CANCEL', cls:'btn-muted', action:()=>updateUI() }])
+      );
+    }
+    return;
   }
   // Eternal Archive: play an additional land this turn
   else if (seg.includes('play an additional land') || seg.includes('additional land this turn')) {
@@ -5855,13 +5934,14 @@ function doReverseGlimpse(who, n, sourceName) {
 
 function openGlimpsePanel(who, ids, cards, isReverse, canPutInHand, onComplete) {
   _glimpseState = { who, ids, cards, isReverse, canPutInHand, onComplete: onComplete || null,
-                    decisions: new Array(cards.length).fill(isReverse ? 'bottom' : 'top') };
+                    decisions: new Array(cards.length).fill(isReverse ? 'bottom' : 'top'),
+                    topOrder: cards.map((_, i) => i) }; // explicit top-deck order
 
   document.getElementById('glimpse-title').textContent = isReverse ? 'REVERSE GLIMPSE' : 'GLIMPSE';
   document.getElementById('glimpse-subtitle').textContent =
-    canPutInHand ? 'Click ▲ TOP, ▼ BOT, or ✋ HAND' :
+    canPutInHand ? 'Click ▲ TOP / ▼ BOT / ✋ HAND — drag to reorder top cards' :
     isReverse    ? 'Move cards to TOP or leave at BOTTOM' :
-                   'Keep on TOP or send to BOTTOM';
+                   'Keep on TOP or send to BOTTOM — drag to reorder';
 
   renderGlimpseSpread();
 
@@ -5877,21 +5957,48 @@ function renderGlimpseSpread() {
   const spread = document.getElementById('glimpse-spread');
   spread.innerHTML = '';
 
-  // Sort cards: top-decisions first, then bottom
-  const order = state.ids.map((id, i) => i);
-  order.sort((a, b) => {
-    const da = state.decisions[a], db = state.decisions[b];
-    if (da === db) return a - b;
-    if (da === 'top' && db !== 'top') return -1;
-    if (da === 'hand') return -1;
-    if (db === 'top') return 1;
-    return 0;
-  });
+  // Build display order: top-section in topOrder order, then bottom/hand
+  const topIdxs    = state.topOrder.filter(i => state.decisions[i] === 'top');
+  const nonTopIdxs = state.ids.map((_,i) => i).filter(i => state.decisions[i] !== 'top');
 
-  order.forEach((cardIdx, pos) => {
-    const card = state.cards[cardIdx];
+  const renderList = [...topIdxs, ...nonTopIdxs];
+  let topPos = 0;
+
+  renderList.forEach((cardIdx, pos) => {
+    const card     = state.cards[cardIdx];
     const decision = state.decisions[cardIdx];
-    const el = buildGlimpseCardEl(card, cardIdx, decision, pos, state.canPutInHand, state.isReverse);
+    const displayPos = decision === 'top' ? ++topPos : null;
+    const el = buildGlimpseCardEl(card, cardIdx, decision, displayPos, state.canPutInHand, state.isReverse);
+
+    // ── DRAG TO REORDER (top cards only) ──────────────────────
+    if (decision === 'top') {
+      el.setAttribute('draggable', 'true');
+      el.style.cursor = 'grab';
+      el.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', String(cardIdx));
+        el.classList.add('gc-dragging');
+      });
+      el.addEventListener('dragend', () => { el.classList.remove('gc-dragging'); });
+      el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('gc-drag-over'); });
+      el.addEventListener('dragleave', () => { el.classList.remove('gc-drag-over'); });
+      el.addEventListener('drop', (e) => {
+        e.preventDefault();
+        el.classList.remove('gc-drag-over');
+        const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+        const toIdx   = cardIdx;
+        if (fromIdx === toIdx) return;
+        // Swap positions in topOrder
+        const order = state.topOrder;
+        const fromPos = order.indexOf(fromIdx);
+        const toPos   = order.indexOf(toIdx);
+        if (fromPos >= 0 && toPos >= 0) {
+          order.splice(fromPos, 1);
+          order.splice(toPos, 0, fromIdx);
+        }
+        renderGlimpseSpread();
+      });
+    }
+
     spread.appendChild(el);
   });
 }
@@ -5960,7 +6067,14 @@ function buildGlimpseCardEl(card, idx, decision, pos, canPutInHand, isReverse) {
 
 function setGlimpseDecision(cardIdx, decision) {
   if (!_glimpseState) return;
+  const prev = _glimpseState.decisions[cardIdx];
   _glimpseState.decisions[cardIdx] = decision;
+  // Maintain topOrder: add/remove from top list
+  if (decision === 'top' && prev !== 'top') {
+    if (!_glimpseState.topOrder.includes(cardIdx)) _glimpseState.topOrder.push(cardIdx);
+  } else if (decision !== 'top' && prev === 'top') {
+    _glimpseState.topOrder = _glimpseState.topOrder.filter(i => i !== cardIdx);
+  }
   renderGlimpseSpread();
 }
 
@@ -5971,13 +6085,10 @@ function confirmGlimpse() {
   const { who, ids, cards, decisions, isReverse } = state;
 
   if (!isReverse) {
-    // Normal Glimpse: remove top N from deck, put top-picks back on top, bot-picks at bottom
-    const topPicks = [], botPicks = [], handPicks = [];
-    cards.forEach((c, i) => {
-      if      (decisions[i] === 'hand')   handPicks.push(ids[i]);
-      else if (decisions[i] === 'bottom') botPicks.push(ids[i]);
-      else                                topPicks.push(ids[i]);
-    });
+    // Normal Glimpse: use topOrder for precise card ordering
+    const topPicks  = state.topOrder.filter(i => state.decisions[i] === 'top').map(i => ids[i]);
+    const botPicks  = ids.filter((id,i) => state.decisions[i] === 'bottom');
+    const handPicks = ids.filter((id,i) => state.decisions[i] === 'hand');
     G[who].main.splice(0, ids.length);
     G[who].main = [...topPicks, ...G[who].main, ...botPicks];
     handPicks.forEach(id => {
@@ -5985,7 +6096,7 @@ function confirmGlimpse() {
       if (inst) { G[who].hand.push(inst); log(`  · ${CARD_MAP[id]?.name} → hand`, 'heal'); }
     });
     const tCount = topPicks.length, bCount = botPicks.length;
-    log(`Glimpse: ${tCount} kept on top, ${bCount} sent to bottom.`, '');
+    log(`Glimpse: ${tCount} kept on top (in chosen order), ${bCount} sent to bottom.`, '');
   } else {
     // Reverse Glimpse: bottom N cards, top-picks go to deck top, rest stay bottom
     const deck = G[who].main;
