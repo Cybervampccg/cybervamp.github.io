@@ -5152,43 +5152,69 @@ function castSpellWithTargeting(inst, caster, onDone) {
       log(`${inst.name}: No renewed creatures to exhaust.`, '');
       onDone(); return;
     }
-    // Step 1: Choose your creature to exhaust
-    log(`${inst.name}: Choose one of your creatures to exhaust.`, 'important');
-    beginTargeting(inst, caster, 'own-creature', (source, srcOwner) => {
-      if (source.exhaustState !== 'renewed') {
-        log(`${source.name} is not renewed.`, ''); onDone(); return;
-      }
-      source.exhaustState = 'exhausted';
-      const dmg = getEffectivePower(source);
-      log(`${inst.name}: ${source.name} exhausted (${dmg} power).`, '');
-      updateUI();
-      // Step 2: Choose the creature to deal damage to
-      log(`${inst.name}: Choose a creature to deal ${dmg} damage to.`, 'important');
-      beginTargeting(inst, caster, 'any-creature', (target, tgtOwner) => {
-        const tgtPow = getEffectivePower(target);
-        if (tgtPow <= dmg) {
-          // Destroyed
-          destroyCreature(target, tgtOwner);
-          log(`${inst.name}: ${target.name} takes ${dmg} damage and is destroyed!`, 'damage');
-          // Owner of destroyed creature gets 1 Bleed counter
-          G[tgtOwner].bleed += 1;
-          updateLifeDisplay(tgtOwner);
-          log(`${inst.name}: ${tgtOwner} gains 1 Bleed counter.`, 'bleed');
-          // Mission tracking
-          if (G[caster+'Mission']) {
-            G[caster+'Mission'].bleedDealt = (G[caster+'Mission'].bleedDealt||0) + 1;
-            checkMissionObjective(caster, 'scorched_veins');
+    // Step 1: Modal — choose your creature to exhaust
+    showModal(
+      `${inst.name} — Step 1`,
+      'Choose one of YOUR creatures to exhaust (its power = damage dealt):',
+      ownCreatures.map(c => ({
+        label: `${c.name} [Power: ${getEffectivePower(c)}]`,
+        cls: 'btn-secondary',
+        action: () => {
+          c.exhaustState = 'exhausted';
+          const dmg = getEffectivePower(c);
+          log(`${inst.name}: ${c.name} exhausted (${dmg} power).`, '');
+          updateUI();
+          // Step 2: Modal — choose creature to deal damage to
+          const allTargets = [
+            ...G.player.battlefield.filter(i => i.type==='Creature' && i.instId !== c.instId)
+              .map(i => ({ inst: i, owner: 'player' })),
+            ...G.ai.battlefield.filter(i => i.type==='Creature')
+              .map(i => ({ inst: i, owner: 'ai' })),
+          ];
+          if (allTargets.length === 0) {
+            log(`${inst.name}: No creatures to target.`, '');
+            onDone(); return;
           }
-        } else {
-          target.powerMods.push({ amount: -dmg, until: 'eot' });
-          log(`${inst.name}: ${target.name} takes ${dmg} damage (survives).`, 'damage');
+          showModal(
+            `${inst.name} — Step 2`,
+            `Deal ${dmg} damage to which creature?`,
+            allTargets.map(({ inst: t, owner: o }) => ({
+              label: `${t.name} [Power: ${getEffectivePower(t)}] (${o})`,
+              cls: o === caster ? 'btn-secondary' : 'btn-danger',
+              action: () => {
+                const tgtPow = getEffectivePower(t);
+                if (tgtPow <= dmg) {
+                  destroyCreature(t, o);
+                  log(`${inst.name}: ${t.name} takes ${dmg} damage — DESTROYED!`, 'damage');
+                  G[o].bleed += 1;
+                  updateLifeDisplay(o);
+                  log(`${inst.name}: ${o} gains 1 Bleed counter.`, 'bleed');
+                  if (G[caster+'Mission']) {
+                    G[caster+'Mission'].bleedDealt = (G[caster+'Mission'].bleedDealt||0) + 1;
+                    checkMissionObjective(caster, 'scorched_veins');
+                  }
+                } else {
+                  t.powerMods.push({ amount: -dmg, until: 'eot' });
+                  log(`${inst.name}: ${t.name} takes ${dmg} damage (survives at ${tgtPow - dmg} effective).`, 'damage');
+                }
+                sfx('damage');
+                checkWin();
+                updateUI();
+                onDone();
+              }
+            })).concat([{ label: 'CANCEL', cls: 'btn-muted', action: () => {
+              // Undo exhaust if cancelled
+              c.exhaustState = 'renewed';
+              log(`${inst.name}: Cancelled.`, '');
+              updateUI(); onDone();
+            }}])
+          );
         }
-        sfx('damage');
-        checkWin();
-        updateUI();
-        onDone();
-      });
-    });
+      })).concat([{ label: 'CANCEL', cls: 'btn-muted', action: () => {
+        log(`${inst.name}: Cancelled.`, '');
+        updateUI(); onDone();
+      }}])
+    );
     return;
   }
 
