@@ -735,15 +735,27 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 #modal-overlay.visible { opacity: 1; pointer-events: all; }
 #modal-box {
   background: linear-gradient(160deg, rgba(12,6,32,0.99) 0%, rgba(8,4,24,0.98) 100%);
-  border: 2px solid rgba(212,160,32,0.45);
-  border-radius: 12px; padding: 32px 28px; min-width: 380px; max-width: 580px;
+  border: 2px solid rgba(212,160,32,0.55);
+  border-radius: 14px; padding: 40px 36px; min-width: 480px; max-width: 680px;
   text-align: center;
-  box-shadow: 0 0 60px rgba(0,0,0,0.9), 0 0 32px rgba(212,160,32,0.08),
-              inset 0 1px 0 rgba(255,255,255,0.06);
+  box-shadow: 0 0 80px rgba(0,0,0,0.95), 0 0 40px rgba(212,160,32,0.10),
+              inset 0 1px 0 rgba(255,255,255,0.07);
 }
-#modal-title { font-family: 'Cinzel Decorative', serif; font-size: 22px; color: var(--gold); margin-bottom: 14px; letter-spacing: 2px; text-shadow: 0 0 20px rgba(212,160,32,0.4); }
-#modal-body { font-size: 17px; color: var(--text-bright); line-height: 1.7; margin-bottom: 24px; }
-#modal-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+#modal-title {
+  font-family: 'Cinzel Decorative', serif; font-size: 28px;
+  color: var(--gold); margin-bottom: 18px; letter-spacing: 3px;
+  text-shadow: 0 0 24px rgba(212,160,32,0.5);
+}
+#modal-body {
+  font-size: 20px; color: var(--text-bright); line-height: 1.8;
+  margin-bottom: 28px; white-space: pre-wrap;
+}
+#modal-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+/* Modal action buttons — extra large for 6-foot readability */
+#modal-actions .btn {
+  font-size: 19px !important; padding: 16px 34px !important;
+  min-width: 180px; letter-spacing: 2px !important;
+}
 
 
 /* ── DECKBUILDER ── */
@@ -1587,6 +1599,59 @@ html.targeting-active .card.blockable * {
 }
 
 .chooser-subtitle { font-size: 13px; color: var(--text-dim); letter-spacing: 4px; text-transform: uppercase; margin-top: -8px; }
+
+/* ── PLAYTEST TOGGLE ── */
+.playtest-row {
+  display: flex; align-items: center; gap: 16px;
+  background: linear-gradient(135deg, rgba(255,80,80,0.08), rgba(160,32,240,0.06));
+  border: 1px solid rgba(255,80,80,0.25); border-radius: 10px;
+  padding: 14px 24px; cursor: pointer;
+  transition: all 0.22s ease; user-select: none;
+}
+.playtest-row:hover {
+  border-color: rgba(255,80,80,0.5);
+  background: linear-gradient(135deg, rgba(255,80,80,0.14), rgba(160,32,240,0.10));
+  box-shadow: 0 0 24px rgba(255,80,80,0.15);
+}
+.playtest-toggle {
+  position: relative; width: 58px; height: 30px; flex-shrink: 0;
+}
+.playtest-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.playtest-slider {
+  position: absolute; inset: 0; border-radius: 30px; cursor: pointer;
+  background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+  transition: all 0.25s ease;
+}
+.playtest-slider::before {
+  content: ''; position: absolute;
+  width: 22px; height: 22px; border-radius: 50%;
+  left: 3px; top: 3px;
+  background: rgba(255,255,255,0.6);
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+.playtest-toggle input:checked + .playtest-slider {
+  background: linear-gradient(135deg, rgba(220,60,60,0.7), rgba(160,32,240,0.5));
+  border-color: rgba(255,80,80,0.5);
+  box-shadow: 0 0 16px rgba(220,60,60,0.4);
+}
+.playtest-toggle input:checked + .playtest-slider::before {
+  transform: translateX(28px);
+  background: #fff;
+  box-shadow: 0 0 8px rgba(255,100,100,0.7);
+}
+.playtest-label {
+  display: flex; flex-direction: column; gap: 3px;
+}
+.playtest-label-main {
+  font-family: 'Cinzel Decorative', serif; font-size: 16px;
+  color: var(--text-bright); letter-spacing: 2px;
+}
+.playtest-label-sub {
+  font-size: 12px; color: var(--text-dim); letter-spacing: 1px;
+}
+.playtest-row.active .playtest-label-main { color: var(--red); text-shadow: 0 0 12px rgba(255,80,80,0.5); }
+.playtest-row.active .playtest-label-sub  { color: rgba(255,120,120,0.7); }
 .faction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1260px; }
 
 /* Banner-style faction button */
@@ -1778,6 +1843,19 @@ html.targeting-active .card.blockable * {
     </div>
   </div>
   <button class="chooser-db-btn" onclick="openDeckbuilder()">⚙ DECKBUILDER</button>
+
+  <!-- PLAYTEST TOGGLE -->
+  <label class="playtest-row" id="playtest-row">
+    <div class="playtest-toggle">
+      <input type="checkbox" id="playtest-checkbox" onchange="togglePlaytest(this.checked)">
+      <span class="playtest-slider"></span>
+    </div>
+    <div class="playtest-label">
+      <span class="playtest-label-main">🧪 PLAYTEST MODE</span>
+      <span class="playtest-label-sub">Both players start with 200 life — test all abilities</span>
+    </div>
+  </label>
+
   <div style="font-size:11px;color:var(--text-dim);text-align:center;max-width:440px;line-height:1.6;">
     Solo vs AI — build custom decks or use defaults
   </div>
@@ -1797,6 +1875,9 @@ html.targeting-active .card.blockable * {
       <div class="phase-pip" data-phase="postbattle">POST-BATTLE</div>
     </div>
     <div id="turn-info">TURN 1</div>
+    <div id="playtest-indicator" style="display:none;align-items:center;gap:6px;background:rgba(220,60,60,0.18);border:1px solid rgba(220,60,60,0.45);border-radius:6px;padding:4px 12px;font-family:'Share Tech Mono',monospace;font-size:13px;color:rgba(255,120,120,0.9);letter-spacing:1px;">
+      🧪 PLAYTEST — 200 LIFE
+    </div>
     <button id="btn-mute" onclick="toggleMute()" style="background:transparent;border:1px solid var(--border-dim);color:var(--text-mid);padding:3px 8px;border-radius:3px;cursor:pointer;font-size:14px;" title="Toggle sound">🔊</button>
   </div>
 
@@ -2853,9 +2934,26 @@ function setBanners(playerFaction, aiFaction) {
   if (logo) logo.style.color = pColor;
 }
 
+// Global playtest flag
+let _playtestMode = false;
+
+function togglePlaytest(checked) {
+  _playtestMode = checked;
+  const row = document.getElementById('playtest-row');
+  if (row) {
+    row.classList.toggle('active', checked);
+  }
+  // Show/hide indicator in topbar if game already running
+  const indicator = document.getElementById('playtest-indicator');
+  if (indicator) indicator.style.display = checked ? 'flex' : 'none';
+}
+
 function startGame(faction) {
   document.getElementById('faction-chooser').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
+  // Show playtest indicator if active
+  const _pInd = document.getElementById('playtest-indicator');
+  if (_pInd) _pInd.style.display = _playtestMode ? 'flex' : 'none';
 
   // Pick AI faction randomly — any faction except the player's
   const allFactions = ['Red','White','Black','Purple'];
@@ -2886,7 +2984,7 @@ function startGame(faction) {
     aiMission:     initMission(aiFaction),
     _missionRewards: {},
     player: {
-      life: 20, bleed: 0,
+      life: _playtestMode ? 200 : 20, bleed: 0,
       hand: [], main: [...(pDecks?.main||[])], land: [...(pDecks?.land||[])],
       battlefield: [],
       discard: [],
@@ -2896,7 +2994,7 @@ function startGame(faction) {
       drawnFirstTurn: false,
     },
     ai: {
-      life: 20, bleed: 0,
+      life: _playtestMode ? 200 : 20, bleed: 0,
       hand: [], main: [...(aDecks?.main||[])], land: [...(aDecks?.land||[])],
       battlefield: [],
       discard: [],
