@@ -369,6 +369,31 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .card.blocking  { outline:3px solid #30a0e0!important; }
 .card.tap-hint  { box-shadow:0 0 9px rgba(212,160,32,0.65); }
 
+/* Bleed / keyword badges on cards */
+.bleed-badge {
+  position:absolute; top:4px; left:4px; z-index:10;
+  background:rgba(180,20,20,0.9); color:#fff; font-size:10px;
+  padding:1px 5px; border-radius:4px; font-weight:bold;
+  pointer-events:none; text-shadow:0 1px 2px #000;
+  letter-spacing:0.5px; line-height:1.3;
+  box-shadow: 0 0 6px rgba(220,30,30,0.5);
+}
+.keyword-badges {
+  position:absolute; top:4px; right:4px; z-index:10;
+  display:flex; flex-direction:column; gap:2px; align-items:flex-end;
+  pointer-events:none;
+}
+.keyword-badges .kw-badge {
+  background:rgba(0,0,0,0.7); color:#ccc; font-size:8px;
+  padding:1px 4px; border-radius:3px; white-space:nowrap;
+  text-shadow:0 1px 1px #000;
+}
+.keyword-badges .kw-badge.kw-siphon { background:rgba(40,160,80,0.8); color:#fff; }
+.keyword-badges .kw-badge.kw-breach { background:rgba(200,60,20,0.8); color:#fff; }
+.keyword-badges .kw-badge.kw-haste  { background:rgba(220,160,20,0.8); color:#000; }
+.keyword-badges .kw-badge.kw-tireless { background:rgba(60,140,200,0.8); color:#fff; }
+.kw-badge.kw-bleed { background:rgba(180,20,20,0.9); color:#fff; box-shadow:0 0 6px rgba(220,30,30,0.5); font-size:10px; }
+
 /* Relics — smaller than creatures, sit on same row */
 .relics-group .card { width:120px; height:168px; }
 .relics-group .card.exhausted { margin:30px 11px; }
@@ -3967,6 +3992,14 @@ function handleBlockingClick(inst, who) {
   if (who === 'player' && inst.type === 'Creature' && playerBlockTarget !== null) {
     if (inst.exhaustState !== 'renewed') { log(`${inst.name} is exhausted.`, ''); return; }
     if (inst.attacking) { log(`${inst.name} is attacking.`, ''); return; }
+    // Block limit (Left Behind): only 1 blocker allowed
+    if (G.player._blockLimit) {
+      const currentBlockerCount = Object.keys(playerBlockers).length;
+      if (currentBlockerCount >= G.player._blockLimit && !playerBlockers[inst.instId]) {
+        log(`Left Behind: You can only block with ${G.player._blockLimit} creature this turn.`, '');
+        return;
+      }
+    }
     // Check if target attacker can be blocked by this creature
     const atk = G.ai.battlefield.find(i => i.instId === playerBlockTarget);
     if (atk && hasKeyword(atk,'noWallBlock') && hasKeyword(inst,'wall')) {
@@ -5113,7 +5146,7 @@ function castSpellWithTargeting(inst, caster, onDone) {
   //   If that creature is destroyed, its owner receives one Bleed counter"
   if (txt.includes('exhaust one creature') && txt.includes('deal damage equal to its power')) {
     const ownCreatures = G[caster].battlefield.filter(i =>
-      i.type === 'Creature' && i.exhaustState === 'renewed' && !i.newlyTurned
+      i.type === 'Creature' && i.exhaustState === 'renewed'
     );
     if (ownCreatures.length === 0) {
       log(`${inst.name}: No renewed creatures to exhaust.`, '');
@@ -5325,6 +5358,65 @@ function castSpellWithTargeting(inst, caster, onDone) {
     if (allRelics.length === 1) doDestroy(allRelics[0]);
     else showModal(inst.name, 'Choose a relic:', allRelics.map(r => ({
       label: `${r.inst.name} (${r.owner})`, cls:'btn-danger', action:()=>doDestroy(r)
+    })));
+    return;
+  }
+
+  // "Destroy target Wall or Relic" (Grid Hack Wallbuster)
+  if (txt.includes('destroy') && txt.includes('wall or relic') && !txt.includes('you control')) {
+    const targets = [
+      ...G.player.battlefield.filter(i => hasKeyword(i,'wall') || i.type==='Relic').map(i=>({inst:i,owner:'player'})),
+      ...G.ai.battlefield.filter(i => hasKeyword(i,'wall') || i.type==='Relic').map(i=>({inst:i,owner:'ai'})),
+    ];
+    if (targets.length === 0) { log(`${inst.name}: No Walls or Relics.`, ''); onDone(); return; }
+    log(`${inst.name}: Choose a Wall or Relic to destroy.`, 'important');
+    const doDestroy = ({inst:t, owner:o}) => {
+      if (t.type === 'Relic') removeFromBattlefield(t, o);
+      else destroyCreature(t, o);
+      log(`${inst.name}: ${t.name} destroyed!`, 'damage');
+      sfx('destroy'); updateUI(); onDone();
+    };
+    if (targets.length === 1) { doDestroy(targets[0]); return; }
+    showModal(inst.name, 'Choose target:', targets.map(t => ({
+      label: `${t.inst.name} (${t.owner})`, cls:'btn-danger', action:()=>doDestroy(t)
+    })));
+    return;
+  }
+
+  // "Destroy target Exhausted creature" (Burnout)
+  if (txt.includes('destroy') && txt.includes('target exhausted creature')) {
+    const targets = [
+      ...G.player.battlefield.filter(i => i.type==='Creature' && i.exhaustState==='exhausted').map(i=>({inst:i,owner:'player'})),
+      ...G.ai.battlefield.filter(i => i.type==='Creature' && i.exhaustState==='exhausted').map(i=>({inst:i,owner:'ai'})),
+    ];
+    if (targets.length === 0) { log(`${inst.name}: No exhausted creatures.`, ''); onDone(); return; }
+    const doDestroy = ({inst:t, owner:o}) => {
+      destroyCreature(t, o);
+      log(`${inst.name}: ${t.name} destroyed!`, 'damage');
+      sfx('destroy'); updateUI(); onDone();
+    };
+    if (targets.length === 1) { doDestroy(targets[0]); return; }
+    showModal(inst.name, 'Choose an exhausted creature:', targets.map(t => ({
+      label: `${t.inst.name} [${getEffectivePower(t.inst)}] (${t.owner})`, cls:'btn-danger', action:()=>doDestroy(t)
+    })));
+    return;
+  }
+
+  // "Target token creature gains haste and cannot be blocked this turn" (Shadowstalk Burst)
+  if (txt.includes('token') && txt.includes('haste') && txt.includes('cannot be blocked')) {
+    const tokens = G[caster].battlefield.filter(i => i.isToken && i.type==='Creature');
+    if (tokens.length === 0) { log(`${inst.name}: No token creatures.`, ''); onDone(); return; }
+    const doBuff = (t) => {
+      t.tempKeywords = t.tempKeywords || {};
+      t.tempKeywords.haste = true;
+      t.tempKeywords.unblockable = true;
+      t.newlyTurned = false;
+      log(`${inst.name}: ${t.name} gains Haste and cannot be blocked this turn!`, 'heal');
+      updateUI(); onDone();
+    };
+    if (tokens.length === 1) { doBuff(tokens[0]); return; }
+    showModal(inst.name, 'Choose a token creature:', tokens.map(t => ({
+      label: `${t.name} [${getEffectivePower(t)}]`, cls:'btn-secondary', action:()=>doBuff(t)
     })));
     return;
   }
@@ -6317,6 +6409,94 @@ function resolveSpell(inst, caster) {
       );
     }
   }
+  // "Target player can only block with one creature this turn" (Left Behind)
+  else if (txt.includes('only block with one')) {
+    const opp = caster === 'player' ? 'ai' : 'player';
+    G[opp]._blockLimit = 1;
+    log(`${inst.name}: ${opp} can only block with one creature this turn!`, 'important');
+  }
+  // "Your Walls can block an additional creature and get +1 power" (Palace Decree)
+  else if (txt.includes('walls') && txt.includes('block') && txt.includes('additional') && txt.includes('+1 power')) {
+    const walls = G[caster].battlefield.filter(i => i.type === 'Creature' && hasKeyword(i, 'wall'));
+    walls.forEach(w => {
+      w._multiBlock = true;
+      w.powerMods.push({ amount: 1, until: 'eot' });
+    });
+    log(`${inst.name}: ${walls.length} wall(s) can block an extra creature and get +1 power!`, 'heal');
+  }
+  // "Any creature that went to discard from play this turn is returned to play exhausted" (Grave/Mass Reanimation)
+  else if (txt.includes('went to') && txt.includes('discard') && txt.includes('returned to play')) {
+    // Find creatures that were destroyed this turn (they're in the discard pile)
+    const pile = G[caster].discard.filter(i => i.type === 'Creature' && !i.isToken);
+    if (pile.length === 0) { log(`${inst.name}: No creatures in discard.`, ''); }
+    else {
+      const toReturn = [...pile]; // snapshot
+      toReturn.forEach(c => {
+        G[caster].discard = G[caster].discard.filter(i => i.instId !== c.instId);
+        c.exhaustState = 'exhausted';
+        c.newlyTurned = false;
+        G[caster].battlefield.push(c);
+        log(`${inst.name}: ${c.name} returned to play (exhausted).`, 'heal');
+      });
+    }
+  }
+  // "Opponent chooses one: discard a card at random or you Glimpse 2 and draw" (Psyche Symposium)
+  else if (txt.includes('opponent chooses') && txt.includes('discard') && txt.includes('glimpse')) {
+    const opp = caster === 'player' ? 'ai' : 'player';
+    if (opp === 'ai') {
+      // AI always discards if they have cards, otherwise gives glimpse
+      if (G.ai.hand.length > 0) {
+        const idx = Math.floor(Math.random() * G.ai.hand.length);
+        const discarded = G.ai.hand.splice(idx, 1)[0];
+        G.ai.discard.push(discarded);
+        log(`${inst.name}: AI discards ${discarded.name}.`, 'damage');
+      } else {
+        const n = parseInt(txt.match(/glimpse (\d+)/)?.[1] || '2');
+        doGlimpse(caster, n, inst.name, false, () => {
+          drawFromDeck(caster, G[caster].main.length > 0 ? 'main' : 'land');
+          log(`${inst.name}: Drew a card after Glimpse.`, 'heal');
+          updateUI();
+        });
+      }
+    } else {
+      // Player is opponent — show choice
+      showModal(inst.name, 'Your opponent forces a choice:', [
+        { label: 'DISCARD A CARD AT RANDOM', cls:'btn-danger', action:() => {
+          if (G.player.hand.length > 0) {
+            const idx = Math.floor(Math.random() * G.player.hand.length);
+            const discarded = G.player.hand.splice(idx, 1)[0];
+            G.player.discard.push(discarded);
+            log(`${inst.name}: You discard ${discarded.name}.`, 'damage');
+          } else { log(`${inst.name}: No cards in hand.`, ''); }
+          updateUI();
+        }},
+        { label: 'GIVE OPPONENT GLIMPSE 2 + DRAW', cls:'btn-secondary', action:() => {
+          const n = parseInt(txt.match(/glimpse (\d+)/)?.[1] || '2');
+          doGlimpse('ai', n, inst.name, false, () => {
+            drawFromDeck('ai', G.ai.main.length > 0 ? 'main' : 'land');
+            log(`${inst.name}: AI Glimpsed ${n} and drew a card.`, '');
+            updateUI();
+          });
+        }},
+      ]);
+      return; // modal handles
+    }
+  }
+  // "Gain 1 life, look at the top card of either deck" (Void Classroom Echo)
+  else if (txt.includes('gain 1 life') && txt.includes('look at') && txt.includes('top card') && txt.includes('either')) {
+    G[caster].life += 1; updateLifeDisplay(caster);
+    log(`${inst.name}: Gained 1 life.`, 'heal');
+    if (caster === 'player') {
+      doGlimpse(caster, 1, inst.name);
+    }
+  }
+  // "Exhaust up to 2 target creatures" (as a spell — different from creature ability)
+  else if (txt.includes('exhaust up to 2') || txt.includes('exhaust two')) {
+    const opp = caster === 'player' ? 'ai' : 'player';
+    const targets = G[opp].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed').slice(0,2);
+    targets.forEach(t => { t.exhaustState = 'exhausted'; log(`${inst.name}: ${t.name} exhausted.`, ''); });
+    if (targets.length === 0) log(`${inst.name}: No renewed creatures to exhaust.`, '');
+  }
   // Eternal Subterfuge — handled in resolveSpellOnTarget (needs a target creature)
   else {
     log(`${inst.name}: effect applied.`, '');
@@ -6896,6 +7076,9 @@ function getAbilityTargetMode(txt, mode, caster) {
   // 'gains Siphon' on target creature — can target any creature (relic effect)
   if (seg.includes('siphon') && !seg.includes('you control') && !seg.includes('gain siphon yourself'))
     return 'any-creature';
+  // 'gains Bleed' — can target any creature (buff your own to bleed opponents)
+  if (seg.includes('bleed') && (seg.includes('gains') || seg.includes('+1')))
+    return 'any-creature';
   // Positive buffs → own side (unless 'with glimpse' — Augur's Signet targets any)
   if (!seg.includes('with glimpse') &&
      (seg.includes('+1 power') || seg.includes('+2 power') ||
@@ -7232,8 +7415,16 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
       target.power = Math.max(0, (target.power || 0) - 1);
       log(`${inst.name}: ${target.name} gets -1 power.`, '');
     } else if (seg.includes('gains bleed') || seg.includes('bleed +1')) {
-      target.keywords.bleed = (target.keywords.bleed || 0) + 1;
-      log(`${inst.name}: ${target.name} gains Bleed +1.`, '');
+      // "until end of turn" → use _bleedBoost (cleared by clearEotEffects)
+      if (seg.includes('until end of turn') || seg.includes('end of turn') || seg.includes('eot')) {
+        if (!target._bleedBoost) target._bleedBoost = 0;
+        target._bleedBoost += 1;
+        log(`${inst.name}: ${target.name} gains Bleed +1 until end of turn.`, '');
+      } else {
+        // Permanent bleed increase
+        target.keywords.bleed = (target.keywords.bleed || 0) + 1;
+        log(`${inst.name}: ${target.name} gains Bleed +1.`, '');
+      }
       // Selfbleed on the caster (Blood Vial Toolbelt)
       if (seg.includes('selfbleed')) {
         const sbN = parseInt(seg.match(/selfbleed (\d+)/)?.[1] || '1');
@@ -8339,6 +8530,9 @@ function clearEotEffects(who) {
     G[origOwner].battlefield.push(inst);
     log(`${inst.name} returns to ${origOwner}.`, '');
   });
+  // Clear per-turn flags
+  G[who]._blockLimit = 0;
+  G[who]._butlerShield = false;
 }
 
 function checkWin() {
@@ -9393,11 +9587,22 @@ function createCardElement(inst, isHand) {
   const badges = document.createElement('div');
   badges.className = 'kw-badges';
   const kw = inst.keywords;
-  if (kw.haste) badges.innerHTML += '<span class="kw-badge kw-haste">H</span>';
-  if (kw.wall) badges.innerHTML += '<span class="kw-badge kw-wall">W</span>';
-  if (kw.breach) badges.innerHTML += '<span class="kw-badge kw-breach">BR</span>';
-  if (kw.tireless) badges.innerHTML += '<span class="kw-badge kw-tireless">TL</span>';
-  if (kw.siphon) badges.innerHTML += '<span class="kw-badge kw-siphon">S</span>';
+  const tkw = inst.tempKeywords || {};
+  // Bleed badge (includes temp boosts from Toolbelt etc.)
+  const totalBleed = (kw.bleed || 0) + (inst._bleedBoost || 0);
+  if (totalBleed > 0 && inst.type === 'Creature') {
+    const bb = document.createElement('span');
+    bb.className = 'kw-badge kw-bleed';
+    bb.textContent = '🩸' + totalBleed;
+    bb.title = 'Bleed ' + totalBleed;
+    badges.appendChild(bb);
+  }
+  if (kw.haste || tkw.haste) badges.innerHTML += '<span class="kw-badge kw-haste">H</span>';
+  if (hasKeyword(inst,'wall')) badges.innerHTML += '<span class="kw-badge kw-wall">W</span>';
+  if (hasKeyword(inst,'breach') || tkw.breach) badges.innerHTML += '<span class="kw-badge kw-breach">BR</span>';
+  if (hasKeyword(inst,'tireless') || tkw.tireless) badges.innerHTML += '<span class="kw-badge kw-tireless">TL</span>';
+  if (hasKeyword(inst,'siphon') || tkw.siphon) badges.innerHTML += '<span class="kw-badge kw-siphon">S</span>';
+  if (kw.unblockable || tkw.unblockable) badges.innerHTML += '<span class="kw-badge" style="background:rgba(100,0,200,0.8);color:#fff">UB</span>';
   if (badges.children.length > 0) card.appendChild(badges);
 
   // Footer
@@ -9419,8 +9624,8 @@ function createCardElement(inst, isHand) {
       ctr.textContent = (inst.permMods > 0 ? '+' : '') + inst.permMods;
       ctr.style.cssText = `color:${inst.permMods > 0 ? '#4eff8a' : '#ff4a4a'};` +
         'font-size:9px;font-family:"Share Tech Mono",monospace;font-weight:700;' +
-        'position:absolute;top:4px;left:4px;background:rgba(0,0,0,0.75);' +
-        'padding:1px 3px;border-radius:3px;';
+        'position:absolute;bottom:22px;right:4px;background:rgba(0,0,0,0.75);' +
+        'padding:1px 3px;border-radius:3px;z-index:8;';
       card.appendChild(ctr);
     }
   }
