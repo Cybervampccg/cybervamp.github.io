@@ -229,7 +229,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   scrollbar-width:thin; position:relative;
 }
 .bf-row.main-row  { flex:1; min-height:0; align-items:center; overflow-x:auto; overflow-y:visible; }
-.bf-row.lands-row { min-height:155px; flex-shrink:0; }
+.bf-row.lands-row { min-height:185px; flex-shrink:0; }
 
 /* Creatures group — centered, fills available width */
 .creatures-group {
@@ -311,7 +311,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   position:relative; overflow:hidden;
   transition:transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   flex-shrink:0; display:flex; flex-direction:column;
-  width:188px; height:264px;
+  width:218px; height:305px;
   /* Depth: soft drop shadow behind every card */
   box-shadow:
     0 2px 4px rgba(0,0,0,0.95),
@@ -358,7 +358,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .card.blockable  { border-color:#30a0e0; box-shadow:0 0 8px rgba(48,160,224,0.3); animation:pulse-blue 1.2s infinite; }
 
 /* 90° exhausted */
-.card.exhausted { opacity:0.78; transform:rotate(90deg); margin:48px 18px; }
+.card.exhausted { opacity:0.78; transform:rotate(90deg); margin:56px 22px; }
 .card.exhausted:hover { transform:rotate(90deg) scale(1.07); z-index:50; }
 /* 180° overexhausted */
 .card.overexhausted { opacity:0.45; transform:rotate(180deg); margin:0 16px; }
@@ -395,17 +395,17 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .kw-badge.kw-bleed { background:rgba(180,20,20,0.9); color:#fff; box-shadow:0 0 6px rgba(220,30,30,0.5); font-size:10px; }
 
 /* Relics — smaller than creatures, sit on same row */
-.relics-group .card { width:152px; height:213px; }
-.relics-group .card.exhausted { margin:38px 14px; }
+.relics-group .card { width:176px; height:246px; }
+.relics-group .card.exhausted { margin:44px 16px; }
 
 /* Land cards — full art, taller */
-.lands-row .card { width:128px; height:138px; }
+.lands-row .card { width:156px; height:168px; }
 .lands-row .card .card-img { display:block; object-position:center; }
 .lands-row .card .card-img-placeholder { font-size:28px; }
-.lands-row .card .card-name-mini { font-size:12px; max-width:128px; }
+.lands-row .card .card-name-mini { font-size:13px; max-width:155px; }
 .lands-row .card .card-power { display:none; }
 .lands-row .kw-badges { display:none; }
-.lands-row .card.exhausted { transform:rotate(90deg); margin:28px 12px; opacity:0.72; }
+.lands-row .card.exhausted { transform:rotate(90deg); margin:34px 14px; opacity:0.72; }
 .lands-row .card.exhausted:hover { transform:rotate(90deg) scale(1.08); }
 
 /* ── LAND STACK (compact grouped lands) ── */
@@ -414,7 +414,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   align-items: center; gap: 3px; cursor: pointer; flex-shrink: 0;
 }
 .land-stack-cards {
-  position: relative; width: 72px; height: 90px;
+  position: relative; width: 100px; height: 125px;
 }
 /* Stacked card shadow layers behind the top card */
 .land-stack-cards::before,
@@ -435,7 +435,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .land-stack-top .land-stack-name {
   position: absolute; bottom: 0; left: 0; right: 0;
   padding: 3px 5px; background: rgba(8,4,18,0.95);
-  font-family: 'Cinzel', serif; font-size: 8px; color: #fff;
+  font-family: 'Cinzel', serif; font-size: 11px; color: #fff;
   text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   border-top: 1px solid rgba(255,255,255,0.1);
 }
@@ -446,19 +446,19 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .land-stack.exhausted .land-stack-top { opacity: 0.55; filter: saturate(0.4); }
 /* Count badge */
 .land-stack-count {
-  position: absolute; top: 4px; right: 4px; z-index: 2;
+  position: absolute; top: 5px; right: 5px; z-index: 2;
   background: rgba(0,0,0,0.85); color: #fff;
-  font-family: 'Share Tech Mono', monospace; font-size: 11px; font-weight: 700;
-  padding: 2px 6px; border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.2);
-  min-width: 22px; text-align: center;
+  font-family: 'Share Tech Mono', monospace; font-size: 14px; font-weight: 700;
+  padding: 3px 8px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.3);
+  min-width: 28px; text-align: center;
 }
 /* Remaining / exhausted split badge */
 .land-stack-info {
-  font-family: 'Share Tech Mono', monospace; font-size: 9px;
+  font-family: 'Share Tech Mono', monospace; font-size: 12px;
   color: var(--text-dim); letter-spacing: 0.5px; text-align: center;
 }
-.land-stack-info .avail { color: var(--life-green); font-weight: 700; }
+.land-stack-info .avail { color: var(--life-green); font-weight: 700; font-size: 13px; }
 .land-stack-info .used  { color: var(--text-dim); }
 /* Compact toggle button */
 .land-compact-toggle {
@@ -501,8 +501,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.5);
   position:relative; z-index:7;
 }
-.card-name-mini { color:#fff; max-width:175px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-family:'Cinzel',serif; font-size:13px; letter-spacing:0.4px; text-shadow:0 1px 4px rgba(0,0,0,0.95); }
-.card-power { color:#fff; font-family:'Cinzel Decorative',monospace; font-size:22px; font-weight:700; text-shadow: 0 0 12px rgba(255,255,255,0.5), 0 1px 3px rgba(0,0,0,0.9); }
+.card-name-mini { color:#fff; max-width:200px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-family:'Cinzel',serif; font-size:14px; letter-spacing:0.4px; text-shadow:0 1px 4px rgba(0,0,0,0.95); }
+.card-power { color:#fff; font-family:'Cinzel Decorative',monospace; font-size:26px; font-weight:700; text-shadow: 0 0 12px rgba(255,255,255,0.5), 0 1px 3px rgba(0,0,0,0.9); }
 
 /* Color bar — taller, glowing, faction-colored gradient */
 .color-bar { height:6px; width:100%; flex-shrink:0; position:relative; }
@@ -624,19 +624,19 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 /* ── ACTION BAR ── */
 #action-bar {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 14px 24px;
-  background: linear-gradient(180deg, rgba(8,4,20,0.97) 0%, rgba(4,2,14,0.99) 100%);
-  border-top: 1px solid rgba(255,255,255,0.06);
-  box-shadow: 0 -4px 24px rgba(0,0,0,0.7);
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 16px 28px;
+  background: linear-gradient(180deg, rgba(8,4,20,0.98) 0%, rgba(4,2,14,1.0) 100%);
+  border-top: 2px solid rgba(212,160,32,0.15);
+  box-shadow: 0 -4px 32px rgba(0,0,0,0.8), 0 -1px 0 rgba(212,160,32,0.08);
   flex-shrink: 0; flex-wrap: wrap;
 }
 
 .btn {
-  padding: 13px 28px; border-radius: 8px; cursor: pointer;
-  font-family: 'Cinzel', serif; font-size: 17px; font-weight: 700;
-  letter-spacing: 1.5px; text-transform: uppercase;
-  border: 1px solid transparent; transition: all 0.2s ease; white-space: nowrap;
+  padding: 14px 30px; border-radius: 8px; cursor: pointer;
+  font-family: 'Cinzel Decorative', serif; font-size: 17px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  border: 2px solid transparent; transition: all 0.22s ease; white-space: nowrap;
   position: relative; overflow: hidden;
 }
 .btn::before {
@@ -645,25 +645,30 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   pointer-events: none;
 }
 .btn-primary {
-  background: linear-gradient(135deg, #d03030 0%, #a01818 100%);
-  border-color: rgba(255,80,80,0.3); color: #fff;
-  box-shadow: 0 2px 16px rgba(200,32,32,0.4), inset 0 1px 0 rgba(255,255,255,0.12);
+  background: linear-gradient(135deg, #d83030 0%, #a01010 100%);
+  border-color: rgba(255,80,80,0.5); color: #fff;
+  box-shadow: 0 4px 20px rgba(200,32,32,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
 }
 .btn-primary:hover {
   background: linear-gradient(135deg, #e83838, #b82020);
   box-shadow: 0 4px 28px rgba(224,48,48,0.6); transform: translateY(-1px);
 }
 .btn-secondary {
-  background: linear-gradient(135deg, rgba(180,130,20,0.25) 0%, rgba(140,100,10,0.3) 100%);
-  border-color: rgba(212,160,32,0.45); color: var(--gold);
-  box-shadow: 0 2px 10px rgba(212,160,32,0.15);
+  background: linear-gradient(135deg, rgba(212,160,32,0.12) 0%, rgba(160,32,240,0.08) 100%);
+  border-color: rgba(212,160,32,0.55); color: var(--gold);
+  box-shadow: 0 0 20px rgba(212,160,32,0.12), inset 0 1px 0 rgba(255,255,255,0.05);
+  text-shadow: 0 0 16px rgba(212,160,32,0.5);
 }
 .btn-secondary:hover {
-  background: linear-gradient(135deg, rgba(212,160,32,0.35), rgba(180,130,20,0.4));
-  box-shadow: 0 4px 20px rgba(212,160,32,0.35); transform: translateY(-1px);
+  background: linear-gradient(135deg, rgba(212,160,32,0.20), rgba(160,32,240,0.14));
+  border-color: var(--gold);
+  box-shadow: 0 0 40px rgba(212,160,32,0.35), 0 0 16px rgba(212,160,32,0.2);
+  transform: translateY(-2px) scale(1.02);
+  text-shadow: 0 0 24px rgba(212,160,32,0.8);
 }
 .btn-muted {
-  background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); color: var(--text-mid);
+  background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.18); color: var(--text-mid);
 }
 .btn-muted:hover { border-color: rgba(255,255,255,0.22); color: var(--text-bright); }
 .btn-danger {
@@ -695,7 +700,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   opacity: 0;
   transition: opacity 0.12s ease;
   /* Size: ~3× battlefield card (148×208 → 480×672) */
-  width: 640px; height: 896px;
+  width: 520px; height: 728px; max-height: 80vh; max-width: 40vw;
   filter: drop-shadow(0 12px 40px rgba(0,0,0,0.9));
 }
 #card-preview.visible { opacity: 1; }
@@ -729,13 +734,16 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 }
 #modal-overlay.visible { opacity: 1; pointer-events: all; }
 #modal-box {
-  background: var(--bg-panel); border: 1px solid var(--border-bright);
-  border-radius: 8px; padding: 24px; min-width: 320px; max-width: 480px;
+  background: linear-gradient(160deg, rgba(12,6,32,0.99) 0%, rgba(8,4,24,0.98) 100%);
+  border: 2px solid rgba(212,160,32,0.45);
+  border-radius: 12px; padding: 32px 28px; min-width: 380px; max-width: 580px;
   text-align: center;
+  box-shadow: 0 0 60px rgba(0,0,0,0.9), 0 0 32px rgba(212,160,32,0.08),
+              inset 0 1px 0 rgba(255,255,255,0.06);
 }
-#modal-title { font-family: 'Cinzel Decorative', serif; font-size: 16px; color: var(--red); margin-bottom: 12px; }
-#modal-body { font-size: 16px; color: var(--text-mid); line-height: 1.6; margin-bottom: 20px; }
-#modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+#modal-title { font-family: 'Cinzel Decorative', serif; font-size: 22px; color: var(--gold); margin-bottom: 14px; letter-spacing: 2px; text-shadow: 0 0 20px rgba(212,160,32,0.4); }
+#modal-body { font-size: 17px; color: var(--text-bright); line-height: 1.7; margin-bottom: 24px; }
+#modal-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 
 
 /* ── DECKBUILDER ── */
@@ -9853,8 +9861,9 @@ const KW_STYLES = {
 
 function showCardDetail(inst, triggerEl) {
   const el = document.getElementById('card-preview');
-  const previewW = 520;
-  const previewH = 728;
+  // Match CSS: #card-preview { width:520px; height:728px }
+  const previewW = Math.min(520, window.innerWidth * 0.4);
+  const previewH = Math.min(728, window.innerHeight * 0.8);
 
   // Build a fresh card element clone at preview size
   el.innerHTML = '';
@@ -9882,6 +9891,8 @@ function showCardDetail(inst, triggerEl) {
     top = rect.top;
     if (top + previewH > window.innerHeight - margin) top = window.innerHeight - previewH - margin;
     if (top < margin) top = margin;
+    // Also cap width so preview never goes off right/left edge
+    left = Math.max(margin, Math.min(left, window.innerWidth - previewW - margin));
 
     el.style.top  = top  + 'px';
     el.style.left = left + 'px';
