@@ -3016,6 +3016,9 @@ function startGame(faction) {
   // Initialize resource pool display (shows — placeholder until lands tapped)
   updateManaDisplay('player');
   updateManaDisplay('ai');
+  // Update life/bleed displays (sets correct values including playtest 200)
+  updateLifeDisplay('player');
+  updateLifeDisplay('ai');
 
   // Reset BGM for clean restart on replay
   if (_bgm) { _bgm.pause(); _bgm.currentTime = 0; }
@@ -3546,43 +3549,65 @@ function promptDrawChoice() {
   // Purple mission reward: draw 2 per phase
   const drawBonus = hasMissionReward('player', 'purple_draw_two');
 
+  function finishDraw() {
+    setPhase('prebattle');
+    updateUI();
+  }
+
   function afterDraw(deck) {
     drawFromDeck('player', deck);
     if (drawBonus) {
       drawFromDeck('player', player.main.length > 0 ? 'main' : 'land');
       log('Omniscience Engine: drew a bonus card!', 'heal');
     }
-    setPhase('prebattle');
-    updateUI();
+    // In playtest mode: loop back so player can draw more or finish
+    if (_playtestMode) {
+      promptDrawChoice();
+      return;
+    }
+    finishDraw();
   }
 
   if (mainEmpty && landEmpty) {
     log('Both decks are empty — no draw this turn.', '');
-    setPhase('prebattle');
-    updateUI();
+    finishDraw();
     return;
   }
 
-  if (mainEmpty) { afterDraw('land'); return; }
-  if (landEmpty) { afterDraw('main'); return; }
+  if (!_playtestMode) {
+    // Normal mode: one draw then straight to prebattle
+    if (mainEmpty) { afterDraw('land'); return; }
+    if (landEmpty) { afterDraw('main'); return; }
 
-  // Both available — show choice
-  showModal(
-    'DRAW PHASE',
-    `Choose which deck to draw from.\nMain Deck: ${player.main.length} cards remaining\nLand Deck: ${player.land.length} cards remaining`,
-    [
-      {
-        label: `MAIN DECK (${player.main.length})`,
-        cls: 'btn-primary',
-        action: () => { afterDraw('main'); }
-      },
-      {
-        label: `LAND DECK (${player.land.length})`,
-        cls: 'btn-secondary',
-        action: () => { afterDraw('land'); }
-      }
-    ]
-  );
+    showModal(
+      'DRAW PHASE',
+      `Choose which deck to draw from.\nMain Deck: ${player.main.length} cards remaining\nLand Deck: ${player.land.length} cards remaining`,
+      [
+        { label: `MAIN DECK (${player.main.length})`, cls: 'btn-primary',    action: () => { afterDraw('main'); } },
+        { label: `LAND DECK (${player.land.length})`, cls: 'btn-secondary',  action: () => { afterDraw('land'); } }
+      ]
+    );
+  } else {
+    // Playtest mode: unlimited draws until player clicks DONE
+    const handCount = player.hand.length;
+    const actions = [];
+
+    if (!mainEmpty) {
+      actions.push({ label: `📖 MAIN DECK (${player.main.length})`, cls: 'btn-primary',
+        action: () => { afterDraw('main'); } });
+    }
+    if (!landEmpty) {
+      actions.push({ label: `🌍 LAND DECK (${player.land.length})`, cls: 'btn-secondary',
+        action: () => { afterDraw('land'); } });
+    }
+    actions.push({ label: '✓ DONE DRAWING', cls: 'btn-muted', action: finishDraw });
+
+    showModal(
+      '🧪 DRAW PHASE — PLAYTEST',
+      `Hand: ${handCount} cards\nMain: ${player.main.length} remaining · Land: ${player.land.length} remaining\n\nDraw as many cards as you like.`,
+      actions
+    );
+  }
 }
 
 function drawFromDeck(who, deckType) {
