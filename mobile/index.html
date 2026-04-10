@@ -370,6 +370,8 @@ html,body {
   box-shadow:0 2px 6px rgba(0,0,0,.7);
   transition:transform .15s,box-shadow .15s,border-color .15s;
   flex-shrink:0;
+  /* Default battlefield size — overridden by group-specific rules */
+  width:var(--bf-card-w); height:var(--bf-card-h);
 }
 .card-frame-outer {
   position:absolute; inset:0; border-radius:5px; pointer-events:none; z-index:3;
