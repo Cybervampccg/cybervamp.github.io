@@ -1966,23 +1966,31 @@ function startGame(faction) {
 }
 
 function showOpeningDraw() {
-  // In playtest mode: unlimited draws with a DONE button (same as promptDrawChoice)
+  // In playtest mode: unlimited draws, DONE goes straight to game (no mulligan)
   if (_playtestMode) {
     const doPlaytestDraw = () => {
       const mainLeft = G.player.main.length;
       const landLeft = G.player.land.length;
-      if (mainLeft === 0 && landLeft === 0) { updateUI(); offerMulligan(); return; }
+      if (mainLeft === 0 && landLeft === 0) {
+        updateUI(); showBanner('YOUR TURN'); return;
+      }
       const handCount = G.player.hand.length;
       const actions = [];
-      if (mainLeft > 0) actions.push({ label: `📖 MAIN DECK (${mainLeft})`, cls: 'btn-primary',
-        action: () => { drawFromDeck('player','main'); doPlaytestDraw(); } });
-      if (landLeft > 0) actions.push({ label: `🌍 LAND DECK (${landLeft})`, cls: 'btn-secondary',
-        action: () => { drawFromDeck('player','land'); doPlaytestDraw(); } });
-      actions.push({ label: '✓ DONE DRAWING', cls: 'btn-muted',
-        action: () => { updateUI(); offerMulligan(); } });
+      if (mainLeft > 0) actions.push({
+        label: `📖 MAIN DECK (${mainLeft})`, cls: 'btn-primary',
+        action: () => { drawFromDeck('player','main'); doPlaytestDraw(); }
+      });
+      if (landLeft > 0) actions.push({
+        label: `🌍 LAND DECK (${landLeft})`, cls: 'btn-secondary',
+        action: () => { drawFromDeck('player','land'); doPlaytestDraw(); }
+      });
+      actions.push({
+        label: '✓ START GAME', cls: 'btn-secondary',
+        action: () => { updateUI(); showBanner('YOUR TURN'); }
+      });
       showModal(
-        '🧪 OPENING HAND — PLAYTEST',
-        `Hand: ${handCount} cards\nMain: ${mainLeft} remaining · Land: ${landLeft} remaining\n\nDraw as many cards as you like.`,
+        '🧪 PLAYTEST — DRAW CARDS',
+        `Hand: ${handCount} cards · Main: ${mainLeft} · Land: ${landLeft}\n\nDraw as many cards as you want, then click START GAME.`,
         actions
       );
     };
@@ -8939,50 +8947,30 @@ function rejectDrop(el) {
 function addDragHandlers(cardEl, inst) {
   const affordable = canPayCost('player', inst.cost);
   const isLand = inst.type === 'Land';
-  if (!affordable && !isLand) return; // unaffordable → no drag
+  if (!affordable && !isLand) return;
 
-  // ── MOUSE fallback (desktop) ──────────────────────────────────
   cardEl.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
-    e.preventDefault();
-    hideCardDetail();
-    initDrag(inst, cardEl);
+    e.preventDefault(); hideCardDetail(); initDrag(inst, cardEl);
   });
 
-  // ── TOUCH DRAG (mobile) ───────────────────────────────────────
-  // Vertical swipe upward = drag to play; horizontal = scroll hand
-  let _touchStartX = 0, _touchStartY = 0;
-  let _touchDragStarted = false;
-
+  let _touchStartX = 0, _touchStartY = 0, _touchDragStarted = false;
   cardEl.addEventListener('touchstart', (e) => {
     const t = e.touches[0];
-    _touchStartX = t.clientX;
-    _touchStartY = t.clientY;
-    _touchDragStarted = false;
+    _touchStartX = t.clientX; _touchStartY = t.clientY; _touchDragStarted = false;
   }, { passive: true });
-
   cardEl.addEventListener('touchmove', (e) => {
     const t = e.touches[0];
-    const dx = t.clientX - _touchStartX;
-    const dy = t.clientY - _touchStartY;
-    // Only start drag when movement is predominantly vertical (upward toward battlefield)
+    const dx = t.clientX - _touchStartX, dy = t.clientY - _touchStartY;
     const dominantlyVertical = Math.abs(dy) > Math.abs(dx) + 4;
     if (!_touchDragStarted && dominantlyVertical && Math.abs(dy) > 12) {
-      _touchDragStarted = true;
-      hideCardDetail();
-      initDrag(inst, cardEl);
+      _touchDragStarted = true; hideCardDetail(); initDrag(inst, cardEl);
     }
-    if (_touchDragStarted && _drag) {
-      e.preventDefault();
-      moveDrag({ clientX: t.clientX, clientY: t.clientY });
-    }
+    if (_touchDragStarted && _drag) { e.preventDefault(); moveDrag({ clientX: t.clientX, clientY: t.clientY }); }
   }, { passive: false });
-
   cardEl.addEventListener('touchend', (e) => {
     if (_touchDragStarted && _drag) {
-      const t = e.changedTouches[0];
-      endDrag({ clientX: t.clientX, clientY: t.clientY });
-      e.preventDefault();
+      const t = e.changedTouches[0]; endDrag({ clientX: t.clientX, clientY: t.clientY }); e.preventDefault();
     }
     _touchDragStarted = false;
   }, { passive: false });
