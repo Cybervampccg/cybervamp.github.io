@@ -71,16 +71,16 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   background: linear-gradient(135deg, rgba(10,6,24,0.97) 0%, rgba(14,8,28,0.95) 100%);
   border-bottom: 1px solid rgba(160,32,240,0.2);
   box-shadow: 0 2px 20px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.04);
-  flex-shrink: 0; height: 52px; z-index: 100;
+  flex-shrink: 0; height: 64px; z-index: 100;
   backdrop-filter: blur(12px);
 }
 #topbar .logo {
-  font-family: 'Cinzel Decorative', serif; font-size: 17px; color: var(--red);
+  font-family: 'Cinzel Decorative', serif; font-size: 22px; color: var(--red);
   letter-spacing: 3px; text-shadow: 0 0 20px rgba(224,48,48,0.5);
 }
 .phase-track { display: flex; gap: 4px; align-items: center; }
 .phase-pip {
-  padding: 4px 13px; border-radius: 20px; font-size: 10px; letter-spacing: 1.5px;
+  padding: 7px 18px; border-radius: 20px; font-size: 13px; letter-spacing: 1.5px;
   font-weight: 700; text-transform: uppercase;
   border: 1px solid rgba(255,255,255,0.06);
   background: rgba(255,255,255,0.03);
@@ -93,7 +93,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 }
 .phase-pip.done { color: var(--text-dim); opacity: 0.35; }
 
-#turn-info { font-size: 14px; color: var(--text-mid); font-family: 'Share Tech Mono', monospace; }
+#turn-info { font-size: 18px; color: var(--text-mid); font-family: 'Share Tech Mono', monospace; }
 
 /* ── MAIN ARENA ── */
 #arena {
@@ -115,8 +115,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 /* Player info strips — bigger, more prominent */
 #ai-info-strip, #player-info-strip {
   display: flex; align-items: center; gap: 10px;
-  padding: 3px 16px; flex-shrink: 0;
-  z-index: 90; position: relative; min-height: 28px;
+  padding: 5px 16px; flex-shrink: 0;
+  z-index: 90; position: relative; min-height: 40px;
 }
 #ai-info-strip {
   background: linear-gradient(135deg, rgba(16,8,36,0.98) 0%, rgba(20,10,44,0.95) 100%);
@@ -131,12 +131,12 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 }
 .strip-vital-val {
   font-family: 'Cinzel Decorative', serif;
-  font-size: 18px; font-weight: 700; line-height: 1;
-  min-width: 24px; text-align: center;
+  font-size: 26px; font-weight: 700; line-height: 1;
+  min-width: 32px; text-align: center;
 }
 .strip-vital-val.life  { color: #80ff90; text-shadow: 0 0 8px rgba(80,255,100,0.5); }
 .strip-vital-val.bleed { color: #ff4444; text-shadow: 0 0 8px rgba(255,60,60,0.5); }
-.strip-vital-sep { font-size: 13px; opacity: 0.75; }
+.strip-vital-sep { font-size: 18px; opacity: 0.75; }
 #player-info-strip {
   background: linear-gradient(135deg, rgba(28,8,8,0.98) 0%, rgba(20,6,6,0.95) 100%);
   border-top: 1px solid rgba(224,48,48,0.2);
@@ -146,7 +146,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 /* Resource pool label */
 .pool-label {
   font-family: 'Share Tech Mono', monospace;
-  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
   color: var(--text-dim); flex-shrink: 0;
 }
 /* Push pool to the right of the strip */
@@ -229,7 +229,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   scrollbar-width:thin; position:relative;
 }
 .bf-row.main-row  { flex:1; min-height:0; align-items:center; overflow-x:auto; overflow-y:visible; }
-.bf-row.lands-row { min-height:100px; flex-shrink:0; }
+.bf-row.lands-row { min-height:155px; flex-shrink:0; }
 
 /* Creatures group — centered, fills available width */
 .creatures-group {
@@ -311,7 +311,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   position:relative; overflow:hidden;
   transition:transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   flex-shrink:0; display:flex; flex-direction:column;
-  width:148px; height:208px;
+  width:188px; height:264px;
   /* Depth: soft drop shadow behind every card */
   box-shadow:
     0 2px 4px rgba(0,0,0,0.95),
@@ -358,10 +358,10 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .card.blockable  { border-color:#30a0e0; box-shadow:0 0 8px rgba(48,160,224,0.3); animation:pulse-blue 1.2s infinite; }
 
 /* 90° exhausted */
-.card.exhausted { opacity:0.78; transform:rotate(90deg); margin:38px 13px; }
+.card.exhausted { opacity:0.78; transform:rotate(90deg); margin:48px 18px; }
 .card.exhausted:hover { transform:rotate(90deg) scale(1.07); z-index:50; }
 /* 180° overexhausted */
-.card.overexhausted { opacity:0.45; transform:rotate(180deg); margin:0 12px; }
+.card.overexhausted { opacity:0.45; transform:rotate(180deg); margin:0 16px; }
 .card.overexhausted:hover { transform:rotate(180deg) scale(1.07); z-index:50; }
 
 .card.newly-turned { outline:2px solid rgba(255,200,0,0.55); }
@@ -395,17 +395,17 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .kw-badge.kw-bleed { background:rgba(180,20,20,0.9); color:#fff; box-shadow:0 0 6px rgba(220,30,30,0.5); font-size:10px; }
 
 /* Relics — smaller than creatures, sit on same row */
-.relics-group .card { width:120px; height:168px; }
-.relics-group .card.exhausted { margin:30px 11px; }
+.relics-group .card { width:152px; height:213px; }
+.relics-group .card.exhausted { margin:38px 14px; }
 
 /* Land cards — full art, taller */
-.lands-row .card { width:100px; height:108px; }
+.lands-row .card { width:128px; height:138px; }
 .lands-row .card .card-img { display:block; object-position:center; }
 .lands-row .card .card-img-placeholder { font-size:28px; }
-.lands-row .card .card-name-mini { font-size:9px; max-width:100px; }
+.lands-row .card .card-name-mini { font-size:12px; max-width:128px; }
 .lands-row .card .card-power { display:none; }
 .lands-row .kw-badges { display:none; }
-.lands-row .card.exhausted { transform:rotate(90deg); margin:22px 10px; opacity:0.72; }
+.lands-row .card.exhausted { transform:rotate(90deg); margin:28px 12px; opacity:0.72; }
 .lands-row .card.exhausted:hover { transform:rotate(90deg) scale(1.08); }
 
 /* ── LAND STACK (compact grouped lands) ── */
@@ -491,7 +491,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 /* Footer — stronger gradient + faction name glow already in place */
 .card-footer {
   display:flex; align-items:center; justify-content:space-between;
-  padding:5px 6px;
+  padding:7px 9px;
   background: linear-gradient(to bottom,
     rgba(18,10,36,0.98) 0%,
     rgba(8,4,18,0.99) 100%
@@ -501,11 +501,11 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(0,0,0,0.5);
   position:relative; z-index:7;
 }
-.card-name-mini { color:#fff; max-width:100px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-family:'Cinzel',serif; font-size:9.5px; letter-spacing:0.4px; text-shadow:0 1px 4px rgba(0,0,0,0.95); }
-.card-power { color:#fff; font-family:'Cinzel Decorative',monospace; font-size:15px; font-weight:700; text-shadow: 0 0 12px rgba(255,255,255,0.5), 0 1px 3px rgba(0,0,0,0.9); }
+.card-name-mini { color:#fff; max-width:175px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-family:'Cinzel',serif; font-size:13px; letter-spacing:0.4px; text-shadow:0 1px 4px rgba(0,0,0,0.95); }
+.card-power { color:#fff; font-family:'Cinzel Decorative',monospace; font-size:22px; font-weight:700; text-shadow: 0 0 12px rgba(255,255,255,0.5), 0 1px 3px rgba(0,0,0,0.9); }
 
 /* Color bar — taller, glowing, faction-colored gradient */
-.color-bar { height:4px; width:100%; flex-shrink:0; position:relative; }
+.color-bar { height:6px; width:100%; flex-shrink:0; position:relative; }
 .color-bar.Red      { background: linear-gradient(90deg, transparent 5%, rgba(224,48,48,0.55) 25%, var(--red) 50%, rgba(224,48,48,0.55) 75%, transparent 95%);
   box-shadow: 0 0 10px rgba(224,48,48,0.8), 0 0 4px rgba(224,48,48,0.5); }
 .color-bar.White    { background: linear-gradient(90deg, transparent 5%, rgba(200,192,240,0.5) 25%, var(--white-c) 50%, rgba(200,192,240,0.5) 75%, transparent 95%);
@@ -519,7 +519,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   box-shadow: 0 0 10px rgba(212,160,32,0.8), 0 0 4px rgba(212,160,32,0.5); }
 
 .kw-badges { position:absolute; top:4px; left:4px; display:flex; flex-direction:column; gap:1px; z-index:5; }
-.kw-badge { font-size:9px; padding:2px 5px; border-radius:2px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; backdrop-filter:blur(2px); }
+.kw-badge { font-size:11px; padding:3px 7px; border-radius:3px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; backdrop-filter:blur(2px); }
 .kw-haste    { background:rgba(224,80,0,0.88);  color:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.5); }
 .kw-wall     { background:rgba(80,120,200,0.88); color:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.5); }
 .kw-breach   { background:rgba(200,60,0,0.88);   color:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.5); }
@@ -530,13 +530,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .hand-zone {
   display: flex; align-items: stretch;
   padding: 0; overflow: visible;
-  min-height: 200px; max-height: 218px;
+  min-height: 280px; max-height: 300px;
   background: linear-gradient(180deg, rgba(4,2,12,0.85) 0%, rgba(8,4,18,0.95) 100%);
   position: relative; z-index: 80;
 }
 #hand-ai {
   filter: brightness(0.85); cursor: default;
-  min-height: 174px; max-height: 194px;
+  min-height: 200px; max-height: 224px;
 }
 /* AI vitals get slightly higher brightness than the card backs */
 #hand-ai #ai-hand-vitals,
@@ -559,15 +559,15 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 8px; padding: 8px 16px; flex-shrink: 0;
   background: rgba(0,0,0,0.3); border-right: 1px solid var(--border-dim);
-  min-width: 110px;
+  min-width: 140px;
 }
 .hand-vital-block {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
 }
 .hand-vital-val {
   font-family: 'Cinzel Decorative', serif;
-  font-size: 32px; font-weight: 700; line-height: 1;
-  min-width: 36px; text-align: center;
+  font-size: 44px; font-weight: 700; line-height: 1;
+  min-width: 48px; text-align: center;
 }
 .hand-vital-val.life  {
   color: var(--life-green);
@@ -577,8 +577,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   color: var(--bleed-red);
   text-shadow: 0 0 20px rgba(255,48,64,0.7), 0 0 40px rgba(255,48,64,0.3);
 }
-.hand-vital-label { font-size: 8px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); }
-.hand-vital-icon { font-size: 14px; }
+.hand-vital-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); }
+.hand-vital-icon { font-size: 20px; }
 /* Cards scroll area — center of hand zone */
 .hand-cards-scroll {
   flex: 1; display: flex; align-items: flex-end; justify-content: center;
@@ -625,7 +625,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 /* ── ACTION BAR ── */
 #action-bar {
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 10px 20px;
+  padding: 14px 24px;
   background: linear-gradient(180deg, rgba(8,4,20,0.97) 0%, rgba(4,2,14,0.99) 100%);
   border-top: 1px solid rgba(255,255,255,0.06);
   box-shadow: 0 -4px 24px rgba(0,0,0,0.7);
@@ -633,8 +633,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 }
 
 .btn {
-  padding: 9px 22px; border-radius: 8px; cursor: pointer;
-  font-family: 'Cinzel', serif; font-size: 13px; font-weight: 700;
+  padding: 13px 28px; border-radius: 8px; cursor: pointer;
+  font-family: 'Cinzel', serif; font-size: 17px; font-weight: 700;
   letter-spacing: 1.5px; text-transform: uppercase;
   border: 1px solid transparent; transition: all 0.2s ease; white-space: nowrap;
   position: relative; overflow: hidden;
@@ -680,7 +680,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 #log-panel.open { transform: translateX(0); }
 #log-header { padding: 8px 12px; border-bottom: 1px solid var(--border-dim); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-mid); display: flex; justify-content: space-between; }
 #log-entries { flex: 1; overflow-y: auto; padding: 6px 8px; display: flex; flex-direction: column; gap: 3px; scrollbar-width: thin; }
-.log-entry { font-size: 12px; color: var(--text-mid); line-height: 1.4; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.log-entry { font-size: 15px; color: var(--text-mid); line-height: 1.4; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
 .log-entry.important { color: var(--text-bright); }
 .log-entry.damage { color: #ff6060; }
 .log-entry.heal { color: var(--life-green); }
@@ -695,7 +695,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   opacity: 0;
   transition: opacity 0.12s ease;
   /* Size: ~3× battlefield card (148×208 → 480×672) */
-  width: 520px; height: 728px;
+  width: 640px; height: 896px;
   filter: drop-shadow(0 12px 40px rgba(0,0,0,0.9));
 }
 #card-preview.visible { opacity: 1; }
@@ -734,7 +734,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   text-align: center;
 }
 #modal-title { font-family: 'Cinzel Decorative', serif; font-size: 16px; color: var(--red); margin-bottom: 12px; }
-#modal-body { font-size: 13px; color: var(--text-mid); line-height: 1.6; margin-bottom: 20px; }
+#modal-body { font-size: 16px; color: var(--text-mid); line-height: 1.6; margin-bottom: 20px; }
 #modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
 
@@ -912,7 +912,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 /* ── GLIMPSE PANEL ── */
 #glimpse-panel {
-  position: fixed; top: 0; right: 0; width: 320px; height: 100vh;
+  position: fixed; top: 0; right: 0; width: 480px; height: 100vh;
   background: linear-gradient(160deg, rgba(12,6,32,0.98) 0%, rgba(8,4,24,0.99) 100%);
   border-left: 2px solid rgba(160,32,240,0.6);
   z-index: 10000; display: none; flex-direction: column;
@@ -926,15 +926,15 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 #glimpse-panel.visible { display: flex; }
 
 #glimpse-header {
-  padding: 14px 16px 10px;
+  padding: 18px 20px 14px;
   border-bottom: 1px solid rgba(160,32,240,0.25);
   font-family: 'Cinzel Decorative', serif;
-  font-size: 13px; color: var(--purple);
+  font-size: 18px; color: var(--purple);
   letter-spacing: 3px; text-transform: uppercase;
   flex-shrink: 0;
 }
 #glimpse-subtitle {
-  font-size: 9px; color: var(--text-dim);
+  font-size: 13px; color: var(--text-dim);
   letter-spacing: 1px; font-family: sans-serif;
   font-style: italic; text-transform: none;
   margin-top: 4px; line-height: 1.4;
@@ -961,17 +961,17 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 /* Individual glimpse card — new stacked design */
 .glimpse-card {
-  width: 100%; height: 120px;
+  width: 100%; height: 170px;
   border-radius: 8px; overflow: hidden;
   border: 1px solid rgba(255,255,255,0.1);
   cursor: pointer; flex-shrink: 0;
   position: relative;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s;
   background: var(--bg-card);
-  margin-bottom: -40px; /* overlap cards */
+  margin-bottom: -60px; /* overlap cards */
   display: flex; flex-direction: row;
 }
-.glimpse-card:last-of-type { margin-bottom: 44px; }
+.glimpse-card:last-of-type { margin-bottom: 60px; }
 .glimpse-card:hover {
   transform: translateY(-8px) scale(1.02);
   box-shadow: 0 12px 32px rgba(0,0,0,0.7);
@@ -986,7 +986,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   border-color: rgba(96,48,192,0.7);
 }
 .glimpse-card img {
-  width: 90px; height: 100%; object-fit: cover; object-position: top;
+  width: 130px; height: 100%; object-fit: cover; object-position: top;
   display: block; flex-shrink: 0;
 }
 .glimpse-card-info {
@@ -995,16 +995,16 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   overflow: hidden;
 }
 .glimpse-card-name {
-  font-family: 'Cinzel', serif; font-size: 11px;
+  font-family: 'Cinzel', serif; font-size: 15px;
   color: var(--text-bright); letter-spacing: 0.3px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .glimpse-card-type {
-  font-size: 9px; color: var(--text-dim); letter-spacing: 0.5px;
+  font-size: 12px; color: var(--text-dim); letter-spacing: 0.5px;
   text-transform: uppercase;
 }
 .glimpse-card-power-row {
-  font-family: 'Share Tech Mono', monospace; font-size: 13px;
+  font-family: 'Share Tech Mono', monospace; font-size: 18px;
   color: var(--gold); font-weight: 700;
 }
 .glimpse-card-toggle {
@@ -1013,7 +1013,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
   padding: 6px 8px; flex-shrink: 0;
 }
 .gc-toggle-btn {
-  font-size: 9px; letter-spacing: 1px; padding: 3px 6px;
+  font-size: 12px; letter-spacing: 1px; padding: 6px 10px;
   border-radius: 3px; border: 1px solid; cursor: pointer;
   font-family: 'Cinzel', serif; text-transform: uppercase;
   transition: all 0.12s; white-space: nowrap;
@@ -1027,8 +1027,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 
 /* Position badge */
 .gc-pos-badge {
-  position: absolute; top: 6px; left: 6px;
-  font-size: 8px; font-family: 'Share Tech Mono', monospace;
+  position: absolute; top: 8px; left: 8px;
+  font-size: 12px; font-family: 'Share Tech Mono', monospace;
   background: rgba(0,0,0,0.7); color: var(--text-dim);
   padding: 1px 5px; border-radius: 3px; letter-spacing: 1px;
   z-index: 2;
@@ -1041,10 +1041,10 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-d
 .glimpse-card[draggable="true"]:active { cursor: grabbing; }
 
 #glimpse-confirm {
-  margin: 8px 12px 12px;
-  padding: 11px; border-radius: 6px;
+  margin: 10px 16px 16px;
+  padding: 16px; border-radius: 6px;
   background: linear-gradient(135deg, var(--purple), #8020c0);
-  color: #fff; font-family: 'Cinzel Decorative', serif; font-size: 11px;
+  color: #fff; font-family: 'Cinzel Decorative', serif; font-size: 16px;
   letter-spacing: 2px; cursor: pointer; text-align: center;
   border: none; flex-shrink: 0;
   transition: all 0.15s; box-shadow: 0 2px 12px rgba(160,32,240,0.3);
@@ -1467,7 +1467,7 @@ html.targeting-active .card.blockable * {
 /* ── RESOURCE DISPLAY ── */
 .resource-row { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; }
 .mana-pip {
-  width: 18px; height: 18px;
+  width: 24px; height: 24px;
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
@@ -1476,18 +1476,18 @@ html.targeting-active .card.blockable * {
   object-fit: contain; display: block;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
 }
-.mana-pip.sm { width: 13px; height: 13px; }
-.mana-pip.lg { width: 24px; height: 24px; }
+.mana-pip.sm { width: 16px; height: 16px; }
+.mana-pip.lg { width: 32px; height: 32px; }
 /* Card footer cost row */
 .card-cost-row {
-  display: flex; gap: 1px; align-items: center;
-  padding: 1px 4px 0; flex-wrap: wrap;
+  display: flex; gap: 2px; align-items: center;
+  padding: 2px 5px 0; flex-wrap: wrap;
 }
 
 /* ── TURN BANNER ── */
 #turn-banner {
   position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
-  font-family: 'Cinzel Decorative', serif; font-size: 28px; color: var(--gold);
+  font-family: 'Cinzel Decorative', serif; font-size: 40px; color: var(--gold);
   text-shadow: 0 0 20px var(--gold-glow);
   pointer-events: none; z-index: 400; opacity: 0; transition: opacity 0.3s ease;
   letter-spacing: 4px;
@@ -1836,9 +1836,9 @@ html.targeting-active .card.blockable * {
 
     <!-- AI MANA BAR — faction label + pool only, vitals moved to hand zone -->
     <div id="ai-info-strip">
-      <span id="ai-faction-label" style="font-family:'Cinzel Decorative',serif;font-size:10px;letter-spacing:2px;color:var(--text-dim);"></span>
+      <span id="ai-faction-label" style="font-family:'Cinzel Decorative',serif;font-size:15px;letter-spacing:2px;color:var(--text-dim);"></span>
       <span class="pool-spacer"></span>
-      <span class="pool-label">POOL:</span>
+      <span class="pool-label" style="font-size:14px;">POOL:</span>
       <div class="resource-row" id="ai-mana-display"></div>
     </div>
 
@@ -1894,7 +1894,7 @@ html.targeting-active .card.blockable * {
     <div id="player-info-strip">
       <span id="player-faction-label" style="font-family:'Cinzel Decorative',serif;font-size:10px;letter-spacing:2px;color:var(--text-dim);"></span>
       <span class="pool-spacer"></span>
-      <span class="pool-label">POOL:</span>
+      <span class="pool-label" style="font-size:14px;">POOL:</span>
       <div class="resource-row" id="player-mana-display"></div>
     </div>
 
