@@ -3034,23 +3034,31 @@ function startGame(faction) {
 }
 
 function showOpeningDraw() {
-  // In playtest mode: unlimited draws with a DONE button (same as promptDrawChoice)
+  // In playtest mode: unlimited draws, DONE goes straight to game (no mulligan)
   if (_playtestMode) {
     const doPlaytestDraw = () => {
       const mainLeft = G.player.main.length;
       const landLeft = G.player.land.length;
-      if (mainLeft === 0 && landLeft === 0) { updateUI(); offerMulligan(); return; }
+      if (mainLeft === 0 && landLeft === 0) {
+        updateUI(); showBanner('YOUR TURN'); return;
+      }
       const handCount = G.player.hand.length;
       const actions = [];
-      if (mainLeft > 0) actions.push({ label: `📖 MAIN DECK (${mainLeft})`, cls: 'btn-primary',
-        action: () => { drawFromDeck('player','main'); doPlaytestDraw(); } });
-      if (landLeft > 0) actions.push({ label: `🌍 LAND DECK (${landLeft})`, cls: 'btn-secondary',
-        action: () => { drawFromDeck('player','land'); doPlaytestDraw(); } });
-      actions.push({ label: '✓ DONE DRAWING', cls: 'btn-muted',
-        action: () => { updateUI(); offerMulligan(); } });
+      if (mainLeft > 0) actions.push({
+        label: `📖 MAIN DECK (${mainLeft})`, cls: 'btn-primary',
+        action: () => { drawFromDeck('player','main'); doPlaytestDraw(); }
+      });
+      if (landLeft > 0) actions.push({
+        label: `🌍 LAND DECK (${landLeft})`, cls: 'btn-secondary',
+        action: () => { drawFromDeck('player','land'); doPlaytestDraw(); }
+      });
+      actions.push({
+        label: '✓ START GAME', cls: 'btn-secondary',
+        action: () => { updateUI(); showBanner('YOUR TURN'); }
+      });
       showModal(
-        '🧪 OPENING HAND — PLAYTEST',
-        `Hand: ${handCount} cards\nMain: ${mainLeft} remaining · Land: ${landLeft} remaining\n\nDraw as many cards as you like.`,
+        '🧪 PLAYTEST — DRAW CARDS',
+        `Hand: ${handCount} cards · Main: ${mainLeft} · Land: ${landLeft}\n\nDraw as many cards as you want, then click START GAME.`,
         actions
       );
     };
