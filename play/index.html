@@ -3034,7 +3034,31 @@ function startGame(faction) {
 }
 
 function showOpeningDraw() {
-  // Let player draw all 7 cards choosing main or land deck for each
+  // In playtest mode: unlimited draws with a DONE button (same as promptDrawChoice)
+  if (_playtestMode) {
+    const doPlaytestDraw = () => {
+      const mainLeft = G.player.main.length;
+      const landLeft = G.player.land.length;
+      if (mainLeft === 0 && landLeft === 0) { updateUI(); offerMulligan(); return; }
+      const handCount = G.player.hand.length;
+      const actions = [];
+      if (mainLeft > 0) actions.push({ label: `📖 MAIN DECK (${mainLeft})`, cls: 'btn-primary',
+        action: () => { drawFromDeck('player','main'); doPlaytestDraw(); } });
+      if (landLeft > 0) actions.push({ label: `🌍 LAND DECK (${landLeft})`, cls: 'btn-secondary',
+        action: () => { drawFromDeck('player','land'); doPlaytestDraw(); } });
+      actions.push({ label: '✓ DONE DRAWING', cls: 'btn-muted',
+        action: () => { updateUI(); offerMulligan(); } });
+      showModal(
+        '🧪 OPENING HAND — PLAYTEST',
+        `Hand: ${handCount} cards\nMain: ${mainLeft} remaining · Land: ${landLeft} remaining\n\nDraw as many cards as you like.`,
+        actions
+      );
+    };
+    doPlaytestDraw();
+    return;
+  }
+
+  // Normal mode: draw 7 one at a time choosing deck each time
   let drawn = 0;
   const total = 7;
 
@@ -5943,6 +5967,220 @@ function resolveSpellOnTarget(inst, caster, target, targetOwner) {
       updateLifeDisplay(targetOwner);
       log(`${inst.name}: ${targetOwner} loses ${loss} life.`, 'bleed');
     }
+
+  // ── REDLINE FRENZY: +2 power, Breach, Bleed+1 until EOT ────
+  } else if (txt.includes('+2 power') && txt.includes('breach') && txt.includes('bleed')) {
+    target.powerMods.push({ amount: 2, until: 'eot' });
+    target.tempKeywords = target.tempKeywords || {};
+    target.tempKeywords.breach = true;
+    target.keywords.bleed = (target.keywords.bleed || 0) + 1;
+    log(`${inst.name}: ${target.name} gets +2 power, Breach, and Bleed +1 until EOT.`, 'heal');
+
+  // ── DAWN DEFIER: +1 power, Siphon, Breach until EOT ─────────
+  } else if (txt.includes('siphon') && txt.includes('breach') && txt.includes('+1 power')) {
+    target.powerMods.push({ amount: 1, until: 'eot' });
+    target.tempKeywords = target.tempKeywords || {};
+    target.tempKeywords.breach = true;
+    target.tempKeywords.siphon = true;
+    log(`${inst.name}: ${target.name} gets +1 power, Siphon, and Breach until EOT.`, 'heal');
+
+  // ── ASK FOR BLESSINGS: gains Tireless + Siphon until EOT ────
+  } else if (txt.includes('tireless') && txt.includes('siphon') && txt.includes('gains')) {
+    target.tempKeywords = target.tempKeywords || {};
+    target.tempKeywords.tireless = true;
+    target.tempKeywords.siphon   = true;
+    log(`${inst.name}: ${target.name} gains Tireless and Siphon until EOT.`, 'heal');
+
+  // ── GRID HACK WALLBUSTER: Destroy Wall or Relic ───────────────
+  } else if (txt.includes('wall or relic')) {
+    if ((target.type === 'Relic') || hasKeyword(target, 'wall')) {
+      destroyCreature(target, targetOwner);
+      log(`${inst.name}: ${target.name} destroyed.`, 'damage');
+    } else {
+      log(`${inst.name}: Target is not a Wall or Relic — fizzled.`, '');
+    }
+
+  // ── BURNOUT: Destroy target exhausted creature ─────────────────
+  } else if (txt.includes('destroy target exhausted')) {
+    if (target.exhaustState === 'exhausted' || target.exhaustState === 'overexhausted') {
+      destroyCreature(target, targetOwner);
+      log(`${inst.name}: ${target.name} destroyed.`, 'damage');
+    } else {
+      log(`${inst.name}: ${target.name} is not exhausted — fizzled.`, '');
+    }
+
+  // ── PURITY PULSE: Remove up to 3 bleed, gain life equal ───────
+  } else if (txt.includes('remove up to 3 bleed') || (txt.includes('remove') && txt.includes('bleed') && txt.includes('gain life'))) {
+    const toRemove = Math.min(3, G[targetOwner === caster ? caster : (caster === 'player' ? 'player' : 'ai')].bleed);
+    const target2 = caster; // targets a player
+    G[target2].bleed = Math.max(0, G[target2].bleed - toRemove);
+    updateLifeDisplay(target2);
+    G[target2].life += toRemove;
+    updateLifeDisplay(target2);
+    flashLifeHeal(target2);
+    log(`${inst.name}: Removed ${toRemove} Bleed, gained ${toRemove} life.`, 'heal');
+
+  // ── RELIC ABSORBTION: Destroy own relic, gain 5 life ─────────
+  } else if (txt.includes('destroy a relic you control') || txt.includes('destroy.*relic.*gain 5 life')) {
+    const myRelics = G[caster].battlefield.filter(i => i.type === 'Relic');
+    if (myRelics.length === 0) { log(`${inst.name}: No relics to sacrifice.`, ''); }
+    else {
+      const doSac = (relic) => {
+        destroyCreature(relic, caster);
+        G[caster].life += 5;
+        if (G[caster].bleed > 0) { G[caster].bleed = Math.max(0, G[caster].bleed - 1); updateLifeDisplay(caster); }
+        updateLifeDisplay(caster); flashLifeHeal(caster);
+        log(`${inst.name}: Sacrificed ${relic.name} — gained 5 life.`, 'heal');
+        updateUI();
+      };
+      if (myRelics.length === 1) doSac(myRelics[0]);
+      else showModal(inst.name, 'Sacrifice which relic?', myRelics.map(r => ({ label: r.name, cls: 'btn-danger', action: () => doSac(r) })));
+    }
+
+  // ── LEGACY WARD: Blocking creature +1 power; if only blocker +3 + indestructible EOT
+  } else if (txt.includes('legacy ward') || (txt.includes('blocking creature') && txt.includes('only creature'))) {
+    const blockerCount = G[caster].battlefield.filter(i => i.type === 'Creature' && i.blocking).length;
+    if (blockerCount <= 1) {
+      target.powerMods.push({ amount: 3, until: 'eot' });
+      target._indestructibleEot = true;
+      log(`${inst.name}: ${target.name} gets +3 power and cannot be destroyed this turn.`, 'heal');
+    } else {
+      target.powerMods.push({ amount: 1, until: 'eot' });
+      log(`${inst.name}: ${target.name} gets +1 power.`, 'heal');
+    }
+
+  // ── ANCESTRAL TRIBUTE: Destroy relic, gain life = its cost ───
+  } else if (txt.includes('ancestral tribute') || (txt.includes('destroy target relic') && txt.includes('gain life') && txt.includes('cost'))) {
+    if (target.type !== 'Relic') { log(`${inst.name}: Target must be a relic.`, ''); }
+    else {
+      const costLen = (target.cost || '').length;
+      const isOwn = targetOwner === caster;
+      destroyCreature(target, targetOwner);
+      if (isOwn && costLen > 0) {
+        G[caster].life += costLen; updateLifeDisplay(caster); flashLifeHeal(caster);
+        log(`${inst.name}: Destroyed ${target.name} — gained ${costLen} life.`, 'heal');
+      } else {
+        log(`${inst.name}: Destroyed ${target.name}.`, 'damage');
+      }
+    }
+
+  // ── OVERCLOCK SURGE: +1 power; +1 more if has Bleed ──────────
+  } else if (txt.includes('overclock') || (txt.includes('+1 power') && txt.includes('gains an additional +1') && txt.includes('bleed'))) {
+    target.powerMods.push({ amount: 1, until: 'eot' });
+    if ((target.keywords.bleed || 0) > 0) {
+      target.powerMods.push({ amount: 1, until: 'eot' });
+      log(`${inst.name}: ${target.name} gets +2 power (has Bleed).`, 'heal');
+    } else {
+      log(`${inst.name}: ${target.name} gets +1 power.`, 'heal');
+    }
+
+  // ── RECKLESS SURGE: +1 power and Breach ───────────────────────
+  } else if (txt.includes('reckless') || (txt.includes('+1 power') && txt.includes('breach') && !txt.includes('bleed') && !txt.includes('siphon'))) {
+    target.powerMods.push({ amount: 1, until: 'eot' });
+    target.tempKeywords = target.tempKeywords || {};
+    target.tempKeywords.breach = true;
+    log(`${inst.name}: ${target.name} gets +1 power and Breach until EOT.`, 'heal');
+
+  // ── LEFT BEHIND: Target player can only block with one creature ─
+  } else if (txt.includes('left behind') || txt.includes('only block with one creature')) {
+    G[targetOwner]._blockLimit = 1;
+    log(`${inst.name}: ${targetOwner} can only block with 1 creature this turn.`, '');
+
+  // ── FLANKWIRE FEINT: Target creature's Bleed ignores direct damage filter ─
+  } else if (txt.includes('flankwire') || txt.includes('bleed triggers regardless')) {
+    target._bleedAlwaysTriggers = true;
+    log(`${inst.name}: ${target.name}'s Bleed will trigger regardless of direct damage this turn.`, '');
+
+  // ── BLENDING IN: Exhaust own creature to deal its power as damage ─
+  } else if (txt.includes('blending in') || (txt.includes('exhaust one creature') && txt.includes('deal damage equal to its power'))) {
+    if (caster === 'player') {
+      const myCreatures = G.player.battlefield.filter(i => i.type === 'Creature' && i.exhaustState === 'renewed');
+      if (myCreatures.length === 0) { log(`${inst.name}: No renewed creatures to exhaust.`, ''); }
+      else {
+        showModal(inst.name, 'Exhaust which creature to deal damage?', myCreatures.map(c => ({
+          label: `${c.name} [${getEffectivePower(c)}]`, cls: 'btn-secondary',
+          action: () => {
+            c.exhaustState = 'exhausted';
+            const dmg = getEffectivePower(c);
+            target.powerMods.push({ amount: -dmg, until: 'eot' });
+            if (getEffectivePower(target) <= 0) {
+              destroyCreature(target, targetOwner);
+              G[targetOwner].bleed = (G[targetOwner].bleed || 0) + 1;
+              updateLifeDisplay(targetOwner);
+              log(`${inst.name}: ${c.name} exhausted, dealt ${dmg} to ${target.name} — destroyed! ${targetOwner} gains 1 Bleed.`, 'damage');
+            } else {
+              log(`${inst.name}: ${c.name} exhausted, dealt ${dmg} damage to ${target.name}.`, '');
+            }
+            updateUI();
+          }
+        })));
+      }
+    }
+
+  // ── SHADOWSTALK BURST: Token gains Haste + Unblockable this turn ─
+  } else if (txt.includes('shadowstalk') || (txt.includes('token') && txt.includes('haste') && txt.includes('cannot be blocked'))) {
+    if (!target.isToken) { log(`${inst.name}: Target must be a token.`, ''); }
+    else {
+      target.keywords.haste = true; target.newlyTurned = false;
+      target.keywords.unblockable = true;
+      target.tempKeywords = target.tempKeywords || {};
+      target.tempKeywords.unblockable = true;
+      log(`${inst.name}: ${target.name} gains Haste and cannot be blocked this turn.`, 'heal');
+    }
+
+  // ── FODDER'S BEQUEST: Attacking token +3 power, destroyed EOT, +1 perm to non-token
+  } else if (txt.includes("fodder") || (txt.includes('attacking token') && txt.includes('+3'))) {
+    if (!target.isToken || !target.attacking) { log(`${inst.name}: Target must be an attacking token.`, ''); }
+    else {
+      target.powerMods.push({ amount: 3, until: 'eot' });
+      target._destroyAtEot = true;
+      // +1 perm counter to target non-token creature after EOT
+      const nonTokens = G[caster].battlefield.filter(i => i.type === 'Creature' && !i.isToken && i.instId !== target.instId);
+      if (nonTokens.length > 0 && caster === 'player') {
+        showModal(inst.name, 'When this token is removed, give +1 to which creature?',
+          nonTokens.map(c => ({ label: `${c.name} [${getEffectivePower(c)}]`, cls: 'btn-secondary',
+            action: () => { c.permMods = (c.permMods || 0) + 1; log(`${inst.name}: ${c.name} gets +1 permanent power.`, 'heal'); updateUI(); }
+          })));
+      }
+      log(`${inst.name}: ${target.name} gets +3 power and will be destroyed at EOT.`, 'heal');
+    }
+
+  // ── MIST TRAP: Return target creature to owner's hand ─────────
+  } else if (txt.includes('mist trap') || txt.includes('returned to its owner')) {
+    G[targetOwner].battlefield = G[targetOwner].battlefield.filter(i => i.instId !== target.instId);
+    target.exhaustState = 'renewed'; target.newlyTurned = false;
+    G[targetOwner].hand.push(target);
+    log(`${inst.name}: ${target.name} returned to ${targetOwner}'s hand.`, '');
+
+  // ── PSYCHIC SHARD: Deal 1 damage + Glimpse 1 ─────────────────
+  } else if (txt.includes('psychic shard') || (txt.includes('deal 1 damage') && txt.includes('glimpse 1'))) {
+    target.powerMods.push({ amount: -1, until: 'eot' });
+    if (getEffectivePower(target) <= 0) { destroyCreature(target, targetOwner); log(`${inst.name}: Dealt 1 damage — ${target.name} destroyed.`, 'damage'); }
+    else { log(`${inst.name}: Dealt 1 damage to ${target.name}.`, ''); }
+    doGlimpse(caster, 1, inst.name);
+
+  // ── SURVEILING EYE: Look at target player's hand + Glimpse 1 ──
+  } else if (txt.includes('surveiling') || (txt.includes("player's hand") && txt.includes('glimpse 1'))) {
+    const oppHand = G[targetOwner].hand;
+    if (caster === 'player') {
+      const handNames = oppHand.map(c => `${c.name} [${c.type}]`).join('\n') || 'Empty hand';
+      showModal(`${inst.name} — Opponent's Hand`, handNames,
+        [{ label: 'OK — Then Glimpse 1', cls: 'btn-secondary', action: () => { doGlimpse(caster, 1, inst.name); updateUI(); } }]
+      );
+    } else {
+      doGlimpse(caster, 1, inst.name);
+    }
+    log(`${inst.name}: Looked at ${targetOwner}'s hand (${oppHand.length} cards).`, '');
+
+  // ── MINDFORGE DOMINION: Gain control until EOT ───────────────
+  } else if (txt.includes('mindforge') || (txt.includes('gain control') && txt.includes('return control') && txt.includes('end of the turn'))) {
+    G[targetOwner].battlefield = G[targetOwner].battlefield.filter(i => i.instId !== target.instId);
+    target.exhaustState = 'renewed'; target.newlyTurned = false; target.keywords.haste = true;
+    target._tempControlOwner = targetOwner;
+    target._returnControlAtEot = true;
+    G[caster].battlefield.push(target);
+    log(`${inst.name}: Gained control of ${target.name} with Haste until EOT.`, 'heal');
+
   } else {
     log(`${inst.name} targets ${target.name}.`, '');
   }
@@ -6654,6 +6892,306 @@ function resolveSpell(inst, caster) {
     targets.forEach(t => { t.exhaustState = 'exhausted'; log(`${inst.name}: ${t.name} exhausted.`, ''); });
     if (targets.length === 0) log(`${inst.name}: No renewed creatures to exhaust.`, '');
   }
+
+  // ── PALACE DECREE: Walls block an additional + get +1 power ────
+  else if (txt.includes('palace decree') || (txt.includes('walls can block an additional') || (txt.includes('wall') && txt.includes('block an additional')))) {
+    G[caster].battlefield.filter(i => i.type==='Creature' && hasKeyword(i,'wall')).forEach(wall => {
+      wall.powerMods.push({ amount: 1, until: 'eot' });
+      wall._canBlockTwo = true;
+      log(`${inst.name}: ${wall.name} gets +1 power and can block 2 creatures.`, 'heal');
+    });
+  }
+
+  // ── CHARITABLE DEED: Remove all bleed, gain {W} per bleed removed ─
+  else if (txt.includes('remove all bleed') || txt.includes('remove.*bleed.*all')) {
+    const opp2 = caster === 'player' ? 'ai' : 'player';
+    const selfBleed = G[caster].bleed;
+    const gained = selfBleed;
+    G.player.bleed = 0; G.ai.bleed = 0;
+    updateLifeDisplay('player'); updateLifeDisplay('ai');
+    if (gained > 0) { addMana(caster, 'W', gained); log(`${inst.name}: Removed all Bleed. Added ${gained} {W} to pool.`, 'heal'); }
+    else { log(`${inst.name}: No Bleed counters to remove.`, ''); }
+  }
+
+  // ── ECHO OF AGES: Look top 3, put 1 in hand, rest bottom ─────
+  else if (txt.includes('echo of ages') || (txt.includes('look at the top 3') && txt.includes('into your hand') && txt.includes('bottom'))) {
+    if (caster === 'player') {
+      const deck = G.player.main;
+      const topN = Math.min(3, deck.length);
+      if (topN === 0) { log(`${inst.name}: Main deck empty.`, ''); }
+      else {
+        const topIds = deck.splice(0, topN);
+        const cards = topIds.map(id => CARD_MAP[id]).filter(Boolean);
+        showModal(`${inst.name}`, `Pick one card to put in your hand. The rest go to the bottom.`,
+          cards.map((c2, i) => ({
+            label: `${c2.name} [${c2.type}${c2.power!=null?' · '+c2.power:''}]`,
+            cls: 'btn-secondary',
+            action: () => {
+              const chosenId = topIds[i];
+              const restIds = topIds.filter((_,j) => j!==i);
+              G.player.hand.push(makeInst(chosenId,'player'));
+              G.player.main.push(...restIds); // bottom
+              log(`${inst.name}: ${c2.name} → hand. ${restIds.length} card(s) to bottom.`, 'heal');
+              updateUI();
+            }
+          }))
+        );
+      }
+    } else {
+      // AI: take first card
+      if (G.ai.main.length > 0) {
+        const id = G.ai.main.splice(0,1)[0];
+        G.ai.hand.push(makeInst(id,'ai'));
+        log(`${inst.name}: AI drew a card.`, '');
+      }
+    }
+  }
+
+  // ── INFO BROKERS: Look top 3, swap one with hand, rest on top ─
+  else if (txt.includes('info broker') || (txt.includes('look at the top 3') && txt.includes('switch'))) {
+    if (caster === 'player' && G.player.main.length > 0) {
+      const topN = Math.min(3, G.player.main.length);
+      const topIds = G.player.main.splice(0, topN);
+      const cards = topIds.map(id => CARD_MAP[id]).filter(Boolean);
+      showModal(`${inst.name}`, 'Pick a card from the top 3 to swap with a card from your hand, or skip.',
+        [...cards.map((c2,i) => ({
+          label: `SWAP: ${c2.name}`,
+          cls: 'btn-secondary',
+          action: () => {
+            if (G.player.hand.length === 0) {
+              G.player.main.unshift(...topIds);
+              log(`${inst.name}: No hand cards to swap. Cards returned to top.`, ''); updateUI(); return;
+            }
+            // Put deck card in hand, take random hand card back
+            const handCard = G.player.hand.splice(Math.floor(Math.random()*G.player.hand.length),1)[0];
+            G.player.hand.push(makeInst(topIds[i],'player'));
+            topIds[i] = handCard.cardId;
+            G.player.main.unshift(...topIds);
+            log(`${inst.name}: Swapped ${c2.name} into hand. Top 3 returned.`, 'heal');
+            updateUI();
+          }
+        })),
+        { label: 'NO SWAP — Return to top', cls:'btn-muted', action:()=>{ G.player.main.unshift(...topIds); updateUI(); }}
+        ]
+      );
+    }
+  }
+
+  // ── DARK REACH: Target player loses 1 life, you gain 1. Optional Raven token ─
+  else if (txt.includes('dark reach') || (txt.includes('loses 1 life') && txt.includes('gain 1 life') && txt.includes('raven'))) {
+    const opp3 = caster === 'player' ? 'ai' : 'player';
+    G[opp3].life -= 1; G[caster].life += 1;
+    updateLifeDisplay(opp3); updateLifeDisplay(caster);
+    log(`${inst.name}: ${opp3} loses 1 life, ${caster} gains 1.`, 'heal');
+    // Extra {B}{B} option handled via mana check
+    if (caster === 'player' && G.player.mana['B'] >= 2) {
+      showModal(`${inst.name}`, 'Spend {B}{B} to also create a Raven Token?',
+        [{ label:'YES — Spend {B}{B}', cls:'btn-secondary', action:()=>{ payCost('player','BB'); createToken('Raven Token','player'); log(`${inst.name}: Raven Token created.`,'heal'); updateUI();}},
+         { label:'NO', cls:'btn-muted', action:()=>{ updateUI(); }}]
+      );
+    }
+  }
+
+  // ── SIPHON LIFE: Destroy bat token, gain 1 life, create 2 bats ─
+  else if (txt.includes('siphon life') || (txt.includes('destroy a bat token') && txt.includes('two bat'))) {
+    const bats = G[caster].battlefield.filter(i => i.name==='Bat Token');
+    if (bats.length === 0) { log(`${inst.name}: No Bat Token to sacrifice.`, ''); }
+    else {
+      const doBat = (bat) => {
+        destroyCreature(bat, caster);
+        G[caster].life += 1; updateLifeDisplay(caster);
+        createToken('Bat Token', caster); createToken('Bat Token', caster);
+        log(`${inst.name}: Sacrificed ${bat.name} → gained 1 life + 2 Bat Tokens.`, 'heal');
+        updateUI();
+      };
+      if (bats.length === 1) doBat(bats[0]);
+      else showModal(inst.name,'Sacrifice which Bat Token?', bats.map(b=>({label:b.name,cls:'btn-danger',action:()=>doBat(b)})));
+    }
+  }
+
+  // ── ECHO SIPHON: Sac token → +3 power to another token ───────
+  else if (txt.includes('echo siphon') || (txt.includes('destroy any token') && txt.includes('+3 power') && txt.includes('another token'))) {
+    const myTokens = G[caster].battlefield.filter(i => i.isToken);
+    if (myTokens.length < 2) { log(`${inst.name}: Need at least 2 tokens.`, ''); }
+    else if (caster === 'player') {
+      showModal(inst.name,'Sacrifice which token?', myTokens.map(t=>({
+        label: t.name, cls:'btn-danger',
+        action:()=>{
+          destroyCreature(t, caster);
+          const remaining = G.player.battlefield.filter(i=>i.isToken);
+          if (remaining.length===0){log(`${inst.name}: No tokens left to buff.`,'');updateUI();return;}
+          showModal(inst.name,'Give +3 power to which token?',remaining.map(r=>({
+            label:`${r.name} [${getEffectivePower(r)}]`,cls:'btn-secondary',
+            action:()=>{ r.powerMods.push({amount:3,until:'eot'}); log(`${inst.name}: ${r.name} gets +3 power.`,'heal'); updateUI();}
+          })));
+        }
+      })));
+    }
+  }
+
+  // ── ESSENCE SIPHON: Spend X {B} → deal X+1 damage, gain X+1 life ─
+  else if (txt.includes('essence siphon') || (txt.includes('spend x') && txt.includes('damage') && txt.includes('gain life'))) {
+    if (caster === 'player') {
+      const maxX = Math.min(G.player.mana['B']||0, 5);
+      if (maxX === 0){log(`${inst.name}: No {B} in pool.`,'');return;}
+      const doEssence = (x, targetInst, targetOwner) => {
+        const cost = 'B'.repeat(x); payCost('player',cost);
+        const dmg = 1 + x;
+        targetInst.powerMods.push({amount:-dmg,until:'eot'});
+        if (getEffectivePower(targetInst)<=0) destroyCreature(targetInst,targetOwner);
+        G.player.life += dmg; updateLifeDisplay('player'); flashLifeHeal('player');
+        log(`${inst.name}: Spent ${x}{B} → dealt ${dmg} to ${targetInst.name}, gained ${dmg} life.`,'heal');
+        updateUI();
+      };
+      // Show X choices then target picker
+      const opts=[];
+      for(let x=1;x<=maxX;x++){
+        const xCopy=x;
+        opts.push({label:`X=${xCopy}: spend ${xCopy}{B}, deal ${xCopy+1} damage`,cls:'btn-secondary',action:()=>{
+          const targets=G.ai.battlefield.filter(i=>i.type==='Creature');
+          if(!targets.length){log(`${inst.name}: No targets.`,'');return;}
+          showModal(inst.name,'Choose target creature:',targets.map(t=>({
+            label:`${t.name} [${getEffectivePower(t)}]`,cls:'btn-danger',
+            action:()=>doEssence(xCopy,t,'ai')
+          })));
+        }});
+      }
+      opts.push({label:'CANCEL',cls:'btn-muted',action:()=>updateUI()});
+      showModal(inst.name,'Choose X (amount of {B} to spend):',opts);
+    }
+  }
+
+  // ── LYING IN WAIT: Flash spell — return creature from discard to play until EOT ─
+  else if (txt.includes('lying in wait') || (txt.includes("opponent's turn") || txt.includes('opponents turn')) && txt.includes('return target creature') && txt.includes('discard')) {
+    const pile = G[caster].discard.filter(i=>i.type==='Creature');
+    if (!pile.length){log(`${inst.name}: No creatures in discard.`,'');return;}
+    const doRevive=(card)=>{
+      G[caster].discard=G[caster].discard.filter(i=>i.instId!==card.instId);
+      card.exhaustState='renewed'; card.newlyTurned=false; card._destroyAtEot=true;
+      G[caster].battlefield.push(card);
+      log(`${inst.name}: ${card.name} enters play until end of turn!`,'heal');
+      updateUI();
+    };
+    if(pile.length===1) doRevive(pile[0]);
+    else showModal(inst.name,'Return which creature?',pile.map(c=>({label:`${c.name} [${c.power}]`,cls:'btn-secondary',action:()=>doRevive(c)})));
+  }
+
+  // ── WICKED HARVEST: +1 power per creature you exile from discard ─
+  else if (txt.includes('wicked harvest') || (txt.includes('+1 power') && txt.includes('discard pile') && txt.includes('remove from the game'))) {
+    const pile = G[caster].discard.filter(i=>i.type==='Creature');
+    if(!pile.length){log(`${inst.name}: No creatures in discard to exile.`,'');}
+    else {
+      const boost = pile.length;
+      if(!G[caster].exile) G[caster].exile=[];
+      G[caster].exile.push(...pile);
+      G[caster].discard=G[caster].discard.filter(i=>i.type!=='Creature');
+      // Apply boost to the targeted creature (handled via targeting if player)
+      // For now, apply to strongest player creature
+      const creatures = G[caster].battlefield.filter(i=>i.type==='Creature');
+      if(creatures.length){
+        creatures[0].powerMods.push({amount:boost,until:'eot'});
+        log(`${inst.name}: Exiled ${boost} creature(s) — ${creatures[0].name} gets +${boost} power.`,'heal');
+      } else log(`${inst.name}: Exiled ${boost} creature(s) from discard.`,'heal');
+    }
+  }
+
+  // ── GRAVE/MASS REANIMATION: All creatures that died this turn return exhausted ─
+  else if (txt.includes('went to') && txt.includes('discard pile from play') && txt.includes('returned to play')) {
+    const pile = G[caster].discard.filter(i=>i.type==='Creature' && i._diedThisTurn);
+    if(!pile.length){log(`${inst.name}: No creatures died from play this turn.`,'');}
+    else {
+      pile.forEach(card=>{
+        G[caster].discard=G[caster].discard.filter(i=>i.instId!==card.instId);
+        card.exhaustState='exhausted'; card.newlyTurned=false; card._diedThisTurn=false;
+        G[caster].battlefield.push(card);
+        log(`${inst.name}: ${card.name} returned exhausted.`,'heal');
+      });
+    }
+  }
+
+  // ── VEILCATACLYSM: Glimpse 3 then draw ────────────────────────
+  else if (txt.includes('veilcataclysm') || (txt.includes('glimpse 3') && txt.includes('draw a card') && !txt.includes('{overexhaust}'))) {
+    doGlimpse(caster, 3, inst.name, false, () => {
+      drawFromDeck(caster, G[caster].main.length>0?'main':'land');
+      log(`${inst.name}: Drew a card after Glimpse.`,'heal');
+      updateUI();
+    });
+  }
+
+  // ── FOCUSED CLAIRVOYANCE: Glimpse 5 then draw ─────────────────
+  else if (txt.includes('focused clairvoyance') || (txt.includes('glimpse 5'))) {
+    doGlimpse(caster, 5, inst.name, false, () => {
+      drawFromDeck(caster, G[caster].main.length>0?'main':'land');
+      log(`${inst.name}: Drew a card after Glimpse 5.`,'heal');
+      updateUI();
+    });
+  }
+
+  // ── ETHERHAND LOCATOR: Search deck, put card in hand, shuffle ──
+  else if (txt.includes('etherhand') || (txt.includes('search your main deck') && txt.includes('put it in your hand') && txt.includes('shuffle'))) {
+    if(caster==='player' && G.player.main.length>0){
+      const allCards = [...new Set(G.player.main)].map(id=>CARD_MAP[id]).filter(Boolean);
+      showModal(inst.name,`Search your main deck for any card (${G.player.main.length} cards):`,
+        allCards.slice(0,10).map(c2=>({
+          label:`${c2.name} [${c2.type}]`,cls:'btn-secondary',
+          action:()=>{
+            const idx=G.player.main.indexOf(c2.id);
+            if(idx>-1) G.player.main.splice(idx,1);
+            G.player.hand.push(makeInst(c2.id,'player'));
+            G.player.main=shuffle(G.player.main);
+            log(`${inst.name}: ${c2.name} → hand. Deck shuffled.`,'heal');
+            updateUI();
+          }
+        })).concat([{label:'CANCEL',cls:'btn-muted',action:()=>updateUI()}])
+      );
+    } else if(G.ai.main.length>0){
+      const id=G.ai.main.splice(Math.floor(Math.random()*G.ai.main.length),1)[0];
+      G.ai.hand.push(makeInst(id,'ai'));
+      G.ai.main=shuffle(G.ai.main);
+      log(`${inst.name}: AI searched and drew a card.`,'');
+    }
+  }
+
+  // ── PSYCHE SYMPOSIUM: Opponent chooses: discard random or you Glimpse 2 + draw ─
+  else if (txt.includes('psyche symposium') || txt.includes('opponent chooses')) {
+    const opp4=caster==='player'?'ai':'player';
+    if(caster==='player'){
+      // AI (opponent) chooses — AI will prefer to discard random
+      if(G.ai.hand.length>0){
+        const randCard=G.ai.hand.splice(Math.floor(Math.random()*G.ai.hand.length),1)[0];
+        G.ai.discard.push(randCard);
+        log(`${inst.name}: AI discarded ${randCard.name} at random.`,'');
+      } else {
+        // AI has no hand — Glimpse 2 for player
+        doGlimpse('player',2,inst.name,false,()=>{
+          drawFromDeck('player',G.player.main.length>0?'main':'land');
+          log(`${inst.name}: Glimpsed 2 and drew a card.`,'heal');
+          updateUI();
+        });
+      }
+    }
+  }
+
+  // ── AETHER COPY: Create token copy of opponent creature, -1 power ─
+  else if (txt.includes('aether copy') || (txt.includes('copy of a creature opponent') && txt.includes('token'))) {
+    const opp5=caster==='player'?'ai':'player';
+    const targets=G[opp5].battlefield.filter(i=>i.type==='Creature');
+    if(!targets.length){log(`${inst.name}: No opponent creatures to copy.`,'');return;}
+    const doCopy=(t)=>{
+      const copy=makeInst(t.cardId,caster);
+      if(!copy){log(`${inst.name}: Could not create copy.`,'');return;}
+      copy.isToken=true; copy.exhaustState='renewed'; copy.newlyTurned=false;
+      copy.powerMods=[{amount:-1,until:'permanent'}];
+      copy.name=t.name+' (Copy)';
+      G[caster].battlefield.push(copy);
+      log(`${inst.name}: Created a copy of ${t.name} with -1 power.`,'heal');
+      updateUI();
+    };
+    if(targets.length===1) doCopy(targets[0]);
+    else if(caster==='player') showModal(inst.name,'Copy which opponent creature?',targets.map(t=>({label:`${t.name} [${getEffectivePower(t)}]`,cls:'btn-secondary',action:()=>doCopy(t)})));
+    else doCopy(targets[Math.floor(Math.random()*targets.length)]);
+  }
+
   // Eternal Subterfuge — handled in resolveSpellOnTarget (needs a target creature)
   else {
     log(`${inst.name}: effect applied.`, '');
@@ -8658,6 +9196,8 @@ function clearEotEffects(who) {
     if (inst._augurDraw) inst._augurDraw = false;
     if (inst._spellProtect) inst._spellProtect = false;
     if (inst._bleedBoost) inst._bleedBoost = 0; // Blade Silhouette EOT clear
+    if (inst._indestructibleEot) inst._indestructibleEot = false; // Legacy Ward
+    if (inst._bleedAlwaysTriggers) inst._bleedAlwaysTriggers = false; // Flankwire Feint
     if (inst._lostWallThisTurn) { // Living Wall restores Wall
       inst._lostWallThisTurn = false;
       if (inst.tempKeywords) inst.tempKeywords.wall = undefined;
@@ -8689,6 +9229,7 @@ function clearEotEffects(who) {
   });
   // Clear per-turn flags
   G[who]._blockLimit = 0;
+  G[who].maxBlockers = null; // Left Behind resets
   G[who]._butlerShield = false;
 }
 
