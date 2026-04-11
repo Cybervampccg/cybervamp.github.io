@@ -718,6 +718,53 @@ html.targeting-active .valid-target { cursor:pointer!important; }
   #card-preview { height:160px; }
 }
 
+/* ── LAND STACK (compact grouped lands) ── */
+.land-stack {
+  position:relative; display:flex; flex-direction:column;
+  align-items:center; gap:2px; cursor:pointer; flex-shrink:0;
+}
+.land-stack-cards {
+  position:relative; width:var(--land-w); height:var(--land-h);
+}
+.land-stack-cards::before,
+.land-stack-cards::after {
+  content:''; position:absolute; border-radius:4px;
+  background:rgba(20,14,40,0.9); border:1px solid var(--border-dim);
+}
+.land-stack-cards::before { inset:0; transform:translate(-3px,-3px) rotate(-3deg); z-index:0; }
+.land-stack-cards::after  { inset:0; transform:translate(-6px,-6px) rotate(-5deg); z-index:0; }
+.land-stack-top {
+  position:absolute; inset:0; z-index:1; border-radius:4px; overflow:hidden;
+  border:1px solid var(--border-dim); box-shadow:0 2px 8px rgba(0,0,0,.7);
+}
+.land-stack-top img { width:100%; height:100%; object-fit:cover; }
+.land-stack-name {
+  position:absolute; bottom:0; left:0; right:0; padding:2px 3px;
+  background:rgba(8,4,18,.95); font-family:'Cinzel',serif;
+  font-size:8px; color:#fff; text-align:center;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  border-top:1px solid rgba(255,255,255,.1);
+}
+.land-stack.exhausted .land-stack-top { opacity:.55; filter:saturate(.4); }
+.land-stack-count {
+  position:absolute; top:3px; right:3px; z-index:2;
+  background:rgba(0,0,0,.85); color:#fff;
+  font-family:'Share Tech Mono',monospace; font-size:11px; font-weight:700;
+  padding:1px 5px; border-radius:8px; min-width:20px; text-align:center;
+  border:1px solid rgba(255,255,255,.25);
+}
+.land-stack-info {
+  font-family:'Share Tech Mono',monospace; font-size:9px;
+  color:var(--text-dim); letter-spacing:.5px; text-align:center;
+}
+.land-stack-info .avail { color:var(--life-green); font-weight:700; }
+.land-compact-toggle {
+  position:absolute; top:2px; left:2px; z-index:5;
+  background:rgba(212,160,32,.15); border:1px solid rgba(212,160,32,.4);
+  border-radius:3px; color:var(--gold); cursor:pointer;
+  font-size:8px; padding:2px 4px; font-family:'Share Tech Mono',monospace;
+}
+
 </style>
 </head>
 <body>
@@ -8928,6 +8975,11 @@ function getTopElementUnder(x, y) {
 }
 
 function isOverPlayerSide(x, y) {
+  // On mobile, accept drops anywhere in the lower 60% of the screen
+  // (the battlefield + hand zone together)
+  if (window.innerWidth <= 768) {
+    return y > window.innerHeight * 0.3;
+  }
   const side = document.getElementById('side-player');
   if (!side) return false;
   const r = side.getBoundingClientRect();
@@ -8973,6 +9025,9 @@ function addDragHandlers(cardEl, inst) {
   cardEl.addEventListener('touchend', (e) => {
     if (_touchDragStarted && _drag) {
       const t = e.changedTouches[0]; endDrag({ clientX: t.clientX, clientY: t.clientY }); e.preventDefault();
+    } else if (_touchDragStarted) {
+      // Drag started but _drag already cleared — ensure ghost is hidden
+      hideDragGhost();
     }
     _touchDragStarted = false;
   }, { passive: false });
