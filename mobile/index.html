@@ -47,6 +47,9 @@ html,body {
   background:var(--bg-deep); color:var(--text-bright);
   font-family:'Rajdhani',sans-serif;
   overflow:hidden; touch-action:none;
+  -webkit-user-select:none; user-select:none;
+  -webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent;
 }
 
 /* ── FACTION CHOOSER (landing screen) ────────────────────────── */
@@ -10411,6 +10414,14 @@ document.addEventListener('click', e => {
 });
 
 // Auto-redraw block lines and re-render on orientation change
+
+// Prevent long-press context menu on mobile (interferes with card preview)
+document.addEventListener('contextmenu', e => {
+  if (e.target.closest('.card') || e.target.closest('#arena') || e.target.closest('.hand-cards-scroll')) {
+    e.preventDefault();
+  }
+});
+
 (function() {
   let _lastW = window.innerWidth, _lastH = window.innerHeight;
   const onResize = () => {
