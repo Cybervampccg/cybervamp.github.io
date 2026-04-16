@@ -325,7 +325,7 @@ html,body {
   border-color:var(--gold)!important; box-shadow:0 0 14px var(--gold-glow)!important; }
 .hand-card.playable  { border-color:rgba(212,160,32,.65);
   box-shadow:0 0 10px rgba(212,160,32,.2); }
-.hand-card.unplayable { opacity:.52; filter:saturate(.6) brightness(.75); }
+.hand-card.unplayable { opacity:.72; filter:saturate(.7) brightness(.85); }
 
 /* Player deck piles */
 .hand-decks {
@@ -441,21 +441,20 @@ html,body {
 #card-preview {
   position:fixed; bottom:0; left:0; right:0; z-index:9999;
   pointer-events:none;
-  opacity:0; transition:opacity .15s, transform .15s;
+  opacity:0; transition:opacity .18s, transform .18s;
   transform:translateY(100%);
-  max-height:55vh; overflow-y:auto;
+  height:220px; /* fixed height — enough for art + all text */
   display:flex; align-items:stretch;
-  background:rgba(4,2,10,.97);
-  border-top:2px solid rgba(160,32,240,.4);
-  border-radius:14px 14px 0 0;
-  box-shadow:0 -8px 32px rgba(0,0,0,.8);
-  -webkit-overflow-scrolling:touch;
+  background:rgba(8,4,20,.98);
+  border-top:2px solid rgba(160,32,240,.5);
+  border-radius:16px 16px 0 0;
+  box-shadow:0 -12px 48px rgba(0,0,0,.9), 0 -1px 0 rgba(160,32,240,.2);
+  overflow:hidden;
 }
 #card-preview.visible {
   opacity:1; transform:translateY(0); pointer-events:all;
 }
-/* The .card clone is hidden — we use the custom text layout */
-#card-preview .card { display:none!important; }
+/* card-preview uses custom content, not a .card clone */
 /* Swipe handle at top of preview sheet */
 #card-preview::before {
   content: '';
@@ -563,7 +562,50 @@ html,body {
   color:var(--purple); margin-bottom:4px; }
 #glimpse-subtitle { font-size:11px; color:var(--text-mid); margin-bottom:8px; }
 #glimpse-spread { flex:1; overflow-y:auto; display:flex; flex-wrap:wrap;
-  gap:6px; justify-content:center; align-content:flex-start; }
+  gap:8px; justify-content:center; align-content:flex-start; padding:4px; }
+.glimpse-card {
+  width:100%; height:90px;
+  border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,.15);
+  display:flex; flex-direction:row; flex-shrink:0;
+  background:var(--bg-card); position:relative; cursor:pointer;
+  transition:border-color .15s;
+}
+.glimpse-card.gc-bottom { filter:brightness(.65) saturate(.6); }
+.glimpse-card img {
+  width:70px; height:100%; object-fit:cover; object-position:top;
+  display:block; flex-shrink:0;
+}
+.glimpse-card-info {
+  flex:1; padding:8px 8px; display:flex; flex-direction:column;
+  justify-content:space-between; overflow:hidden;
+}
+.glimpse-card-name {
+  font-family:'Cinzel',serif; font-size:13px; color:var(--text-bright);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.glimpse-card-type { font-size:11px; color:var(--text-dim); letter-spacing:.5px; }
+.glimpse-card-power-row { font-family:'Share Tech Mono',monospace; font-size:14px; color:var(--gold); font-weight:700; }
+.glimpse-card-toggle { display:flex; gap:6px; flex-wrap:wrap; padding:4px 0 2px; }
+.gc-toggle-btn { font-size:12px; padding:5px 10px; border-radius:4px; border:1px solid; cursor:pointer;
+  font-family:'Cinzel',serif; text-transform:uppercase; }
+.gc-btn-top  { border-color:rgba(48,160,224,.6); color:rgba(48,160,224,.9); background:rgba(48,160,224,.1); }
+.gc-btn-top.active { background:rgba(48,160,224,.25); border-color:#30a0e0; }
+.gc-btn-bot  { border-color:rgba(96,48,192,.6); color:rgba(96,48,192,.9); background:rgba(96,48,192,.1); }
+.gc-btn-bot.active { background:rgba(96,48,192,.3); border-color:#6030c0; color:#a070ff; }
+.gc-btn-hand { border-color:rgba(212,160,32,.6); color:var(--gold); background:rgba(212,160,32,.1); }
+.gc-btn-hand.active { background:rgba(212,160,32,.2); border-color:var(--gold); }
+.gc-pos-badge {
+  position:absolute; top:6px; left:6px;
+  font-size:11px; font-family:'Share Tech Mono',monospace;
+  background:rgba(0,0,0,.8); color:var(--text-dim);
+  padding:2px 6px; border-radius:3px; z-index:2;
+}
+.gc-dragging  { opacity:.4; }
+.gc-drag-over { border-color:var(--gold)!important; box-shadow:0 0 10px rgba(212,160,32,.4)!important; }
+#glimpse-confirm { margin:8px 0 4px; padding:14px; border-radius:8px;
+  background:linear-gradient(135deg,var(--purple),#8020c0); color:#fff;
+  font-family:'Cinzel Decorative',serif; font-size:14px; letter-spacing:2px;
+  cursor:pointer; text-align:center; border:none; flex-shrink:0; width:100%; }
 #glimpse-confirm { margin-top:8px; }
 
 /* ── DECKBUILDER ──────────────────────────────────────────────── */
@@ -700,23 +742,166 @@ html.targeting-active .valid-target { cursor:pointer!important; }
 ::-webkit-scrollbar-thumb { background:var(--border-dim); border-radius:2px; }
 
 /* ── LANDSCAPE ────────────────────────────────────────────────── */
-@media (orientation: landscape) and (max-height: 500px) {
-  #hand-ai  { min-height:56px; max-height:64px; }
-  #hand-player { min-height:110px; max-height:120px; }
-  #ai-info-strip, #player-info-strip { min-height:18px; padding:1px 8px; }
-  #topbar   { min-height:28px; padding:2px 8px; }
-  #action-bar { padding:4px 8px; }
-  .btn { padding:6px 10px; font-size:10px; }
-  #hand-ai .hand-vital-val { font-size:14px; }
-  .hand-vital-val { font-size:20px; }
+/* ═══════════════════════════════════════════════════════════════
+   LANDSCAPE AUTO-LAYOUT
+   Activates when phone rotates. Restructures to side-by-side layout:
+   - Topbar: slimmer, horizontal
+   - #bf-wrapper: row instead of column (AI left, player right)
+   - Hand: slim strip at bottom
+   - Cards: smaller to fit reduced height
+   ═══════════════════════════════════════════════════════════════ */
+@media (orientation: landscape) {
+
+  /* Smaller card vars for landscape */
   :root {
-    --card-w: 72px; --card-h: 100px;
-    --bf-card-w: 54px; --bf-card-h: 76px;
-    --relic-w: 46px; --relic-h: 64px;
-    --land-w: 42px; --land-h: 46px;
+    --card-w:    72px;
+    --card-h:    100px;
+    --bf-card-w: 52px;
+    --bf-card-h: 73px;
+    --relic-w:   42px;
+    --relic-h:   59px;
+    --land-w:    40px;
+    --land-h:    40px;
   }
-  #card-preview { height:160px; }
+
+  /* Topbar: slimmer */
+  #topbar { min-height:28px; padding:2px 10px; }
+  .logo { font-size:8px; }
+  .phase-pip { font-size:7px; padding:1px 4px; }
+  #turn-info { font-size:8px; }
+
+  /* App: column (topbar | main row | hand+action) */
+  #app { flex-direction:column; }
+
+  /* Main row: ai-zone LEFT | player-zone RIGHT side by side */
+  #bf-wrapper {
+    flex-direction:row !important;
+    flex:1;
+  }
+
+  /* Each side zone takes half the width */
+  #side-ai {
+    flex:1; border-bottom:none !important;
+    border-right:1px solid rgba(255,255,255,.08);
+    min-width:0;
+  }
+  #side-player {
+    flex:1;
+    min-width:0;
+  }
+
+  /* Divider becomes vertical line handled by border-right above */
+  #bf-divider { display:none; }
+
+  /* AI hand zone: slim left strip inside side-ai */
+  #hand-ai {
+    position:absolute; top:0; left:0; right:0;
+    min-height:38px; max-height:44px;
+    flex-direction:row;
+    border-bottom:1px solid var(--border-dim);
+    z-index:5;
+  }
+  #hand-ai .hand-vitals {
+    padding:2px 6px; gap:2px; min-width:44px; flex-direction:row;
+  }
+  #hand-ai .hand-vital-val { font-size:13px; min-width:auto; }
+  #hand-ai .hand-vital-label { display:none; }
+  #hand-ai .hand-vital-icon  { font-size:9px; }
+  #hand-ai .hand-cards-scroll { gap:2px; padding:2px 4px; }
+  #hand-ai .hand-cards-scroll .card,
+  #hand-ai .hand-cards-scroll .hand-card { width:22px !important; height:30px !important; }
+  #hand-ai .hand-decks { padding:2px 4px; gap:2px; min-width:40px; }
+  #hand-ai .hand-deck-card { width:20px; height:28px; }
+
+  /* Side-ai battlefield: offset for ai hand strip */
+  #side-ai .side-zone { margin-top:44px; }
+
+  /* Player hand zone: slim horizontal strip at very bottom */
+  #hand-player {
+    min-height:104px; max-height:112px;
+    flex-direction:row; flex-shrink:0;
+  }
+  .hand-vitals {
+    padding:4px 8px; gap:3px;
+    flex-direction:column; min-width:52px;
+  }
+  .hand-vital-val { font-size:22px; }
+  .hand-vital-label { font-size:7px; }
+  .hand-cards-scroll { gap:4px; padding:4px 6px; }
+  .hand-decks { padding:4px 6px; gap:3px; min-width:46px; }
+  .hand-deck-card { width:30px; height:42px; }
+  .hand-deck-count { font-size:8px; }
+  .hand-deck-label { font-size:6px; }
+
+  /* Info strips: slimmer */
+  #ai-info-strip    { min-height:16px; padding:1px 8px; }
+  #player-info-strip{ min-height:16px; padding:1px 8px; font-size:7px; }
+  #player-faction-label { font-size:7px; }
+
+  /* Action bar: slimmer */
+  #action-bar { padding:4px 10px; gap:6px; }
+  #action-bar .btn { padding:6px 12px; font-size:11px; }
+
+  /* Battlefield rows: tighter */
+  .bf-row { padding:2px 4px; gap:2px; }
+  .lands-row { min-height:48px; }
+  .creatures-group { gap:2px; }
+  .relics-group    { gap:2px; }
+
+  /* Smaller text on battlefield cards */
+  .creatures-group .card-name-mini { font-size:6px !important; }
+  .creatures-group .card-power     { font-size:11px !important; }
+  .relics-group .card-name-mini    { font-size:5.5px !important; }
+  .lands-row .card-name-mini       { font-size:5px !important; }
+
+  /* Discard pile: smaller */
+  .ds-top   { width:28px; height:40px; }
+  .ds-count { font-size:8px; }
+  .ds-label { display:none; }
+
+  /* Hand tap preview: shorter in landscape */
+  #hand-tap-preview { height:160px; }
+  #htp-art  { width:110px; }
+  #htp-name { font-size:14px; }
+  #htp-abilities { font-size:12px; }
+
+  /* Hold overlay card: smaller in landscape */
+  #cho-card-wrap { width:140px; height:196px; }
+  #cho-name { font-size:16px; }
+  #cho-abilities { font-size:13px; max-height:120px; }
+
+  /* Discard browser: two columns in landscape */
+  #discard-browser-scroll {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+
+  /* Mission slot: smaller */
+  .mission-slot { width:52px !important; height:73px !important; }
+
+  /* Land stack: smaller */
+  .land-stack-cards { width:var(--land-w); height:var(--land-h); }
+  .land-stack-count { font-size:9px; padding:1px 3px; }
+  .land-stack-info  { font-size:7px; }
+
+  /* Mana pips: smaller */
+  .mana-pip { width:14px; height:14px; }
+
+  /* KW badges: smaller */
+  .kw-badge { font-size:6px; padding:1px 3px; }
+
+  /* Glimpse panel: full screen works fine as-is */
+  /* Modal: ensure it fits */
+  #modal-box { max-width:85vw; padding:16px; }
+  #modal-title { font-size:16px; }
+  #modal-body  { font-size:13px; }
+  #modal-actions .btn { font-size:13px; padding:8px 16px; }
+
+  /* Playtest indicator */
+  #playtest-indicator { font-size:10px; padding:2px 8px; }
 }
+
 
 /* ── LAND STACK (compact grouped lands) ── */
 .land-stack {
@@ -764,6 +949,109 @@ html.targeting-active .valid-target { cursor:pointer!important; }
   border-radius:3px; color:var(--gold); cursor:pointer;
   font-size:8px; padding:2px 4px; font-family:'Share Tech Mono',monospace;
 }
+
+/* ── HAND TAP PREVIEW (single tap on hand card) ── */
+#hand-tap-preview {
+  position:fixed; bottom:0; left:0; right:0; z-index:8000;
+  display:flex; flex-direction:row; height:240px;
+  background:rgba(6,3,16,.98);
+  border-top:2px solid rgba(160,32,240,.5);
+  border-radius:18px 18px 0 0;
+  box-shadow:0 -12px 48px rgba(0,0,0,.95);
+  transform:translateY(100%); transition:transform .2s ease;
+  overflow:hidden; pointer-events:none;
+}
+#hand-tap-preview.visible { transform:translateY(0); pointer-events:all; }
+#htp-art {
+  width:160px; flex-shrink:0; position:relative; overflow:hidden;
+}
+#htp-art img { width:100%; height:100%; object-fit:cover; display:block; }
+#htp-art-placeholder { width:100%; height:100%; display:flex; align-items:center;
+  justify-content:center; font-size:48px; background:rgba(20,10,40,.8); }
+#htp-info {
+  flex:1; padding:16px 14px 14px; display:flex; flex-direction:column;
+  gap:8px; overflow-y:auto;
+}
+#htp-name { font-family:'Cinzel Decorative',serif; font-size:18px; font-weight:700;
+  color:#fff; line-height:1.2; }
+#htp-type { font-size:12px; color:rgba(212,160,32,.85); letter-spacing:1px; text-transform:uppercase; }
+#htp-stats { font-size:14px; color:rgba(200,185,255,.9); }
+#htp-divider { height:1px; background:rgba(255,255,255,.14); flex-shrink:0; }
+#htp-abilities { font-size:13px; color:rgba(225,218,255,.95); line-height:1.7;
+  white-space:pre-wrap; flex:1; }
+#htp-close-hint { font-size:11px; color:rgba(255,255,255,.3); text-align:center;
+  letter-spacing:1px; flex-shrink:0; }
+
+/* ── FULL SCREEN HOLD OVERLAY (press-hold any card) ── */
+#card-hold-overlay {
+  position:fixed; inset:0; z-index:9500;
+  background:rgba(4,2,12,.97);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:0; opacity:0; pointer-events:none;
+  transition:opacity .15s;
+}
+#card-hold-overlay.visible { opacity:1; pointer-events:all; }
+#cho-card-wrap {
+  width:200px; height:280px; position:relative; border-radius:12px;
+  overflow:hidden; box-shadow:0 0 60px rgba(160,32,240,.3);
+  flex-shrink:0;
+}
+#cho-card-wrap img { width:100%; height:100%; object-fit:cover; display:block; }
+#cho-card-wrap .color-bar { height:6px; }
+#cho-info {
+  width:90%; max-width:380px; padding:14px 18px;
+  background:rgba(12,6,32,.95); border:1px solid rgba(160,32,240,.3);
+  border-radius:12px; margin-top:14px;
+}
+#cho-name { font-family:'Cinzel Decorative',serif; font-size:19px; font-weight:700;
+  color:#fff; margin-bottom:4px; }
+#cho-meta { font-size:12px; color:rgba(212,160,32,.8); letter-spacing:1px;
+  text-transform:uppercase; margin-bottom:8px; }
+#cho-stats { font-size:15px; color:rgba(200,185,255,.9); margin-bottom:10px; }
+#cho-divider { height:1px; background:rgba(255,255,255,.12); margin-bottom:10px; }
+#cho-abilities { font-size:14px; color:rgba(225,218,255,.95); line-height:1.7;
+  white-space:pre-wrap; max-height:200px; overflow-y:auto; }
+#cho-hint { font-size:11px; color:rgba(255,255,255,.25); margin-top:12px;
+  letter-spacing:1px; text-align:center; }
+
+/* ── DISCARD BROWSER ── */
+#discard-browser {
+  position:fixed; inset:0; z-index:9000;
+  background:rgba(4,2,12,.97);
+  display:flex; flex-direction:column;
+  opacity:0; pointer-events:none; transition:opacity .15s;
+}
+#discard-browser.visible { opacity:1; pointer-events:all; }
+#discard-browser-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 18px 10px; border-bottom:1px solid rgba(255,255,255,.1); flex-shrink:0;
+}
+#discard-browser-title { font-family:'Cinzel Decorative',serif; font-size:16px;
+  color:var(--gold); letter-spacing:2px; }
+#discard-browser-close {
+  padding:8px 20px; border-radius:8px; border:1px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.06); color:#fff; font-size:16px; cursor:pointer;
+  font-family:'Cinzel',serif; letter-spacing:1px;
+}
+#discard-browser-scroll {
+  flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:10px;
+  -webkit-overflow-scrolling:touch;
+}
+.discard-browser-card {
+  display:flex; flex-direction:row; gap:12px; align-items:center;
+  background:rgba(20,10,40,.7); border:1px solid rgba(255,255,255,.1);
+  border-radius:10px; overflow:hidden; flex-shrink:0;
+}
+.discard-browser-card img {
+  width:70px; height:98px; object-fit:cover; flex-shrink:0; display:block;
+}
+.discard-browser-card-info { flex:1; padding:10px 12px 10px 0; }
+.dbc-name { font-family:'Cinzel',serif; font-size:15px; color:#fff; margin-bottom:3px; }
+.dbc-type { font-size:11px; color:rgba(212,160,32,.8); letter-spacing:.5px;
+  text-transform:uppercase; margin-bottom:6px; }
+.dbc-power { font-size:18px; font-weight:700; color:#fff; margin-bottom:4px; }
+.dbc-abilities { font-size:12px; color:rgba(210,205,255,.8); line-height:1.6;
+  white-space:pre-wrap; }
 
 </style>
 </head>
@@ -976,6 +1264,41 @@ html.targeting-active .valid-target { cursor:pointer!important; }
 <div id="turn-banner"><div class="turn-banner-text" id="turn-banner-text"></div></div>
 <div id="action-overlay" style="display:none;"></div>
 <div id="drag-ghost" style="display:none;"></div>
+
+<!-- HAND TAP PREVIEW (single tap on hand card) -->
+<div id="hand-tap-preview">
+  <div id="htp-art"><div id="htp-art-placeholder">⚔</div></div>
+  <div id="htp-info">
+    <div id="htp-name"></div>
+    <div id="htp-type"></div>
+    <div id="htp-stats"></div>
+    <div id="htp-divider"></div>
+    <div id="htp-abilities"></div>
+    <div id="htp-close-hint">TAP TO DISMISS</div>
+  </div>
+</div>
+
+<!-- FULL SCREEN HOLD OVERLAY -->
+<div id="card-hold-overlay">
+  <div id="cho-card-wrap"></div>
+  <div id="cho-info">
+    <div id="cho-name"></div>
+    <div id="cho-meta"></div>
+    <div id="cho-stats"></div>
+    <div id="cho-divider"></div>
+    <div id="cho-abilities"></div>
+  </div>
+  <div id="cho-hint">RELEASE TO DISMISS</div>
+</div>
+
+<!-- DISCARD BROWSER -->
+<div id="discard-browser">
+  <div id="discard-browser-header">
+    <div id="discard-browser-title">DISCARD PILE</div>
+    <button id="discard-browser-close" onclick="closeDiscardBrowser()">✕ CLOSE</button>
+  </div>
+  <div id="discard-browser-scroll"></div>
+</div>
 
 <!-- Card detail preview — bottom sheet, populated by JS -->
 <div id="card-preview" onclick="hideCardDetail()">
@@ -1704,7 +2027,6 @@ window.addEventListener('load', () => {
 
 
 function renderHand(who) {
-  // Target the inner cards-scroll div, not the outer hand-zone
   const el = document.getElementById(`hand-${who}-cards`);
   if (!el) return;
   el.innerHTML = '';
@@ -1733,9 +2055,47 @@ function renderHand(who) {
     if (!affordable && !isLand) card.classList.add('unplayable');
     else card.classList.add('playable');
     if (inst.instId === selectedCardId) card.classList.add('selected');
-    card.onclick = (e) => { e.stopPropagation(); handleCardClick(inst, 'player'); };
-    card.onmouseenter = () => { if (!_drag) showCardDetail(inst, card); };
-    card.onmouseleave = () => hideCardDetail();
+
+    // Mouse hover (desktop)
+    card.onmouseenter = () => { if (!_drag) showHandTapPreview(inst); };
+    card.onmouseleave = () => hideHandTapPreview();
+
+    // Touch: single tap = preview panel, long-press (500ms) = full screen, drag = play
+    let _hTimer = null, _hLong = false, _hMoved = false;
+
+    card.addEventListener('touchstart', (e) => {
+      _hLong = false; _hMoved = false;
+      _hTimer = setTimeout(() => {
+        if (!_hMoved) { _hLong = true; showCardHoldOverlay(inst); }
+      }, 500);
+    }, { passive: true });
+
+    card.addEventListener('touchmove', (e) => {
+      _hMoved = true;
+      clearTimeout(_hTimer);
+      if (_hLong) { hideCardHoldOverlay(); _hLong = false; }
+    }, { passive: true });
+
+    card.addEventListener('touchend', (e) => {
+      clearTimeout(_hTimer);
+      if (_hLong) {
+        hideCardHoldOverlay(); _hLong = false;
+        e.preventDefault(); return;
+      }
+      if (!_hMoved) {
+        // Short tap: toggle hand preview
+        e.preventDefault(); e.stopPropagation();
+        const previewInst = getCurrentHandPreviewInst();
+        if (previewInst && previewInst.instId === inst.instId) {
+          // Tapping same card: play it
+          hideHandTapPreview();
+          handleCardClick(inst, 'player');
+        } else {
+          showHandTapPreview(inst);
+        }
+      }
+    }, { passive: false });
+
     addDragHandlers(card, inst);
     el.appendChild(card);
   });
@@ -9040,8 +9400,8 @@ document.addEventListener('mouseup',   (e) => { if (_drag) endDrag(e); });
 // ── UI RENDERING ──────────────────────────────────────────────
 function updateUI() {
   if (G) renderMissionCards();
-  // Safety — always hide ghost on re-render (handles edge cases where drag state is stale)
   if (!_drag) hideDragGhost();
+  hideHandTapPreview();
   renderHand('player');
   renderHand('ai');
   renderSide('player');
@@ -9049,7 +9409,6 @@ function updateUI() {
   updateDeckCounts();
   updateDiscardPiles();
   setPhase(G.phase);
-  // Draw block lines after DOM settles
   requestAnimationFrame(drawBlockLines);
 }
 
@@ -9250,9 +9609,37 @@ function applyExhaustClasses(card, inst) {
 }
 
 function addCardHandlers(card, inst, who) {
-  card.onclick = (e) => { e.stopPropagation(); handleCardClick(inst, who); };
+  // Mouse (desktop): hover preview, click ability
   card.onmouseenter = () => showCardDetail(inst, card);
   card.onmouseleave = () => hideCardDetail();
+
+  // Touch: SHORT tap = ability, LONG press (500ms) = full-screen overlay
+  let _lpTimer = null, _lpFired = false, _lpMoved = false;
+
+  card.addEventListener('touchstart', (e) => {
+    _lpFired = false; _lpMoved = false;
+    _lpTimer = setTimeout(() => {
+      if (!_lpMoved) { _lpFired = true; showCardHoldOverlay(inst); }
+    }, 500);
+  }, { passive: true });
+
+  card.addEventListener('touchmove', () => {
+    _lpMoved = true;
+    clearTimeout(_lpTimer);
+    if (_lpFired) { hideCardHoldOverlay(); _lpFired = false; }
+  }, { passive: true });
+
+  card.addEventListener('touchend', (e) => {
+    clearTimeout(_lpTimer);
+    if (_lpFired) {
+      hideCardHoldOverlay(); _lpFired = false;
+      e.preventDefault(); return;
+    }
+    if (!_lpMoved) {
+      e.preventDefault(); e.stopPropagation();
+      handleCardClick(inst, who);
+    }
+  }, { passive: false });
 }
 
 function createCardElement(inst, isHand) {
@@ -9539,46 +9926,146 @@ const KW_STYLES = {
   bleed:   { label:'Bleed',     bg:'rgba(220,30,50,0.85)',  color:'#fff' },
 };
 
-function showCardDetail(inst, triggerEl) {
-  const el = document.getElementById('card-preview');
-  // Match CSS: #card-preview { width:520px; height:728px }
-  const previewW = Math.min(520, window.innerWidth * 0.4);
-  const previewH = Math.min(728, window.innerHeight * 0.8);
+// ── HAND TAP PREVIEW ─────────────────────────────────────────
+let _htpCurrentInst = null;
 
-  // Build a fresh card element clone at preview size
-  el.innerHTML = '';
-  const cardClone = createCardElement(inst, false);
-  cardClone.style.width  = '100%';
-  cardClone.style.height = '100%';
-  cardClone.style.cursor = 'default';
+function getCurrentHandPreviewInst() { return _htpCurrentInst; }
 
-  // No abilities overlay — art stays clean and readable
-  // Abilities are visible on battlefield cards and in deckbuilder
-  el.appendChild(cardClone);
+function showHandTapPreview(inst) {
+  _htpCurrentInst = inst;
+  const ep = (typeof getEffectivePower === 'function') ? getEffectivePower(inst) : inst.power;
+  const statParts = [];
+  if (inst.cost) statParts.push('Cost: ' + inst.cost);
+  if (ep != null) statParts.push('⚔ ' + ep);
 
-  // Position opposite the hovered card
-  const margin = 14;
-  if (triggerEl) {
-    const rect = triggerEl.getBoundingClientRect();
-    const cardCenterX = rect.left + rect.width / 2;
-
-    let left, top;
-    if (cardCenterX > window.innerWidth / 2) {
-      left = Math.max(margin, rect.left - previewW - margin);
-    } else {
-      left = Math.min(window.innerWidth - previewW - margin, rect.right + margin);
-    }
-    top = rect.top;
-    if (top + previewH > window.innerHeight - margin) top = window.innerHeight - previewH - margin;
-    if (top < margin) top = margin;
-    // Also cap width so preview never goes off right/left edge
-    left = Math.max(margin, Math.min(left, window.innerWidth - previewW - margin));
-
-    el.style.top  = top  + 'px';
-    el.style.left = left + 'px';
+  // Art
+  const artEl = document.getElementById('htp-art');
+  artEl.innerHTML = '';
+  if (inst.image) {
+    const img = document.createElement('img');
+    img.src = inst.image;
+    img.onerror = () => { artEl.innerHTML = '<div id="htp-art-placeholder">' + (inst.type==='Creature'?'⚔':'🔮') + '</div>'; };
+    artEl.appendChild(img);
+    // Color bar overlay at top
+    const bar = document.createElement('div');
+    bar.className = 'color-bar ' + inst.color;
+    bar.style.cssText = 'position:absolute;top:0;left:0;right:0;height:5px;z-index:3;';
+    artEl.appendChild(bar);
+  } else {
+    artEl.innerHTML = `<div id="htp-art-placeholder">${inst.type==='Creature'?'⚔':'🔮'}</div>`;
   }
 
-  el.classList.add('visible');
+  document.getElementById('htp-name').textContent = inst.name || '?';
+  document.getElementById('htp-type').textContent = [inst.type, inst.subtype, inst.color].filter(Boolean).join(' · ');
+  document.getElementById('htp-stats').textContent = statParts.join('  ·  ');
+  document.getElementById('htp-abilities').textContent = (inst.abilities || '—').replace(/\\n/g, '\n');
+
+  const preview = document.getElementById('hand-tap-preview');
+  preview.onclick = () => hideHandTapPreview();
+  preview.classList.add('visible');
+}
+
+function hideHandTapPreview() {
+  _htpCurrentInst = null;
+  document.getElementById('hand-tap-preview').classList.remove('visible');
+}
+
+// ── FULL SCREEN HOLD OVERLAY ──────────────────────────────────
+function showCardHoldOverlay(inst) {
+  hideHandTapPreview();
+  const ep = (typeof getEffectivePower === 'function') ? getEffectivePower(inst) : inst.power;
+  const statParts = [];
+  if (inst.cost) statParts.push('Cost: ' + inst.cost);
+  if (ep != null) statParts.push('⚔ ' + ep);
+
+  // Card art
+  const wrap = document.getElementById('cho-card-wrap');
+  wrap.innerHTML = '';
+  const bar = document.createElement('div');
+  bar.className = 'color-bar ' + inst.color;
+  wrap.appendChild(bar);
+  if (inst.image) {
+    const img = document.createElement('img');
+    img.src = inst.image;
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;z-index:0;';
+    img.onerror = () => {};
+    wrap.appendChild(img);
+    bar.style.cssText = 'position:absolute;top:0;left:0;right:0;height:6px;z-index:3;';
+  }
+  // Name overlay at bottom of card
+  const nameOverlay = document.createElement('div');
+  nameOverlay.style.cssText = 'position:absolute;bottom:0;left:0;right:0;padding:24px 10px 10px;background:linear-gradient(to top,rgba(0,0,0,.9) 0%,transparent 100%);z-index:2;font-family:\'Cinzel Decorative\',serif;font-size:15px;color:#fff;';
+  nameOverlay.textContent = inst.name || '?';
+  wrap.appendChild(nameOverlay);
+
+  document.getElementById('cho-name').textContent = inst.name || '?';
+  document.getElementById('cho-meta').textContent = [inst.type, inst.subtype, inst.color].filter(Boolean).join(' · ');
+  document.getElementById('cho-stats').textContent = statParts.join('  ·  ');
+  document.getElementById('cho-abilities').textContent = (inst.abilities || '—').replace(/\\n/g, '\n');
+
+  const overlay = document.getElementById('card-hold-overlay');
+  overlay.classList.add('visible');
+}
+
+function hideCardHoldOverlay() {
+  document.getElementById('card-hold-overlay').classList.remove('visible');
+}
+
+// ── DISCARD BROWSER ───────────────────────────────────────────
+function showDiscardPile(who) {
+  const pile = G[who].discard;
+  const browser = document.getElementById('discard-browser');
+  const scroll  = document.getElementById('discard-browser-scroll');
+  const title   = document.getElementById('discard-browser-title');
+  title.textContent = (who === 'player' ? 'YOUR' : 'AI') + ' DISCARD (' + pile.length + ')';
+  scroll.innerHTML = '';
+
+  if (pile.length === 0) {
+    scroll.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:40px;font-size:15px;">Empty</div>';
+  } else {
+    pile.slice().reverse().forEach(inst => {
+      const row = document.createElement('div');
+      row.className = 'discard-browser-card';
+      const ep = inst.power != null ? inst.power : null;
+      const ablStr = (inst.abilities || '—').replace(/\\n/g, '\n');
+
+      let artHtml = `<div style="width:70px;height:98px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(20,10,40,.8);font-size:32px;">${inst.type==='Creature'?'⚔':'🔮'}</div>`;
+      if (inst.image) artHtml = `<img src="${inst.image}" onerror="this.style.display='none'">`;
+
+      row.innerHTML = artHtml + `
+        <div class="discard-browser-card-info">
+          <div class="dbc-name">${inst.name}</div>
+          <div class="dbc-type">${[inst.type, inst.subtype, inst.color].filter(Boolean).join(' · ')}</div>
+          ${ep!=null?`<div class="dbc-power">⚔ ${ep}</div>`:''}
+          <div class="dbc-abilities">${ablStr}</div>
+        </div>`;
+      scroll.appendChild(row);
+    });
+  }
+  browser.classList.add('visible');
+}
+
+function closeDiscardBrowser() {
+  document.getElementById('discard-browser').classList.remove('visible');
+}
+
+function showCardDetail(inst, triggerEl) {
+  // Desktop only — on mobile use showHandTapPreview or showCardHoldOverlay
+  if (window.innerWidth > 768) {
+    const el = document.getElementById('card-preview');
+    const ep = (typeof getEffectivePower === 'function') ? getEffectivePower(inst) : inst.power;
+    const statStr = [inst.cost?'Cost: '+inst.cost:'', ep!=null?'⚔ '+ep:''].filter(Boolean).join('  ·  ');
+    const ablStr = (inst.abilities||'—').replace(/\\n/g,'\n');
+    el.innerHTML = `<div style="flex:1;padding:16px;display:flex;flex-direction:column;gap:7px;overflow-y:auto;">
+      <div style="font-family:'Cinzel Decorative',serif;font-size:17px;font-weight:700;color:#fff;">${inst.name||'?'}</div>
+      <div style="font-size:12px;color:rgba(212,160,32,.8);text-transform:uppercase;">${[inst.type,inst.subtype,inst.color].filter(Boolean).join(' · ')}</div>
+      ${statStr?`<div style="font-size:14px;color:rgba(200,185,255,.9);">${statStr}</div>`:''}
+      <div style="height:1px;background:rgba(255,255,255,.12);"></div>
+      <div style="font-size:14px;color:rgba(225,218,255,.95);line-height:1.7;white-space:pre-wrap;">${ablStr}</div>
+    </div>`;
+    el.onclick = () => hideCardDetail();
+    el.classList.add('visible');
+  }
 }
 
 function hideCardDetail() {
@@ -9922,6 +10409,30 @@ document.addEventListener('click', e => {
     if (selectedCardId) { selectedCardId = null; updateUI(); }
   }
 });
+
+// Auto-redraw block lines and re-render on orientation change
+(function() {
+  let _lastW = window.innerWidth, _lastH = window.innerHeight;
+  const onResize = () => {
+    const w = window.innerWidth, h = window.innerHeight;
+    if (w === _lastW && h === _lastH) return;
+    _lastW = w; _lastH = h;
+    if (G) {
+      // Re-render to pick up new CSS variable sizes
+      renderSide('player');
+      renderSide('ai');
+      renderHand('player');
+      renderHand('ai');
+      requestAnimationFrame(drawBlockLines);
+    }
+  };
+  if (window.ResizeObserver) {
+    new ResizeObserver(onResize).observe(document.documentElement);
+  } else {
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', () => setTimeout(onResize, 150));
+  }
+})();
 
 
 </script>
