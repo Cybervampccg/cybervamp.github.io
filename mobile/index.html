@@ -230,6 +230,7 @@ html,body {
 .resource-row { display:flex; gap:2px; align-items:center; flex-wrap:wrap; }
 .mana-pip { width:14px!important; height:14px!important; border-radius:50%; flex-shrink:0;
   display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:700; }
+.mana-pip img { width:100%; height:100%; object-fit:contain; display:block; }
 
 /* ── BATTLEFIELD ─────────────────────────────────────────────── */
 #bf-wrapper {
@@ -1282,7 +1283,7 @@ html.targeting-active .valid-target { cursor:pointer!important; }
 </div>
 
 <!-- FULL SCREEN HOLD OVERLAY -->
-<div id="card-hold-overlay">
+<div id="card-hold-overlay" onclick="hideCardHoldOverlay()">
   <div id="cho-card-wrap"></div>
   <div id="cho-info">
     <div id="cho-name"></div>
@@ -1291,7 +1292,7 @@ html.targeting-active .valid-target { cursor:pointer!important; }
     <div id="cho-divider"></div>
     <div id="cho-abilities"></div>
   </div>
-  <div id="cho-hint">RELEASE TO DISMISS</div>
+  <div id="cho-hint">TAP ANYWHERE TO DISMISS</div>
 </div>
 
 <!-- DISCARD BROWSER -->
@@ -9616,30 +9617,54 @@ function addCardHandlers(card, inst, who) {
   card.onmouseenter = () => showCardDetail(inst, card);
   card.onmouseleave = () => hideCardDetail();
 
-  // Touch: SHORT tap = ability, LONG press (500ms) = full-screen overlay
+  // Touch handling:
+  //   LONG PRESS (400ms) = sticky preview overlay (tap anywhere to dismiss)
+  //   Lands: SINGLE TAP = tap for mana
+  //   Creatures/Relics: DOUBLE-TAP = activate ability / handleCardClick
   let _lpTimer = null, _lpFired = false, _lpMoved = false;
+  let _lastTapTime = 0;
+  const needsDoubleTap = (inst.type === 'Creature' || inst.type === 'Relic');
 
   card.addEventListener('touchstart', (e) => {
     _lpFired = false; _lpMoved = false;
     _lpTimer = setTimeout(() => {
       if (!_lpMoved) { _lpFired = true; showCardHoldOverlay(inst); }
-    }, 500);
+    }, 400);
   }, { passive: true });
 
   card.addEventListener('touchmove', () => {
     _lpMoved = true;
     clearTimeout(_lpTimer);
-    if (_lpFired) { hideCardHoldOverlay(); _lpFired = false; }
   }, { passive: true });
 
   card.addEventListener('touchend', (e) => {
     clearTimeout(_lpTimer);
     if (_lpFired) {
-      hideCardHoldOverlay(); _lpFired = false;
+      _lpFired = false;
       e.preventDefault(); return;
     }
-    if (!_lpMoved) {
-      e.preventDefault(); e.stopPropagation();
+    if (_lpMoved) return;
+
+    // If overlay is visible, tap dismisses it
+    const overlay = document.getElementById('card-hold-overlay');
+    if (overlay && overlay.classList.contains('visible')) {
+      hideCardHoldOverlay();
+      e.preventDefault(); return;
+    }
+
+    e.preventDefault(); e.stopPropagation();
+
+    if (needsDoubleTap) {
+      // Double-tap detection (300ms window)
+      const now = Date.now();
+      if (now - _lastTapTime < 300) {
+        handleCardClick(inst, who);
+        _lastTapTime = 0;
+      } else {
+        _lastTapTime = now;
+      }
+    } else {
+      // Lands: single tap
       handleCardClick(inst, who);
     }
   }, { passive: false });
