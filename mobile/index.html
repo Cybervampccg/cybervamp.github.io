@@ -672,77 +672,143 @@ html,body {
 
 /* ── DECKBUILDER ──────────────────────────────────────────────── */
 #deckbuilder {
-  position:fixed; inset:0; z-index:6000; display:flex; flex-direction:column;
-  background:var(--bg-deep);
+  position:fixed; inset:0; z-index:6000; display:none; flex-direction:column;
+  background:linear-gradient(180deg, #0a0618 0%, #04020a 100%);
 }
+#deckbuilder.visible { display:flex; }
+
+/* Subtle animated backdrop */
+#deckbuilder::before {
+  content:''; position:absolute; inset:0; pointer-events:none; opacity:0.15;
+  background:
+    radial-gradient(ellipse 80% 40% at 20% 0%, rgba(160,32,240,0.5), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(224,48,48,0.3), transparent);
+  z-index:0;
+}
+#db-topbar, #db-body { position:relative; z-index:1; }
 #db-topbar {
-  display:flex; align-items:center; flex-wrap:wrap; gap:4px; padding:8px;
+  display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:10px;
   background:rgba(4,2,10,.97); border-bottom:1px solid var(--border-dim); flex-shrink:0;
+  box-shadow:0 2px 12px rgba(0,0,0,.6);
 }
-.db-title { font-family:'Cinzel Decorative',serif; font-size:12px; color:var(--gold); }
-.db-slot-tabs { display:flex; gap:3px; flex-wrap:wrap; }
+.db-title { font-family:'Cinzel Decorative',serif; font-size:14px; color:var(--gold); letter-spacing:2px; }
+.db-slot-tabs { display:flex; gap:4px; flex-wrap:wrap; }
 .db-slot-tab {
-  padding:4px 8px; font-size:10px; border-radius:4px; cursor:pointer;
+  padding:6px 10px; font-size:11px; border-radius:5px; cursor:pointer;
   border:1px solid var(--border-dim); background:rgba(20,16,40,.8); color:var(--text-mid);
-  font-family:'Share Tech Mono',monospace;
+  font-family:'Share Tech Mono',monospace; font-weight:700; letter-spacing:1px;
+  transition: all 0.2s;
 }
-.db-slot-tab.active-red    { background:rgba(224,48,48,.3); border-color:var(--red); color:var(--red); }
-.db-slot-tab.active-white  { background:rgba(200,192,240,.2); border-color:var(--white-c); color:var(--white-c); }
-.db-slot-tab.active-black  { background:rgba(96,48,192,.3); border-color:var(--black-c); color:var(--black-c); }
-.db-slot-tab.active-purple { background:rgba(160,32,240,.3); border-color:var(--purple); color:var(--purple); }
-.db-close-btn { margin-left:auto; padding:5px 10px; border-radius:5px;
-  background:rgba(180,30,30,.5); color:#fff; border:1px solid rgba(220,40,40,.5); cursor:pointer; font-size:10px; }
-#db-body { display:flex; flex:1; min-height:0; flex-direction:column; overflow:hidden; }
-#db-browser, #db-decklist-wrap { display:flex; flex-direction:column; flex:1; min-height:0; }
-#db-body { flex-direction:row; }
-#db-browser { flex:1; min-width:0; }
-#db-decklist-wrap { width:130px; flex-shrink:0; border-left:1px solid var(--border-dim); }
-.db-filter-row { display:flex; gap:3px; padding:5px 6px; flex-wrap:wrap; flex-shrink:0; border-bottom:1px solid var(--border-dim); }
-.db-filter-btn { padding:3px 7px; font-size:9px; border-radius:3px; cursor:pointer;
-  border:1px solid var(--border-dim); background:rgba(20,16,40,.8); color:var(--text-mid); }
-.db-filter-btn.active { background:rgba(160,32,240,.3); border-color:var(--purple); color:var(--white-c); }
-.db-search-row { display:flex; padding:4px 6px; flex-shrink:0; }
-#db-search { flex:1; background:rgba(20,16,40,.8); border:1px solid var(--border-dim);
-  color:var(--text-bright); padding:4px 8px; border-radius:4px; font-size:11px; }
-#db-card-grid { flex:1; overflow-y:auto; display:flex; flex-wrap:wrap;
-  gap:4px; padding:6px; align-content:flex-start; -webkit-overflow-scrolling:touch; }
-.db-card { width:58px; height:82px; position:relative; border-radius:4px; overflow:hidden;
-  cursor:pointer; border:1.5px solid var(--border-dim); }
-.db-card img { width:100%; height:100%; object-fit:cover; }
-.db-card.in-deck { border-color:rgba(212,160,32,.6); }
-.db-card.maxed   { border-color:rgba(96,48,192,.6); opacity:.7; }
-.db-card-count { position:absolute; top:2px; right:2px; background:rgba(0,0,0,.8);
-  color:var(--gold); font-size:9px; padding:1px 4px; border-radius:2px;
-  font-family:'Share Tech Mono',monospace; }
+.db-slot-tab:active { transform:scale(0.92); }
+.db-slot-tab.active { box-shadow: 0 0 10px rgba(212,160,32,.5); transform:scale(1.05); }
+.db-slot-tab.active-red    { background:rgba(224,48,48,.35); border-color:var(--red); color:#ff6060; box-shadow: 0 0 14px rgba(224,48,48,.55); }
+.db-slot-tab.active-white  { background:rgba(200,192,240,.25); border-color:var(--white-c); color:#fff; box-shadow: 0 0 14px rgba(200,192,240,.45); }
+.db-slot-tab.active-black  { background:rgba(96,48,192,.35); border-color:var(--black-c); color:#b090ff; box-shadow: 0 0 14px rgba(96,48,192,.55); }
+.db-slot-tab.active-purple { background:rgba(160,32,240,.35); border-color:var(--purple); color:#d070ff; box-shadow: 0 0 14px rgba(160,32,240,.55); }
+.db-close-btn { margin-left:auto; padding:7px 12px; border-radius:5px;
+  background:rgba(180,30,30,.55); color:#fff; border:1px solid rgba(220,40,40,.6); cursor:pointer; font-size:12px; font-weight:700; }
+.db-close-btn:active { transform:scale(0.92); }
+
+#db-body { display:flex; flex:1; min-height:0; overflow:hidden; flex-direction:row; }
+#db-browser { display:flex; flex-direction:column; flex:1; min-width:0; }
+#db-decklist-wrap { display:flex; flex-direction:column; width:148px; flex-shrink:0;
+  border-left:1px solid var(--border-dim); background:rgba(0,0,0,.25); }
+
+.db-filter-row { display:flex; gap:4px; padding:6px; flex-wrap:wrap; flex-shrink:0;
+  border-bottom:1px solid var(--border-dim); background:rgba(0,0,0,.15); }
+.db-filter-btn { padding:5px 9px; font-size:10px; border-radius:4px; cursor:pointer;
+  border:1px solid var(--border-dim); background:rgba(20,16,40,.8); color:var(--text-mid);
+  min-height:28px; font-weight:600; }
+.db-filter-btn:active { transform:scale(0.92); }
+.db-filter-btn.active { background:rgba(160,32,240,.35); border-color:var(--purple); color:#fff;
+  box-shadow: 0 0 8px rgba(160,32,240,.4); }
+
+.db-search-row { display:flex; padding:6px; flex-shrink:0; }
+#db-search { flex:1; background:rgba(20,16,40,.9); border:1px solid var(--border-dim);
+  color:var(--text-bright); padding:7px 10px; border-radius:5px; font-size:13px;
+  min-height:32px; }
+#db-search:focus { border-color:var(--purple); box-shadow: 0 0 8px rgba(160,32,240,.4); outline:none; }
+
+#db-card-grid { flex:1; overflow-y:auto; display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap:6px; padding:8px; align-content:flex-start; -webkit-overflow-scrolling:touch; }
+.db-card { aspect-ratio: 5/7; position:relative; border-radius:5px; overflow:hidden;
+  cursor:pointer; border:1.5px solid var(--border-dim); background:#0a0618;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 5px rgba(0,0,0,.5); }
+.db-card:active { transform:scale(0.95); }
+.db-card img { width:100%; height:100%; object-fit:cover; pointer-events:none; }
+.db-card.in-deck { border-color:rgba(212,160,32,.9); box-shadow: 0 0 10px rgba(212,160,32,.5), 0 2px 5px rgba(0,0,0,.5); }
+.db-card.maxed   { border-color:rgba(160,32,240,.9); box-shadow: 0 0 10px rgba(160,32,240,.5); opacity:.85; }
+.db-card-name { position:absolute; bottom:0; left:0; right:0;
+  background:linear-gradient(to top, rgba(0,0,0,0.92), transparent);
+  color:#fff; font-size:8px; padding:8px 3px 3px; text-align:center;
+  font-weight:600; line-height:1.1; letter-spacing:0.3px;
+  pointer-events:none; }
+.db-card-cost { position:absolute; top:3px; left:3px; display:flex; gap:1px;
+  background:rgba(0,0,0,.75); padding:2px; border-radius:3px; pointer-events:none; }
+.db-card-count { position:absolute; top:3px; right:3px;
+  background:rgba(212,160,32,.95); color:#000;
+  font-size:11px; padding:2px 6px; border-radius:3px;
+  font-family:'Share Tech Mono',monospace; font-weight:700;
+  pointer-events:none; box-shadow:0 1px 4px rgba(0,0,0,.6); }
+
 /* DB deck list */
+#db-deck-name { font-size:11px; color:var(--gold); padding:6px 8px; flex-shrink:0;
+  font-family:'Cinzel Decorative',serif; text-align:center; letter-spacing:1px;
+  background:rgba(212,160,32,.08); border-bottom:1px solid rgba(212,160,32,.2); }
 #db-deck-tabs { display:flex; gap:0; flex-shrink:0; border-bottom:1px solid var(--border-dim); }
-#db-tab-main, #db-tab-land { flex:1; padding:5px; font-size:9px; cursor:pointer;
+#db-tab-main, #db-tab-land { flex:1; padding:8px 5px; font-size:10px; cursor:pointer;
   background:rgba(20,16,40,.8); color:var(--text-dim); border:none; text-align:center;
-  font-family:'Share Tech Mono',monospace; }
-#db-tab-main.active, #db-tab-land.active { background:rgba(40,30,80,.8); color:var(--text-bright); }
-#db-deck-list { flex:1; overflow-y:auto; font-size:9px; padding:4px;
+  font-family:'Share Tech Mono',monospace; font-weight:700; letter-spacing:1px; min-height:32px; }
+#db-tab-main:active, #db-tab-land:active { background:rgba(40,30,80,.9); }
+#db-tab-main.active, #db-tab-land.active { background:rgba(40,30,80,.95); color:var(--gold);
+  box-shadow: inset 0 -2px 0 var(--gold); }
+
+#db-deck-list { flex:1; overflow-y:auto; font-size:10px; padding:4px;
   -webkit-overflow-scrolling:touch; }
 .db-deck-item { display:flex; align-items:center; justify-content:space-between;
-  padding:2px 3px; border-bottom:1px solid rgba(255,255,255,.04); color:var(--text-mid); }
-.db-deck-item-name { flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:8px; }
-.db-deck-item-count { color:var(--gold); font-family:'Share Tech Mono',monospace; font-size:8px; margin-left:2px; }
-.db-deck-item-remove { cursor:pointer; color:var(--red); padding:0 3px; font-size:10px; }
-.db-count-row { display:flex; justify-content:space-between; padding:4px 6px;
-  font-size:9px; color:var(--text-mid); flex-shrink:0; border-top:1px solid var(--border-dim); }
-#db-deck-actions { display:flex; gap:4px; padding:5px; flex-shrink:0; border-top:1px solid var(--border-dim); flex-wrap:wrap; }
-.db-btn { flex:1; padding:5px 4px; font-size:9px; border-radius:4px; cursor:pointer;
+  padding:6px 5px; border-bottom:1px solid rgba(255,255,255,.06);
+  color:var(--text-mid); min-height:30px; }
+.db-deck-item:active { background:rgba(255,255,255,.05); }
+.db-deck-item-name { flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+  font-size:10px; padding-right:4px; }
+.db-deck-item-count { color:var(--gold); font-family:'Share Tech Mono',monospace;
+  font-size:11px; font-weight:700; margin-right:4px; }
+.db-deck-item-remove { cursor:pointer; color:var(--red); padding:4px 8px;
+  font-size:16px; border-radius:4px; background:rgba(180,30,30,.25);
+  border:1px solid rgba(180,30,30,.4); line-height:1; min-width:30px; text-align:center; }
+.db-deck-item-remove:active { background:rgba(180,30,30,.5); transform:scale(0.9); }
+
+.db-count-row { display:flex; justify-content:space-between; padding:6px 8px;
+  font-size:10px; color:var(--text-mid); flex-shrink:0;
+  border-top:1px solid var(--border-dim); background:rgba(0,0,0,.25); }
+.db-count-row span { font-family:'Share Tech Mono',monospace; }
+#db-main-count, #db-land-count { color:var(--gold); font-weight:700; }
+
+#db-deck-actions { display:flex; gap:4px; padding:6px; flex-shrink:0;
+  border-top:1px solid var(--border-dim); flex-wrap:wrap; background:rgba(0,0,0,.3); }
+.db-btn { flex:1; padding:8px 4px; font-size:10px; border-radius:5px; cursor:pointer;
   background:rgba(40,30,80,.8); color:var(--text-mid); border:1px solid var(--border-dim);
-  font-family:'Share Tech Mono',monospace; text-align:center; min-width:0; }
-.db-btn.primary { background:rgba(160,32,240,.3); border-color:var(--purple); color:var(--white-c); }
-.db-btn.danger  { background:rgba(180,30,30,.3); border-color:var(--red); color:var(--red); }
-/* DB preview panel - mobile: show as overlay */
-#db-preview-panel { display:none; } /* hidden on mobile — use card modal instead */
-#db-deck-name { font-size:10px; color:var(--text-mid); padding:3px 6px; flex-shrink:0; }
+  font-family:'Share Tech Mono',monospace; font-weight:700; text-align:center; min-width:0;
+  letter-spacing:1px; min-height:34px; }
+.db-btn:active { transform:scale(0.95); }
+.db-btn.primary { background:rgba(160,32,240,.4); border-color:var(--purple); color:#fff;
+  box-shadow: 0 0 10px rgba(160,32,240,.4); }
+.db-btn.primary:active { background:rgba(160,32,240,.6); }
+.db-btn.danger  { background:rgba(180,30,30,.35); border-color:var(--red); color:#ff8080; }
+
+#db-preview-panel { display:none; }
+
 /* DB who toggle */
-.db-who-toggle { display:flex; gap:3px; padding:5px 6px; flex-shrink:0; border-bottom:1px solid var(--border-dim); }
-.db-who-btn { flex:1; padding:4px; font-size:9px; border-radius:3px; cursor:pointer; text-align:center;
-  border:1px solid var(--border-dim); background:rgba(20,16,40,.8); color:var(--text-dim); }
-.db-who-btn.active { background:rgba(212,160,32,.2); border-color:var(--gold); color:var(--gold); }
+.db-who-toggle { display:flex; gap:4px; padding:6px; flex-shrink:0;
+  border-bottom:1px solid var(--border-dim); background:rgba(0,0,0,.15); }
+.db-who-btn { flex:1; padding:7px 4px; font-size:11px; border-radius:5px; cursor:pointer;
+  text-align:center; border:1px solid var(--border-dim); background:rgba(20,16,40,.8);
+  color:var(--text-dim); font-weight:700; letter-spacing:1px; min-height:32px; }
+.db-who-btn:active { transform:scale(0.95); }
+.db-who-btn.active { background:rgba(212,160,32,.3); border-color:var(--gold); color:var(--gold);
+  box-shadow: 0 0 10px rgba(212,160,32,.4); }
 
 /* ── MISC ANIMATIONS ──────────────────────────────────────────── */
 /* Drop zone highlight when dragging over player side */
@@ -1620,7 +1686,7 @@ html.targeting-active .valid-target { cursor:pointer!important; }
 </div>
 
 <!-- Deckbuilder overlay -->
-<div id="deckbuilder" style="display:none;">
+<div id="deckbuilder">
   <div id="db-topbar">
     <div class="db-title">DECKBUILDER</div>
     <div class="db-slot-tabs">
@@ -1634,8 +1700,8 @@ html.targeting-active .valid-target { cursor:pointer!important; }
   <div id="db-body">
     <div id="db-browser">
       <div class="db-who-toggle">
-        <button class="db-who-btn active" onclick="dbSetWho('player')">PLAYER</button>
-        <button class="db-who-btn"        onclick="dbSetWho('ai')">AI</button>
+        <button class="db-who-btn active" data-who="player" onclick="dbSetWho('player')">PLAYER</button>
+        <button class="db-who-btn"        data-who="ai"     onclick="dbSetWho('ai')">AI</button>
       </div>
       <div class="db-filter-row" id="db-type-filters">
         <button class="db-filter-btn active" onclick="dbSetFilter('All')">ALL</button>
@@ -1645,13 +1711,13 @@ html.targeting-active .valid-target { cursor:pointer!important; }
         <button class="db-filter-btn" onclick="dbSetFilter('Land')">LAND</button>
       </div>
       <div class="db-filter-row" id="db-color-filters">
-        <button class="db-filter-btn active" onclick="dbSetColorFilter('All')">ALL</button>
-        <button class="db-filter-btn" onclick="dbSetColorFilter('Red')" style="color:#e03030">RED</button>
-        <button class="db-filter-btn" onclick="dbSetColorFilter('White')" style="color:#c8c0f0">WHT</button>
-        <button class="db-filter-btn" onclick="dbSetColorFilter('Black')" style="color:#a080f0">BLK</button>
-        <button class="db-filter-btn" onclick="dbSetColorFilter('Purple')" style="color:#c040ff">PRP</button>
-        <button class="db-filter-btn" onclick="dbSetColorFilter('Colorless')">⬡</button>
-        <button class="db-filter-btn" onclick="dbSetColorFilter('Land')">🌍</button>
+        <button class="db-color-btn db-filter-btn active" data-color="All" onclick="dbSetColorFilter('All')">ALL</button>
+        <button class="db-color-btn db-filter-btn" data-color="Red"    onclick="dbSetColorFilter('Red')" style="color:#e03030">RED</button>
+        <button class="db-color-btn db-filter-btn" data-color="White"  onclick="dbSetColorFilter('White')" style="color:#c8c0f0">WHT</button>
+        <button class="db-color-btn db-filter-btn" data-color="Black"  onclick="dbSetColorFilter('Black')" style="color:#a080f0">BLK</button>
+        <button class="db-color-btn db-filter-btn" data-color="Purple" onclick="dbSetColorFilter('Purple')" style="color:#c040ff">PRP</button>
+        <button class="db-color-btn db-filter-btn" data-color="Colorless" onclick="dbSetColorFilter('Colorless')">⬡</button>
+        <button class="db-color-btn db-filter-btn" data-color="Land" onclick="dbSetColorFilter('Land')">🌍</button>
       </div>
       <div class="db-search-row">
         <input id="db-search" placeholder="Search cards..." oninput="dbRenderBrowser()">
@@ -9109,17 +9175,18 @@ function dbSelectSlot(faction) {
   dbState.slot = faction;
   dbState.tab  = 'main';
 
-  // Update tab styling
+  // Clear all active classes on slot tabs, then apply color-specific active
+  const factionClass = 'active-' + faction.toLowerCase();
   document.querySelectorAll('.db-slot-tab').forEach(t => {
-    t.classList.toggle('active', t.textContent === faction.toUpperCase());
-  });
-  // Ensure active tab also gets faction color class
-  document.querySelectorAll('.db-slot-tab').forEach(t => {
-    t.classList.remove('active');
-    if (t.textContent === faction.toUpperCase()) {
-      t.classList.add('active');
+    t.classList.remove('active', 'active-red', 'active-white', 'active-black', 'active-purple');
+    if (t.classList.contains(faction.toLowerCase())) {
+      t.classList.add('active', factionClass);
     }
   });
+
+  // Reset deck tab to main
+  document.getElementById('db-tab-main')?.classList.add('active');
+  document.getElementById('db-tab-land')?.classList.remove('active');
 
   document.getElementById('db-deck-name').textContent =
     (dbState.who === 'ai' ? 'AI ' : '') + faction.toUpperCase() + ' DECK';
@@ -9129,7 +9196,8 @@ function dbSelectSlot(faction) {
 
 function dbSetFilter(type) {
   dbState.filter = type;
-  document.querySelectorAll('.db-filter-btn').forEach(b => {
+  // Only toggle within the type-filter row (not color filters)
+  document.querySelectorAll('#db-type-filters .db-filter-btn').forEach(b => {
     b.classList.toggle('active', b.textContent === type.toUpperCase() || (type === 'All' && b.textContent === 'ALL'));
   });
   dbRenderBrowser();
@@ -9229,17 +9297,37 @@ function dbRenderBrowser() {
     if (countInDeck > 0) {
       const countBadge = document.createElement('div');
       countBadge.className = 'db-card-count';
-      countBadge.textContent = countInDeck;
+      countBadge.textContent = '×' + countInDeck;
       el.appendChild(countBadge);
     }
 
-    // Click: add to deck
-    el.onclick = () => dbAddCard(card.id);
-    // Right-click: remove from deck
+    // Mobile-friendly touch handling: tap = add, long-press = preview
+    let _lpTimer = null, _lpFired = false;
+    el.addEventListener('touchstart', () => {
+      _lpFired = false;
+      _lpTimer = setTimeout(() => {
+        _lpFired = true;
+        if (typeof hapticSelect === 'function') hapticSelect();
+        dbShowCardPreview(card);
+      }, 450);
+    }, { passive: true });
+    el.addEventListener('touchmove', () => { clearTimeout(_lpTimer); }, { passive: true });
+    el.addEventListener('touchend', (e) => {
+      clearTimeout(_lpTimer);
+      if (_lpFired) { _lpFired = false; e.preventDefault(); return; }
+      e.preventDefault();
+      if (typeof hapticTap === 'function') hapticTap();
+      dbAddCard(card.id);
+    }, { passive: false });
+
+    // Desktop fallback: click = add, right-click = remove, hover = preview
+    el.onclick = (e) => {
+      // Only fire for mouse (touch already handled above)
+      if (e.pointerType === 'touch') return;
+      dbAddCard(card.id);
+    };
     el.oncontextmenu = (e) => { e.preventDefault(); dbRemoveCard(card.id); };
-    // Hover: preview
     el.onmouseenter = () => dbPreviewCard(card);
-    el.onmouseleave = () => {};
 
     grid.appendChild(el);
   });
@@ -9300,13 +9388,28 @@ function dbRenderDeckList() {
     if (!card) return;
 
     const entry = document.createElement('div');
-    entry.className = 'db-deck-entry';
+    entry.className = 'db-deck-item';
+
+    // Long-press to preview
+    let _lpTimer = null, _lpFired = false;
+    entry.addEventListener('touchstart', () => {
+      _lpFired = false;
+      _lpTimer = setTimeout(() => {
+        _lpFired = true;
+        if (typeof hapticSelect === 'function') hapticSelect();
+        dbShowCardPreview(card);
+      }, 450);
+    }, { passive: true });
+    entry.addEventListener('touchmove', () => clearTimeout(_lpTimer), { passive: true });
+    entry.addEventListener('touchend', () => clearTimeout(_lpTimer), { passive: true });
+
+    // Desktop hover preview
     entry.onmouseenter = () => dbPreviewCard(card);
-    entry.onclick = () => dbRemoveCard(id);
 
     // Cost pips
     const costEl = document.createElement('div');
     costEl.className = 'db-deck-entry-cost';
+    costEl.style.cssText = 'display:flex; gap:1px; margin-right:3px;';
     (card.cost || '').split('').forEach(c => {
       const url = MANA_ICONS[c];
       if (url) {
@@ -9318,14 +9421,25 @@ function dbRenderDeckList() {
     entry.appendChild(costEl);
 
     const nameEl = document.createElement('div');
-    nameEl.className = 'db-deck-entry-name';
+    nameEl.className = 'db-deck-item-name';
     nameEl.textContent = card.name;
     entry.appendChild(nameEl);
 
     const countEl = document.createElement('div');
-    countEl.className = 'db-deck-entry-count';
+    countEl.className = 'db-deck-item-count';
     countEl.textContent = `×${count}`;
     entry.appendChild(countEl);
+
+    // Dedicated remove button (tappable)
+    const removeBtn = document.createElement('div');
+    removeBtn.className = 'db-deck-item-remove';
+    removeBtn.textContent = '✕';
+    removeBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (typeof hapticTap === 'function') hapticTap();
+      dbRemoveCard(id);
+    };
+    entry.appendChild(removeBtn);
 
     list.appendChild(entry);
   });
@@ -9378,6 +9492,28 @@ function dbPreviewCard(card) {
   }
 
   document.getElementById('db-preview-abilities').textContent = card.abilities || '—';
+}
+
+// Mobile-friendly full preview for DB cards (long-press trigger).
+// Reuses the hero overlay infrastructure by passing a synthetic inst.
+function dbShowCardPreview(card) {
+  if (!card) return;
+  // Build a synthetic instance so showCardHoldOverlay can display it
+  const inst = {
+    cardId: card.id,
+    instId: 'db-preview-' + card.id,
+    name: card.name,
+    image: card.image,
+    cost: card.cost,
+    color: card.color,
+    type: card.type,
+    subtype: card.subtype,
+    rarity: card.rarity,
+    power: card.power,
+    abilities: card.abilities || '',
+    keywords: {},
+  };
+  if (typeof showCardHoldOverlay === 'function') showCardHoldOverlay(inst);
 }
 
 function dbSetWho(who) {
