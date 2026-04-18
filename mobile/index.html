@@ -311,6 +311,29 @@ html,body {
 .hand-vital-val.bleed { color:var(--bleed-red);  text-shadow:0 0 12px rgba(220,48,48,.5); }
 .hand-vital-label { font-size:7px; letter-spacing:2px; color:var(--text-dim); }
 
+/* ── BLEED ACTIVE PULSE (Hemorrhage indicator) ───────────────── */
+@keyframes bleed-pulse {
+  0%, 100% {
+    text-shadow: 0 0 8px rgba(220,48,48,.5), 0 0 14px rgba(220,48,48,.3);
+    transform: scale(1);
+  }
+  50% {
+    text-shadow: 0 0 18px rgba(255,80,80,.95), 0 0 30px rgba(220,48,48,.8), 0 0 40px rgba(220,48,48,.4);
+    transform: scale(1.12);
+  }
+}
+@keyframes bleed-icon-pulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 3px rgba(220,48,48,.4)); }
+  50%      { transform: scale(1.2); filter: drop-shadow(0 0 10px rgba(255,60,60,.9)) drop-shadow(0 0 16px rgba(220,48,48,.6)); }
+}
+.hand-vital-block.bleeding .hand-vital-val.bleed {
+  animation: bleed-pulse 1.3s ease-in-out infinite;
+}
+.hand-vital-block.bleeding .hand-vital-icon {
+  animation: bleed-icon-pulse 1.3s ease-in-out infinite;
+  display: inline-block;
+}
+
 /* Player hand cards scroll */
 .hand-cards-scroll {
   flex:1; display:flex; align-items:flex-end; justify-content:flex-start;
@@ -493,6 +516,41 @@ html,body {
 #modal-actions .btn { width:100%; text-align:center; padding:12px; font-size:12px; }
 
 /* ── TURN BANNER ──────────────────────────────────────────────── */
+/* ── TURN CHANGE LIGHT SWEEP ──────────────────────────────────── */
+#turn-sweep {
+  position:fixed; inset:0; z-index:3900; pointer-events:none;
+  opacity:0; overflow:hidden;
+}
+#turn-sweep.active { opacity:1; }
+#turn-sweep::before {
+  content:''; position:absolute; top:0; bottom:0; width:80%;
+  left:-80%;
+  background:linear-gradient(90deg,
+    transparent 0%,
+    rgba(255,220,120,0.08) 30%,
+    rgba(255,230,140,0.35) 48%,
+    rgba(255,255,255,0.55) 50%,
+    rgba(255,230,140,0.35) 52%,
+    rgba(255,220,120,0.08) 70%,
+    transparent 100%);
+  filter:blur(2px);
+}
+#turn-sweep.active::before { animation: turn-sweep-anim 0.85s cubic-bezier(.4,0,.3,1); }
+#turn-sweep.ai::before {
+  background:linear-gradient(90deg,
+    transparent 0%,
+    rgba(224,48,48,0.08) 30%,
+    rgba(220,60,80,0.35) 48%,
+    rgba(255,100,120,0.6) 50%,
+    rgba(220,60,80,0.35) 52%,
+    rgba(224,48,48,0.08) 70%,
+    transparent 100%);
+}
+@keyframes turn-sweep-anim {
+  0%   { left:-80%; }
+  100% { left:120%; }
+}
+
 #turn-banner {
   position:fixed; inset:0; z-index:4000; pointer-events:none;
   display:flex; align-items:center; justify-content:center;
@@ -704,27 +762,249 @@ html,body {
 /* Dragging card dims itself */
 .card.dragging { opacity: 0.35; }
 
-@keyframes card-arrive {
-  from { transform:translateY(20px); opacity:0; }
-  to   { transform:translateY(0); opacity:1; }
+/* ── DRAW PHASE — 3D bouncing arrows pointing at decks ──────── */
+.deck-arrow {
+  position:absolute; left:50%; top:-46px; transform:translateX(-50%);
+  width:0; height:0; pointer-events:none; z-index:50;
+  filter: drop-shadow(0 3px 8px rgba(255,220,100,0.7)) drop-shadow(0 0 14px rgba(255,180,40,0.6));
+  animation: deck-arrow-bounce 0.65s ease-in-out infinite;
+  transform-style: preserve-3d;
 }
-.card-arrive { animation:card-arrive .25s ease-out; }
+.deck-arrow::before {
+  content:''; position:absolute; top:0; left:-18px;
+  border-left:18px solid transparent;
+  border-right:18px solid transparent;
+  border-top:24px solid #ffd840;
+}
+.deck-arrow::after {
+  content:''; position:absolute; top:-2px; left:-20px;
+  border-left:20px solid transparent;
+  border-right:20px solid transparent;
+  border-top:26px solid rgba(255,235,160,0.4);
+  filter: blur(2px);
+}
+@keyframes deck-arrow-bounce {
+  0%,100% { transform:translateX(-50%) translateY(0)    rotateX(0deg); }
+  50%     { transform:translateX(-50%) translateY(-12px) rotateX(20deg); }
+}
+.hand-deck-pile.draw-ready .hand-deck-card {
+  cursor:pointer;
+  box-shadow: 0 0 0 2px rgba(255,220,100,0.8),
+              0 0 18px rgba(255,220,100,0.6),
+              0 0 32px rgba(255,180,40,0.4);
+  animation: deck-glow-pulse 1.2s ease-in-out infinite;
+}
+@keyframes deck-glow-pulse {
+  0%,100% { box-shadow: 0 0 0 2px rgba(255,220,100,0.8),
+                        0 0 18px rgba(255,220,100,0.5),
+                        0 0 32px rgba(255,180,40,0.3); }
+  50%     { box-shadow: 0 0 0 3px rgba(255,240,160,1),
+                        0 0 26px rgba(255,220,100,0.9),
+                        0 0 48px rgba(255,180,40,0.7); }
+}
+.hand-deck-pile { position:relative; }
+
+/* ── DRAW CARD FLIP FROM DECK ──────────────────────────────── */
+.card-flip-draw {
+  position:fixed; z-index:9995; pointer-events:none;
+  transform-style:preserve-3d;
+  perspective: 1200px;
+}
+.card-flip-draw .flip-inner {
+  position:relative; width:100%; height:100%;
+  transform-style:preserve-3d;
+  transition:transform 0.55s cubic-bezier(.3,.1,.3,1);
+}
+.card-flip-draw .flip-face {
+  position:absolute; inset:0; border-radius:6px;
+  backface-visibility:hidden; -webkit-backface-visibility:hidden;
+  overflow:hidden;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.8), 0 0 16px rgba(255,220,100,0.4);
+}
+.card-flip-draw .flip-face img { width:100%; height:100%; object-fit:cover; display:block; }
+.card-flip-draw .flip-back { transform:rotateY(180deg); }
+@keyframes card-flip-travel {
+  0%   { transform: translate(0,0) scale(0.55) rotateY(0deg) rotateZ(0deg); opacity:0; }
+  8%   { opacity:1; }
+  35%  { transform: translate(var(--mid-x,0px),var(--mid-y,-60px)) scale(1.3) rotateY(90deg) rotateZ(-4deg); }
+  70%  { transform: translate(var(--mid-x,0px),var(--mid-y,-60px)) scale(1.3) rotateY(180deg) rotateZ(4deg); }
+  100% { transform: translate(var(--end-x,0px),var(--end-y,0px)) scale(0.45) rotateY(180deg) rotateZ(0deg); opacity:0.9; }
+}
+.card-flip-draw.animating { animation: card-flip-travel 0.9s cubic-bezier(.3,.05,.4,1) forwards; }
+
+/* ── HERO MOMENT — card lifts to center on cast/activate ───── */
+.hero-moment {
+  position:fixed; z-index:9990; pointer-events:none;
+  transform-origin:center center;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.85),
+              0 0 30px rgba(255,220,100,0.35);
+  border-radius:8px;
+  overflow:hidden;
+  will-change: transform, opacity, left, top;
+  transition: left 0.38s cubic-bezier(.3,.1,.3,1),
+              top 0.38s cubic-bezier(.3,.1,.3,1),
+              width 0.38s cubic-bezier(.3,.1,.3,1),
+              height 0.38s cubic-bezier(.3,.1,.3,1),
+              transform 0.38s cubic-bezier(.3,.1,.3,1),
+              opacity 0.2s;
+}
+.hero-moment.lifting {
+  animation: hero-lift 0.45s cubic-bezier(.3,.1,.2,1.1) forwards;
+}
+@keyframes hero-lift {
+  0%   { transform: scale(1) rotateY(0) rotateX(0); }
+  60%  { transform: scale(2.05) rotateY(180deg) rotateX(-6deg); }
+  100% { transform: scale(2.1) rotateY(360deg) rotateX(0); }
+}
+.hero-moment.holding {
+  animation: hero-hold 1.2s ease-in-out infinite;
+}
+@keyframes hero-hold {
+  0%, 100% {
+    box-shadow: 0 16px 40px rgba(0,0,0,0.85),
+                0 0 30px var(--hero-glow, rgba(255,220,100,0.5)),
+                0 0 60px var(--hero-glow, rgba(255,220,100,0.35));
+    transform: scale(2.1) translateY(0);
+  }
+  50% {
+    box-shadow: 0 20px 50px rgba(0,0,0,0.9),
+                0 0 45px var(--hero-glow, rgba(255,240,150,0.75)),
+                0 0 85px var(--hero-glow, rgba(255,220,100,0.55));
+    transform: scale(2.15) translateY(-4px);
+  }
+}
+.hero-moment.releasing {
+  opacity: 0.5;
+}
+.hero-moment img.hero-art {
+  width:100%; height:100%; object-fit:cover; display:block;
+}
+.hero-moment .hero-name-overlay {
+  position:absolute; bottom:0; left:0; right:0;
+  padding:16px 8px 6px;
+  background: linear-gradient(to top, rgba(0,0,0,0.92) 0%, transparent 100%);
+  color:#fff; font-family:'Cinzel Decorative',serif; font-size:11px;
+  text-align:center; letter-spacing:1px;
+  text-shadow: 0 1px 3px #000;
+}
+
+/* Backdrop dim while hero is held */
+#hero-backdrop {
+  position:fixed; inset:0; z-index:9989; pointer-events:none;
+  background:radial-gradient(ellipse at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.75) 100%);
+  opacity:0; transition:opacity 0.3s;
+}
+#hero-backdrop.active { opacity:1; }
+
+@keyframes card-arrive {
+  0%   { opacity:0; transform:translateY(-60px) rotateX(-70deg) scale(0.5); }
+  55%  { opacity:1; transform:translateY(6px) rotateX(10deg) scale(1.08); }
+  78%  { transform:translateY(-2px) rotateX(-2deg) scale(1.0); }
+  100% { opacity:1; transform:translateY(0) rotateX(0deg) scale(1); }
+}
+.card-arrive { animation:card-arrive .52s cubic-bezier(.35,.8,.35,1.2); transform-origin:center bottom; }
+
 @keyframes spell-cast-reveal {
   0%  { opacity:0; transform:translateY(-30px) scale(0.85); }
   60% { opacity:1; transform:translateY(4px) scale(1.06); }
   100%{ opacity:1; transform:translateY(0) scale(1); }
 }
 @keyframes card-destroying {
-  0%  { transform:scale(1); opacity:1; }
-  40% { transform:scale(1.15); opacity:.7; filter:brightness(2.5) saturate(0); }
-  100%{ transform:scale(0.1); opacity:0; }
+  0%   { transform:scale(1);    opacity:1; filter:brightness(1); }
+  30%  { transform:scale(1.15); opacity:.9; filter:brightness(2.8) saturate(1.4) hue-rotate(30deg); }
+  60%  { transform:scale(0.9) rotate(3deg); opacity:.5; filter:brightness(3) saturate(0); }
+  100% { transform:scale(0) rotate(-8deg); opacity:0; filter:brightness(4) saturate(0); }
 }
-@keyframes card-destroying {
-  0%   { transform:scale(1);    opacity:1; }
-  50%  { transform:scale(1.1);  opacity:.7; filter:brightness(2) saturate(0); }
-  100% { transform:scale(0);    opacity:0; }
+.card-destroying { animation:card-destroying .42s ease-out forwards; }
+
+/* ── RARITY SHIMMERS (Rare + Mythic) ─────────────────────────── */
+@keyframes rarity-shine {
+  0%   { background-position: -150% 0; }
+  100% { background-position: 250% 0; }
 }
-.card-destroying { animation:card-destroying .3s ease-out forwards; }
+.card[data-rarity="Rare"]::after,
+.card[data-rarity="Mythic Rare"]::after {
+  content:''; position:absolute; inset:0; pointer-events:none; z-index:5;
+  border-radius:5px;
+  background:linear-gradient(110deg, transparent 35%,
+    rgba(255,255,255,0.22) 50%, transparent 65%);
+  background-size:220% 100%;
+  animation:rarity-shine 3.8s ease-in-out infinite;
+  mix-blend-mode:overlay;
+}
+.card[data-rarity="Mythic Rare"]::after {
+  background:linear-gradient(110deg, transparent 30%,
+    rgba(255,90,255,0.35) 45%, rgba(255,220,100,0.3) 52%,
+    rgba(160,40,240,0.35) 60%, transparent 75%);
+  animation-duration:2.8s;
+}
+.card[data-rarity="Mythic Rare"] {
+  box-shadow: 0 0 0 1px rgba(160,40,240,0.35),
+              0 0 14px rgba(160,40,240,0.5),
+              0 2px 6px rgba(0,0,0,0.7);
+}
+.card[data-rarity="Rare"] {
+  box-shadow: 0 0 0 1px rgba(255,200,60,0.3),
+              0 0 10px rgba(255,200,60,0.25),
+              0 2px 6px rgba(0,0,0,0.7);
+}
+
+/* ── ATTACKER PULSE: faction-colored glow ride ──────────────── */
+@keyframes attacker-pulse-red {
+  0%,100% { box-shadow:0 0 0 2px rgba(224,48,48,.95), 0 0 18px rgba(224,48,48,.55); }
+  50%     { box-shadow:0 0 0 3px rgba(255,100,100,1), 0 0 28px rgba(255,80,80,.85); }
+}
+@keyframes attacker-pulse-white {
+  0%,100% { box-shadow:0 0 0 2px rgba(200,192,240,.95), 0 0 18px rgba(200,192,240,.55); }
+  50%     { box-shadow:0 0 0 3px rgba(230,220,255,1), 0 0 28px rgba(200,192,240,.85); }
+}
+@keyframes attacker-pulse-black {
+  0%,100% { box-shadow:0 0 0 2px rgba(96,48,192,.95), 0 0 18px rgba(96,48,192,.55); }
+  50%     { box-shadow:0 0 0 3px rgba(160,80,255,1), 0 0 28px rgba(120,60,220,.85); }
+}
+@keyframes attacker-pulse-purple {
+  0%,100% { box-shadow:0 0 0 2px rgba(160,32,240,.95), 0 0 18px rgba(160,32,240,.55); }
+  50%     { box-shadow:0 0 0 3px rgba(210,100,255,1), 0 0 28px rgba(180,60,255,.85); }
+}
+.card.attacking[data-color="Red"]    { animation:attacker-pulse-red 0.9s ease-in-out infinite!important; }
+.card.attacking[data-color="White"]  { animation:attacker-pulse-white 0.9s ease-in-out infinite!important; }
+.card.attacking[data-color="Black"]  { animation:attacker-pulse-black 0.9s ease-in-out infinite!important; }
+.card.attacking[data-color="Purple"] { animation:attacker-pulse-purple 0.9s ease-in-out infinite!important; }
+
+/* ── FLOATING DAMAGE/HEAL NUMBERS ─────────────────────────────── */
+.float-number {
+  position:fixed; pointer-events:none; z-index:9998;
+  font-family:'Cinzel Decorative',serif; font-weight:900;
+  font-size:32px; text-shadow:0 2px 6px #000, 0 0 10px rgba(0,0,0,.9);
+  animation:float-num 1.1s cubic-bezier(.25,.6,.4,1) forwards;
+  white-space:nowrap;
+}
+.float-number.damage { color:#ff3030; text-shadow:0 2px 6px #000,0 0 14px rgba(255,40,40,.8); }
+.float-number.heal   { color:#4eff8a; text-shadow:0 2px 6px #000,0 0 14px rgba(60,255,130,.8); }
+.float-number.bleed  { color:#d42020; text-shadow:0 2px 6px #000,0 0 14px rgba(212,32,32,.9); }
+@keyframes float-num {
+  0%   { opacity:0; transform:translate(-50%,0) scale(0.5); }
+  15%  { opacity:1; transform:translate(-50%,-8px) scale(1.25); }
+  85%  { opacity:1; transform:translate(-50%,-60px) scale(1); }
+  100% { opacity:0; transform:translate(-50%,-90px) scale(0.85); }
+}
+
+/* ── MANA PIP FLY UPGRADE: particle trail ─────────────────────── */
+.pip-flying {
+  position:fixed!important; z-index:9997; pointer-events:none;
+  filter:drop-shadow(0 0 8px currentColor) drop-shadow(0 0 14px rgba(255,220,100,.6));
+  transform:translate(-50%,-50%);
+}
+.pip-trail {
+  position:fixed; pointer-events:none; z-index:9996;
+  width:6px; height:6px; border-radius:50%;
+  background:radial-gradient(circle, rgba(255,220,120,1) 0%, rgba(255,180,60,0.6) 50%, transparent 100%);
+  animation:pip-trail-fade .45s ease-out forwards;
+}
+@keyframes pip-trail-fade {
+  0%   { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  100% { opacity:0; transform:translate(-50%,-50%) scale(0.2); }
+}
 
 /* ── PARTICLE CANVAS (behind everything) ─────────────────────── */
 #particle-canvas { position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.4; }
@@ -1266,6 +1546,8 @@ html.targeting-active .valid-target { cursor:pointer!important; }
 <canvas id="particle-canvas"></canvas>
 <div id="damage-vignette"></div>
 <div id="turn-banner"><div class="turn-banner-text" id="turn-banner-text"></div></div>
+<div id="turn-sweep"></div>
+<div id="hero-backdrop"></div>
 <div id="action-overlay" style="display:none;"></div>
 <div id="drag-ghost" style="display:none;"></div>
 
@@ -1513,6 +1795,7 @@ function checkMissionComplete(who) {
     ms.flipped = true;
     log(`⚡ MISSION COMPLETE [${who}]: "${ms.name}" — ${ms.reward}!`, 'important');
     sfx('turn_end', 0.8);
+    if (who === 'player' && typeof hapticWin === 'function') hapticWin();
     applyMissionReward(who, ms.rewardCode);
     renderMissionCards();
   }
@@ -2927,22 +3210,30 @@ function promptDrawChoice() {
   const drawBonus = hasMissionReward('player', 'purple_draw_two');
 
   function finishDraw() {
+    clearDrawArrows();
     setPhase('prebattle');
     updateUI();
   }
 
   function afterDraw(deck) {
-    drawFromDeck('player', deck);
-    if (drawBonus) {
-      drawFromDeck('player', player.main.length > 0 ? 'main' : 'land');
-      log('Omniscience Engine: drew a bonus card!', 'heal');
-    }
-    // In playtest mode: loop back so player can draw more or finish
-    if (_playtestMode) {
-      promptDrawChoice();
-      return;
-    }
-    finishDraw();
+    // Animate the flip from the chosen deck before actually drawing
+    const deckEl = deck === 'main'
+      ? document.getElementById('player-deck-count')?.closest('.hand-deck-card')
+      : document.getElementById('player-land-count')?.closest('.hand-deck-card');
+    const deckTopId = deck === 'main' ? player.main[0] : player.land[0];
+    const cardDef = deckTopId ? CARD_MAP[deckTopId] : null;
+    flipCardFromDeck(deckEl, cardDef, () => {
+      drawFromDeck('player', deck);
+      if (drawBonus) {
+        drawFromDeck('player', player.main.length > 0 ? 'main' : 'land');
+        log('Omniscience Engine: drew a bonus card!', 'heal');
+      }
+      if (_playtestMode) {
+        promptDrawChoice();
+        return;
+      }
+      finishDraw();
+    });
   }
 
   if (mainEmpty && landEmpty) {
@@ -2956,16 +3247,10 @@ function promptDrawChoice() {
     if (mainEmpty) { afterDraw('land'); return; }
     if (landEmpty) { afterDraw('main'); return; }
 
-    showModal(
-      'DRAW PHASE',
-      `Choose which deck to draw from.\nMain Deck: ${player.main.length} cards remaining\nLand Deck: ${player.land.length} cards remaining`,
-      [
-        { label: `MAIN DECK (${player.main.length})`, cls: 'btn-primary',    action: () => { afterDraw('main'); } },
-        { label: `LAND DECK (${player.land.length})`, cls: 'btn-secondary',  action: () => { afterDraw('land'); } }
-      ]
-    );
+    // Show 3D arrows on both decks and let player tap
+    showDrawArrows(afterDraw, { mainEmpty, landEmpty });
   } else {
-    // Playtest mode: unlimited draws until player clicks DONE
+    // Playtest mode: keep modal for unlimited draws (DONE DRAWING option)
     const handCount = player.hand.length;
     const actions = [];
 
@@ -2985,6 +3270,124 @@ function promptDrawChoice() {
       actions
     );
   }
+}
+
+// Show bouncing 3D arrows over both decks + make decks tappable
+function showDrawArrows(onChoose, opts) {
+  const mainPile = document.getElementById('player-deck-count')?.closest('.hand-deck-pile');
+  const landPile = document.getElementById('player-land-count')?.closest('.hand-deck-pile');
+  clearDrawArrows();
+
+  if (mainPile && !opts.mainEmpty) {
+    mainPile.classList.add('draw-ready');
+    const arrow = document.createElement('div');
+    arrow.className = 'deck-arrow';
+    mainPile.appendChild(arrow);
+    mainPile._drawHandler = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (typeof hapticSelect === 'function') hapticSelect();
+      onChoose('main');
+    };
+    mainPile.addEventListener('click', mainPile._drawHandler);
+    mainPile.addEventListener('touchend', mainPile._drawHandler);
+  }
+  if (landPile && !opts.landEmpty) {
+    landPile.classList.add('draw-ready');
+    const arrow = document.createElement('div');
+    arrow.className = 'deck-arrow';
+    landPile.appendChild(arrow);
+    landPile._drawHandler = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (typeof hapticSelect === 'function') hapticSelect();
+      onChoose('land');
+    };
+    landPile.addEventListener('click', landPile._drawHandler);
+    landPile.addEventListener('touchend', landPile._drawHandler);
+  }
+}
+
+function clearDrawArrows() {
+  ['player-deck-count', 'player-land-count'].forEach(id => {
+    const pile = document.getElementById(id)?.closest('.hand-deck-pile');
+    if (!pile) return;
+    pile.classList.remove('draw-ready');
+    const arrow = pile.querySelector('.deck-arrow');
+    if (arrow) arrow.remove();
+    if (pile._drawHandler) {
+      pile.removeEventListener('click', pile._drawHandler);
+      pile.removeEventListener('touchend', pile._drawHandler);
+      pile._drawHandler = null;
+    }
+  });
+}
+
+// Flip a card from deck position toward the hand: face-down → flips → face-up → lands in hand
+function flipCardFromDeck(deckEl, cardDef, onDone) {
+  if (!deckEl || !cardDef) { if (onDone) onDone(); return; }
+
+  const deckR = deckEl.getBoundingClientRect();
+  const handEl = document.getElementById('hand-player-cards');
+  const handR  = handEl ? handEl.getBoundingClientRect() : deckR;
+
+  // Start: over the deck
+  // End: over the hand (center-left area where new card will land)
+  const startX = deckR.left;
+  const startY = deckR.top;
+  const endX   = handR.left + handR.width * 0.35 - deckR.left;
+  const endY   = handR.top  + handR.height * 0.3  - deckR.top;
+  // Midpoint for arc: above the midline
+  const midX = endX * 0.5;
+  const midY = endY * 0.4 - 80;
+
+  const flipper = document.createElement('div');
+  flipper.className = 'card-flip-draw animating';
+  flipper.style.left   = startX + 'px';
+  flipper.style.top    = startY + 'px';
+  flipper.style.width  = '80px';
+  flipper.style.height = '112px';
+  flipper.style.setProperty('--mid-x', midX + 'px');
+  flipper.style.setProperty('--mid-y', midY + 'px');
+  flipper.style.setProperty('--end-x', endX + 'px');
+  flipper.style.setProperty('--end-y', endY + 'px');
+
+  const inner = document.createElement('div');
+  inner.className = 'flip-inner';
+
+  const back = document.createElement('div');
+  back.className = 'flip-face';
+  const backImg = document.createElement('img');
+  backImg.src = 'https://github.com/Cybervampccg/cybervamp.github.io/blob/main/images/card_back.png?raw=true';
+  backImg.onerror = () => { back.style.background = '#2a1050'; };
+  back.appendChild(backImg);
+
+  const front = document.createElement('div');
+  front.className = 'flip-face flip-back';
+  if (cardDef.image) {
+    const frontImg = document.createElement('img');
+    frontImg.src = cardDef.image;
+    frontImg.onerror = () => { front.style.background = '#1a0a30'; };
+    front.appendChild(frontImg);
+  } else {
+    front.style.background = '#1a0a30';
+  }
+  // Add name label on front for clarity
+  const nameLabel = document.createElement('div');
+  nameLabel.textContent = cardDef.name || '';
+  nameLabel.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,0.9),transparent);color:#fff;font-family:"Cinzel Decorative",serif;font-size:9px;padding:12px 4px 3px;text-align:center;';
+  front.appendChild(nameLabel);
+
+  inner.appendChild(back);
+  inner.appendChild(front);
+  flipper.appendChild(inner);
+  document.body.appendChild(flipper);
+
+  sfx('card_play', 0.35);
+  if (typeof hapticTap === 'function') hapticTap();
+
+  setTimeout(() => {
+    flipper.remove();
+    if (onDone) onDone();
+  }, 900);
 }
 
 function drawFromDeck(who, deckType) {
@@ -4637,9 +5040,15 @@ function playCard(inst) {
   } else if (inst.type === 'Spell') {
     sfx('card_play');
     log(`You cast ${inst.name}.`, 'important');
-    castSpellWithTargeting(inst, 'player', () => {
-      G.player.discard.push(inst);
-      updateUI();
+    // Hero moment: lift spell to center, hold, then resolve
+    showHeroMoment(inst, {
+      hold: 900,
+      onDone: () => {
+        castSpellWithTargeting(inst, 'player', () => {
+          G.player.discard.push(inst);
+          updateUI();
+        });
+      }
     });
   }
 }
@@ -6832,6 +7241,11 @@ function activatePayAbility(inst, pa) {
   if (pa.cost) payCost('player', pa.cost);
   log(`Activated ${inst.name}${pa.cost?' (cost: '+pa.cost+')':''}.`, '');
 
+  // Hero moment for pay-only abilities (e.g. {P}: Glimpse 2)
+  if (inst.owner === 'player') {
+    showHeroMoment(inst, { hold: 650 });
+  }
+
   // Resolve the effect
   const effect = pa.effect.toLowerCase();
 
@@ -7347,6 +7761,11 @@ function activateAbility(inst, mode) {
 function applyExhaustForAbility(inst, mode) {
   inst.exhaustState = mode === 'exhaust' ? 'exhausted' : 'overexhausted';
   updateUI();
+  // Hero moment: show the card large for a beat so the player sees what fired
+  // (brief version — ability resolution continues immediately in parallel)
+  if (inst.owner === 'player') {
+    showHeroMoment(inst, { hold: 650 });
+  }
 }
 
 
@@ -9628,7 +10047,11 @@ function addCardHandlers(card, inst, who) {
   card.addEventListener('touchstart', (e) => {
     _lpFired = false; _lpMoved = false;
     _lpTimer = setTimeout(() => {
-      if (!_lpMoved) { _lpFired = true; showCardHoldOverlay(inst); }
+      if (!_lpMoved) {
+        _lpFired = true;
+        if (typeof hapticSelect === 'function') hapticSelect();
+        showCardHoldOverlay(inst);
+      }
     }, 400);
   }, { passive: true });
 
@@ -9658,13 +10081,16 @@ function addCardHandlers(card, inst, who) {
       // Double-tap detection (300ms window)
       const now = Date.now();
       if (now - _lastTapTime < 300) {
+        if (typeof hapticAct === 'function') hapticAct();
         handleCardClick(inst, who);
         _lastTapTime = 0;
       } else {
         _lastTapTime = now;
+        if (typeof hapticTap === 'function') hapticTap();
       }
     } else {
       // Lands: single tap
+      if (typeof hapticTap === 'function') hapticTap();
       handleCardClick(inst, who);
     }
   }, { passive: false });
@@ -9795,19 +10221,38 @@ function updateLifeDisplay(who) {
 
   const prevBleed = parseInt(bleedEl.textContent) || 0;
   const newBleed  = G[who].bleed;
+  const prevLife  = parseInt(lifeEl.textContent) || G[who].life;
+  const newLife   = G[who].life;
 
-  lifeEl.textContent  = G[who].life;
+  lifeEl.textContent  = newLife;
   bleedEl.textContent = newBleed;
 
-  // Bleed tick animation — shake when bleed counter increases
+  // Toggle Hemorrhage indicator: pulse the blood icon + number whenever bleed > 0
+  const bleedBlock = bleedEl.closest('.hand-vital-block');
+  if (bleedBlock) {
+    if (newBleed > 0) bleedBlock.classList.add('bleeding');
+    else              bleedBlock.classList.remove('bleeding');
+  }
+
+  // Float damage/heal number if life changed
+  if (newLife !== prevLife) {
+    const delta = newLife - prevLife;
+    floatLifeChange(who, delta);
+    if (who === 'player' && delta < 0) {
+      hapticDamage();
+    } else if (who === 'ai' && delta < 0) {
+      hapticAct();
+    }
+  }
+
+  // Float bleed gain number if bleed increased
   if (newBleed > prevBleed) {
+    floatBleed(who, newBleed - prevBleed);
     bleedEl.classList.remove('bleed-tick');
     void bleedEl.offsetWidth;
     bleedEl.classList.add('bleed-tick');
     setTimeout(() => bleedEl.classList.remove('bleed-tick'), 520);
-    // Also ripple the life display if bleed resolving (life decreased)
-    const prevLife = parseInt(lifeEl.textContent) || 0;
-    if (G[who].life < prevLife) {
+    if (newLife < prevLife) {
       lifeEl.classList.remove('life-impact');
       void lifeEl.offsetWidth;
       lifeEl.classList.add('life-impact');
@@ -10202,6 +10647,19 @@ function showBanner(text) {
   el.textContent = text;
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), 1500);
+
+  // Fire light sweep for turn changes
+  const isTurnChange = /YOUR TURN|AI'S TURN|EXTRA TURN/i.test(text);
+  if (isTurnChange) {
+    const sweep = document.getElementById('turn-sweep');
+    if (sweep) {
+      sweep.classList.remove('active', 'ai');
+      void sweep.offsetWidth; // reflow
+      if (/AI/i.test(text)) sweep.classList.add('ai');
+      sweep.classList.add('active');
+      setTimeout(() => sweep.classList.remove('active', 'ai'), 900);
+    }
+  }
 }
 
 // Keep for backward compatibility
@@ -10227,20 +10685,176 @@ function flyPipToPool(fromEl, color, who) {
   pip.classList.add('pip-flying');
   pip.style.left = startX + 'px';
   pip.style.top  = startY + 'px';
-  pip.style.width  = '22px';
-  pip.style.height = '22px';
+  pip.style.width  = '26px';
+  pip.style.height = '26px';
   document.body.appendChild(pip);
 
-  // Animate to pool position on next frame
+  // Particle trail — spawn sparkles along the path
+  const trailCount = 6;
+  const trailInterval = 55;
+  let step = 0;
+  const trailTimer = setInterval(() => {
+    if (step >= trailCount) { clearInterval(trailTimer); return; }
+    const t = step / trailCount;
+    // Interpolate along curved arc (slight upward bow)
+    const curveY = -40 * Math.sin(t * Math.PI);
+    const tx = startX + (endX - startX) * t + (Math.random()-.5)*12;
+    const ty = startY + (endY - startY) * t + curveY + (Math.random()-.5)*8;
+    const trail = document.createElement('div');
+    trail.className = 'pip-trail';
+    trail.style.left = tx + 'px';
+    trail.style.top  = ty + 'px';
+    document.body.appendChild(trail);
+    setTimeout(() => trail.remove(), 500);
+    step++;
+  }, trailInterval);
+
+  // Animate pip to pool position with slight arc
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       pip.style.left = endX + 'px';
       pip.style.top  = endY + 'px';
-      pip.style.transition = 'left 0.38s cubic-bezier(.4,0,.6,1), top 0.38s cubic-bezier(.4,0,.6,1)';
+      pip.style.transition = 'left 0.42s cubic-bezier(.4,0,.5,1), top 0.42s cubic-bezier(.3,-0.2,.5,1)';
     });
   });
 
-  setTimeout(() => pip.remove(), 500);
+  setTimeout(() => pip.remove(), 520);
+}
+
+// ── HERO MOMENT — lift card to center, hold so it's readable, release
+const FACTION_GLOW_RGB = {
+  Red:    'rgba(255,80,80,0.7)',
+  White:  'rgba(230,220,255,0.7)',
+  Black:  'rgba(160,80,255,0.7)',
+  Purple: 'rgba(200,80,255,0.7)',
+};
+
+function showHeroMoment(inst, options) {
+  options = options || {};
+  const holdMs = options.hold || 900;
+  const onDone = options.onDone || (() => {});
+
+  // Find the source element (card in hand or on battlefield)
+  const sourceEl = document.querySelector(`[data-inst="${inst.instId}"]`);
+  if (!sourceEl) { onDone(); return; }
+
+  const r = sourceEl.getBoundingClientRect();
+  const w = r.width, h = r.height;
+
+  // Final hero position: center of screen
+  const vw = window.innerWidth, vh = window.innerHeight;
+  // Sized to be large and readable; aspect 10:14
+  const heroW = Math.min(vw * 0.55, 260);
+  const heroH = heroW * 1.4;
+
+  // Build the hero element
+  const hero = document.createElement('div');
+  hero.className = 'hero-moment';
+  hero.style.left   = r.left + 'px';
+  hero.style.top    = r.top + 'px';
+  hero.style.width  = w + 'px';
+  hero.style.height = h + 'px';
+
+  const glowColor = FACTION_GLOW_RGB[inst.color] || 'rgba(255,220,100,0.5)';
+  hero.style.setProperty('--hero-glow', glowColor);
+
+  // Clone the card visuals: art image + frame
+  if (inst.image) {
+    const img = document.createElement('img');
+    img.className = 'hero-art';
+    img.src = inst.image;
+    img.onerror = () => { img.style.display = 'none'; hero.style.background = '#1a0a30'; };
+    hero.appendChild(img);
+  } else {
+    hero.style.background = '#1a0a30';
+  }
+
+  // Name overlay at bottom
+  const nameEl = document.createElement('div');
+  nameEl.className = 'hero-name-overlay';
+  nameEl.textContent = inst.name || '';
+  hero.appendChild(nameEl);
+
+  document.body.appendChild(hero);
+  const backdrop = document.getElementById('hero-backdrop');
+  if (backdrop) backdrop.classList.add('active');
+
+  // Hide the source card briefly so it doesn't duplicate visually
+  sourceEl.style.opacity = '0.15';
+
+  sfx('card_play', 0.5);
+  if (typeof hapticAct === 'function') hapticAct();
+
+  // Phase 1: animate from origin → center with scale + flip
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      hero.style.left   = (vw/2 - heroW/2) + 'px';
+      hero.style.top    = (vh/2 - heroH/2) + 'px';
+      hero.style.width  = heroW + 'px';
+      hero.style.height = heroH + 'px';
+      hero.classList.add('lifting');
+    });
+  });
+
+  // Phase 2: hold in center with pulse glow
+  setTimeout(() => {
+    hero.classList.remove('lifting');
+    hero.classList.add('holding');
+  }, 450);
+
+  // Phase 3: release — fly back to origin, fade
+  setTimeout(() => {
+    hero.classList.remove('holding');
+    hero.classList.add('releasing');
+    // Snap styles back to origin geometry
+    const newR = sourceEl.getBoundingClientRect();
+    hero.style.left   = newR.left + 'px';
+    hero.style.top    = newR.top + 'px';
+    hero.style.width  = newR.width + 'px';
+    hero.style.height = newR.height + 'px';
+    hero.style.transform = 'scale(1)';
+    hero.style.opacity = '0';
+    if (backdrop) backdrop.classList.remove('active');
+
+    setTimeout(() => {
+      hero.remove();
+      if (sourceEl) sourceEl.style.opacity = '';
+      onDone();
+    }, 400);
+  }, 450 + holdMs);
+}
+
+
+function hapticTap()    { if (navigator.vibrate) navigator.vibrate(8);  }
+function hapticSelect() { if (navigator.vibrate) navigator.vibrate(15); }
+function hapticAct()    { if (navigator.vibrate) navigator.vibrate(30); }
+function hapticDamage() { if (navigator.vibrate) navigator.vibrate([40, 30, 40]); }
+function hapticWin()    { if (navigator.vibrate) navigator.vibrate([100, 60, 100, 60, 180]); }
+
+// ── FLOATING NUMBER (damage / heal / bleed) ───────────────────────
+function floatNumber(text, kind, anchorEl) {
+  if (!anchorEl) return;
+  const r = anchorEl.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'float-number ' + (kind || 'damage');
+  el.textContent = text;
+  el.style.left = (r.left + r.width / 2) + 'px';
+  el.style.top  = (r.top + r.height / 3) + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1200);
+}
+
+// Float a damage number to a player's life counter
+function floatLifeChange(who, delta) {
+  const kind = delta > 0 ? 'heal' : 'damage';
+  const txt = (delta > 0 ? '+' : '') + delta;
+  const lifeEl = document.getElementById(`${who}-life`);
+  if (lifeEl) floatNumber(txt, kind, lifeEl);
+}
+// Float a bleed counter increase on a player
+function floatBleed(who, delta) {
+  const bleedEl = document.getElementById(`${who}-bleed`);
+  if (bleedEl) floatNumber('+' + delta + '🩸', 'bleed', bleedEl);
 }
 
 // ── DRAW CARD SLIDE — new cards appear with a sweep from the deck ─
