@@ -7651,9 +7651,9 @@ function activateAbility(inst, mode) {
 
   const actCost = parseActivationCost(txt, mode);
   if (actCost) {
-    autoTapForCost('player', actCost);
     if (!canPayCost('player', actCost)) {
-      log(`${inst.name}: Needs ${actCost} mana to activate. Tap lands first.`, ''); return;
+      log(`${inst.name}: Needs ${actCost} blood in pool. Tap your lands first, then try again.`, 'important');
+      return;
     }
     payCost('player', actCost);
     log(`Paid ${actCost} to activate ${inst.name}.`, '');
@@ -8377,7 +8377,22 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
       n = 1;
     }
     n = Math.max(1, n || 1);
-    doGlimpse(who, n, inst.name);
+    // If effect also includes "draw", chain the draw after the glimpse completes
+    const alsoDraws = seg.includes('draw');
+    if (alsoDraws) {
+      doGlimpse(who, n, inst.name, false, () => {
+        // Draw from the specified deck (prefer main if mentioned, else available deck)
+        const wantsLand = seg.includes('draw') && seg.includes('land deck');
+        const deck = wantsLand
+          ? (G[who].land.length > 0 ? 'land' : 'main')
+          : (G[who].main.length > 0 ? 'main' : 'land');
+        drawFromDeck(who, deck);
+        log(`${inst.name}: Drew a card after Glimpse.`, 'heal');
+        updateUI();
+      });
+    } else {
+      doGlimpse(who, n, inst.name);
+    }
   }
   else if (seg.includes('self bleed')) {
     const n = parseInt(seg.match(/self bleed (\d+)/)?.[1] || '1');
