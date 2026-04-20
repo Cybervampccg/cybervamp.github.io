@@ -619,9 +619,11 @@ html,body {
 
 /* ── GLIMPSE PANEL ────────────────────────────────────────────── */
 #glimpse-panel {
-  position:fixed; inset:0; z-index:4500; background:rgba(4,2,10,.95);
-  display:flex; flex-direction:column; padding:12px 8px;
+  position:fixed; inset:0; z-index:4500; background:rgba(4,2,10,.97);
+  display:none; flex-direction:column;
+  padding: calc(env(safe-area-inset-top,0) + 12px) 8px calc(env(safe-area-inset-bottom,0) + 12px);
 }
+#glimpse-panel.visible { display:flex; }
 #glimpse-title { font-family:'Cinzel Decorative',serif; font-size:14px;
   color:var(--purple); margin-bottom:4px; }
 #glimpse-subtitle { font-size:11px; color:var(--text-mid); margin-bottom:8px; }
@@ -904,6 +906,67 @@ html,body {
   100% { transform: translate(var(--end-x,0px),var(--end-y,0px)) scale(0.45) rotateY(180deg) rotateZ(0deg); opacity:0.9; }
 }
 .card-flip-draw.animating { animation: card-flip-travel 0.9s cubic-bezier(.3,.05,.4,1) forwards; }
+
+/* ── TOP-CARD REVEAL (Vault Keeper, scry effects) ─────────── */
+#top-card-reveal {
+  position:fixed; inset:0; z-index:9992; pointer-events:none;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding: calc(env(safe-area-inset-top,20px) + 20px) 16px calc(env(safe-area-inset-bottom,20px) + 20px);
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.92) 100%);
+  opacity:0; transition: opacity 0.3s;
+}
+#top-card-reveal.visible { opacity:1; pointer-events:auto; }
+#tcr-label {
+  font-family:'Cinzel Decorative',serif;
+  color:var(--gold); letter-spacing:3px;
+  font-size:12px; margin-bottom:14px; text-transform:uppercase;
+  text-align:center; opacity:0.85;
+}
+#tcr-card {
+  width:min(60%, 280px); aspect-ratio: 5/7;
+  border-radius:10px; overflow:hidden; position:relative;
+  background:#0a0618; border:1px solid rgba(212,160,32,0.5);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.9),
+              0 0 30px rgba(212,160,32,0.45);
+  transform: rotateY(180deg) scale(0.5); opacity:0;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(.3,.1,.3,1.1), opacity 0.4s;
+}
+#top-card-reveal.visible #tcr-card { transform: rotateY(0deg) scale(1); opacity:1; }
+#tcr-card img { width:100%; height:100%; object-fit:cover; display:block; }
+#tcr-name {
+  position:absolute; bottom:0; left:0; right:0;
+  padding:20px 10px 8px;
+  background: linear-gradient(to top, rgba(0,0,0,0.92) 0%, transparent 100%);
+  color:#fff; font-family:'Cinzel Decorative',serif; font-size:14px;
+  text-align:center; letter-spacing:1px;
+  text-shadow: 0 1px 3px #000;
+}
+#tcr-type {
+  font-family:'Cinzel',serif; color: var(--gold);
+  margin-top:16px; font-size:13px; letter-spacing:2px;
+  text-align:center;
+}
+#tcr-actions {
+  display:flex; gap:12px; margin-top:18px;
+  flex-wrap:wrap; justify-content:center;
+}
+#tcr-actions button {
+  padding:12px 22px; border-radius:8px; cursor:pointer;
+  font-family:'Share Tech Mono',monospace; font-weight:700;
+  font-size:13px; letter-spacing:1px; min-height:44px; min-width:120px;
+  border:1px solid var(--border-dim);
+  background:rgba(20,16,40,0.9); color:#fff;
+  transition: transform 0.1s;
+}
+#tcr-actions button:active { transform: scale(0.94); }
+#tcr-actions button.primary {
+  background:rgba(212,160,32,0.35); border-color:var(--gold); color:#fff;
+  box-shadow: 0 0 12px rgba(212,160,32,0.4);
+}
+#tcr-actions button.secondary {
+  background:rgba(160,32,240,0.3); border-color:var(--purple); color:#fff;
+}
 
 /* ── HERO MOMENT — card lifts to center on cast/activate ───── */
 .hero-moment {
@@ -1659,7 +1722,6 @@ html.targeting-active .valid-target { cursor:pointer!important; }
 
   <!-- ACTION BAR -->
   <div id="action-bar">
-    <button class="btn btn-primary"   id="btn-play-card"   onclick="playSelectedCard()">PLAY</button>
     <button class="btn btn-danger"    id="btn-attack"      style="display:none">ATTACK</button>
     <button class="btn btn-muted"     id="btn-end-combat"  onclick="endCombatPhase()" style="display:none">END CMB</button>
     <button class="btn btn-secondary" id="btn-next-phase"  onclick="nextPhase()">NEXT ▶</button>
@@ -1678,6 +1740,15 @@ html.targeting-active .valid-target { cursor:pointer!important; }
 <div id="hero-ability-panel">
   <div class="hap-label" id="hap-label">ABILITY</div>
   <div class="hap-text" id="hap-text"></div>
+</div>
+<div id="top-card-reveal">
+  <div id="tcr-label">TOP OF DECK</div>
+  <div id="tcr-card">
+    <img id="tcr-img" src="" alt="">
+    <div id="tcr-name"></div>
+  </div>
+  <div id="tcr-type"></div>
+  <div id="tcr-actions"></div>
 </div>
 <div id="action-overlay" style="display:none;"></div>
 <div id="drag-ghost" style="display:none;"></div>
@@ -1743,7 +1814,7 @@ html.targeting-active .valid-target { cursor:pointer!important; }
 <button id="log-toggle" onclick="toggleLog()">LOG</button>
 
 <!-- Glimpse panel -->
-<div id="glimpse-panel" style="display:none;">
+<div id="glimpse-panel">
   <div id="glimpse-title"></div>
   <div id="glimpse-subtitle"></div>
   <div id="glimpse-spread"></div>
@@ -8349,18 +8420,49 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
   }
   // "Look at the top N cards of your main deck, put them back in any order" (Perch Watcher exhaust)
   else if ((seg.includes('look at the top') || seg.includes('look at top')) && seg.includes('card') && seg.includes('deck')) {
-    const n = parseInt(seg.match(/top (\d+) cards?/)?.[1] || '2');
+    const n = parseInt(seg.match(/top (\d+) cards?/)?.[1] || '1');
     // Apply selfbleed if ability text includes it
     if (seg.includes('selfbleed')) {
       const sbN = parseInt(seg.match(/selfbleed (\d+)/)?.[1] || '1');
       G[who].bleed += sbN; updateLifeDisplay(who);
       log(`${inst.name}: Selfbleed ${sbN}.`, 'bleed');
     }
-    if (who === 'player') {
-      doGlimpse(who, n, inst.name);
-    } else {
+    if (who !== 'player') {
       log(`${inst.name}: AI peeks at top ${n} cards.`, '');
+      return;
     }
+    // Vault Keeper / any "if it's a relic → hand, else back on top" single-card peek
+    const isRelicConditional = n === 1 &&
+      seg.includes('relic') &&
+      (seg.includes('into your hand') || seg.includes('in your hand')) &&
+      (seg.includes('back on top') || seg.includes('put it back'));
+    if (isRelicConditional) {
+      const deck = G[who].main;
+      if (deck.length === 0) { log(`${inst.name}: Main deck is empty.`, ''); return; }
+      const topId = deck[0];
+      const topCard = CARD_MAP[topId];
+      if (!topCard) { log(`${inst.name}: Unknown top card.`, ''); return; }
+      showTopCardReveal({
+        card: topCard,
+        sourceName: inst.name,
+        isRelic: topCard.type === 'Relic',
+        onDraw: () => {
+          // Remove from deck and add to hand
+          deck.shift();
+          const ri = makeInst(topId, who);
+          if (ri) G[who].hand.push(ri);
+          log(`${inst.name}: Drew ${topCard.name} — it's a Relic!`, 'heal');
+          updateUI();
+        },
+        onPutBack: () => {
+          log(`${inst.name}: ${topCard.name} kept on top of deck.`, '');
+          updateUI();
+        },
+      });
+      return;
+    }
+    // Otherwise use the glimpse panel for multi-card peek
+    doGlimpse(who, n, inst.name);
   }
   // "Search your main deck for a relic card and put it into your hand" (Crystal Ward Guardian overexhaust)
   else if (seg.includes('search') && seg.includes('deck') && seg.includes('hand')) {
@@ -10659,6 +10761,69 @@ function showHandTapPreview(inst) {
 function hideHandTapPreview() {
   _htpCurrentInst = null;
   document.getElementById('hand-tap-preview').classList.remove('visible');
+}
+
+// ── TOP-CARD REVEAL (Vault Keeper, scry) ──────────────────────
+function showTopCardReveal(opts) {
+  const overlay = document.getElementById('top-card-reveal');
+  const imgEl   = document.getElementById('tcr-img');
+  const nameEl  = document.getElementById('tcr-name');
+  const typeEl  = document.getElementById('tcr-type');
+  const actions = document.getElementById('tcr-actions');
+  const label   = document.getElementById('tcr-label');
+  if (!overlay) { if (opts.onPutBack) opts.onPutBack(); return; }
+
+  label.textContent = opts.sourceName ? (opts.sourceName + ' — TOP OF DECK') : 'TOP OF DECK';
+  nameEl.textContent = opts.card?.name || '?';
+  typeEl.textContent = (opts.card?.type || '') + (opts.card?.subtype ? ' · ' + opts.card.subtype : '');
+
+  if (opts.card?.image) {
+    imgEl.src = opts.card.image;
+    imgEl.style.display = 'block';
+    imgEl.onerror = () => { imgEl.style.display = 'none'; };
+  } else {
+    imgEl.style.display = 'none';
+  }
+
+  actions.innerHTML = '';
+
+  const closeAndCallback = (fn) => {
+    overlay.classList.remove('visible');
+    setTimeout(() => { if (fn) fn(); }, 300);
+  };
+
+  if (opts.isRelic) {
+    // Relic found — offer DRAW (primary) or KEEP ON TOP (secondary)
+    const drawBtn = document.createElement('button');
+    drawBtn.className = 'primary';
+    drawBtn.textContent = '✋ DRAW TO HAND';
+    drawBtn.onclick = () => {
+      if (typeof hapticSelect === 'function') hapticSelect();
+      closeAndCallback(opts.onDraw);
+    };
+    actions.appendChild(drawBtn);
+
+    const keepBtn = document.createElement('button');
+    keepBtn.textContent = '🔙 KEEP ON TOP';
+    keepBtn.onclick = () => {
+      if (typeof hapticTap === 'function') hapticTap();
+      closeAndCallback(opts.onPutBack);
+    };
+    actions.appendChild(keepBtn);
+  } else {
+    // Not a relic — only option is put back on top
+    const backBtn = document.createElement('button');
+    backBtn.className = 'primary';
+    backBtn.textContent = '🔙 PUT BACK ON TOP';
+    backBtn.onclick = () => {
+      if (typeof hapticTap === 'function') hapticTap();
+      closeAndCallback(opts.onPutBack);
+    };
+    actions.appendChild(backBtn);
+  }
+
+  if (typeof sfx === 'function') sfx('glimpse', 0.6);
+  overlay.classList.add('visible');
 }
 
 // ── FULL SCREEN HOLD OVERLAY ──────────────────────────────────
