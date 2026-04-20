@@ -956,15 +956,62 @@ html,body {
   position:absolute; bottom:0; left:0; right:0;
   padding:16px 8px 6px;
   background: linear-gradient(to top, rgba(0,0,0,0.92) 0%, transparent 100%);
-  color:#fff; font-family:'Cinzel Decorative',serif; font-size:11px;
+  color:#fff; font-family:'Cinzel Decorative',serif; font-size:13px; font-weight:700;
   text-align:center; letter-spacing:1px;
-  text-shadow: 0 1px 3px #000;
+  text-shadow: 0 1px 3px #000, 0 0 8px rgba(255,220,100,0.5);
+}
+
+/* Ability text panel below the hero card */
+#hero-ability-panel {
+  position:fixed; left:50%; transform:translateX(-50%);
+  z-index:9991; pointer-events:none;
+  width:min(86%, 420px);
+  padding:14px 18px;
+  border-radius:10px;
+  background: linear-gradient(180deg, rgba(20,10,40,0.96) 0%, rgba(10,5,22,0.98) 100%);
+  border:1px solid rgba(212,160,32,0.55);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.9),
+              0 0 24px rgba(212,160,32,0.35),
+              inset 0 1px 0 rgba(255,220,100,0.15);
+  opacity:0;
+  transition: opacity 0.3s ease-out, transform 0.4s cubic-bezier(.3,.1,.3,1.2);
+}
+#hero-ability-panel.active {
+  opacity:1;
+  transform: translateX(-50%) translateY(0);
+}
+#hero-ability-panel .hap-label {
+  font-family:'Cinzel Decorative',serif;
+  font-size:10px; color:var(--gold); letter-spacing:3px;
+  text-align:center; margin-bottom:8px;
+  text-transform:uppercase;
+  opacity:0.85;
+}
+#hero-ability-panel .hap-text {
+  font-family:'Cinzel',serif;
+  font-size:14px; line-height:1.5; color:#fff;
+  text-align:center;
+  white-space:pre-wrap;
+  text-shadow: 0 1px 2px #000;
+}
+/* Subtle shimmer across the text when panel is active */
+#hero-ability-panel.active .hap-text {
+  background: linear-gradient(90deg, #fff 0%, #ffe8a0 50%, #fff 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: hap-shimmer 2.4s ease-in-out infinite;
+  text-shadow: none;
+}
+@keyframes hap-shimmer {
+  0%, 100% { background-position: 200% 0; }
+  50%      { background-position: 0% 0; }
 }
 
 /* Backdrop dim while hero is held */
 #hero-backdrop {
   position:fixed; inset:0; z-index:9989; pointer-events:none;
-  background:radial-gradient(ellipse at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.75) 100%);
+  background:radial-gradient(ellipse at center, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.88) 100%);
   opacity:0; transition:opacity 0.3s;
 }
 #hero-backdrop.active { opacity:1; }
@@ -1628,6 +1675,10 @@ html.targeting-active .valid-target { cursor:pointer!important; }
 <div id="turn-banner"><div class="turn-banner-text" id="turn-banner-text"></div></div>
 <div id="turn-sweep"></div>
 <div id="hero-backdrop"></div>
+<div id="hero-ability-panel">
+  <div class="hap-label" id="hap-label">ABILITY</div>
+  <div class="hap-text" id="hap-text"></div>
+</div>
 <div id="action-overlay" style="display:none;"></div>
 <div id="drag-ghost" style="display:none;"></div>
 
@@ -2901,7 +2952,7 @@ function setPhase(phase) {
 
   } else if (combatPhase === null) {
     // Battle phase, nothing declared yet — choose to attack or pass
-    attackBtn.textContent = 'DECLARE ATTACK';
+    attackBtn.textContent = '⚔ SELECT ATTACKERS';
     attackBtn.onclick = declareAttack;
     attackBtn.style.display = 'block';
     endCombatBtn.textContent = 'PASS (no attack)';
@@ -4049,8 +4100,10 @@ function declareAttack() {
   combatPhase = 'declare';
   attackers = [];
   G.player.battlefield.forEach(i => { i.attacking = false; });
-  log('⚔ Click your creatures to attack, then hit CONFIRM ATTACK.', 'important');
-  updateUI(); // setPhase inside updateUI will set button to CONFIRM ATTACK
+  log('⚔ DOUBLE-TAP creatures to select them as attackers, then tap CONFIRM ATTACK.', 'important');
+  // Show a brief on-screen instruction banner
+  if (typeof showBanner === 'function') showBanner('⚔ DOUBLE-TAP CREATURES TO ATTACK');
+  updateUI();
 }
 
 function toggleAttacker(inst) {
@@ -5019,7 +5072,7 @@ function endCombatPhase() {
   G.player.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
   G.ai.battlefield.forEach(i => { i.attacking = false; i.blocking = false; });
   const btn = document.getElementById('btn-attack');
-  btn.textContent = 'DECLARE ATTACK';
+  btn.textContent = '⚔ SELECT ATTACKERS';
   btn.onclick = declareAttack;
   btn.style.display = 'none';
   document.getElementById('btn-end-combat').style.display = 'none';
@@ -5122,7 +5175,7 @@ function playCard(inst) {
     log(`You cast ${inst.name}.`, 'important');
     // Hero moment: lift spell to center, hold, then resolve
     showHeroMoment(inst, {
-      hold: 900,
+      hold: 1800,
       onDone: () => {
         castSpellWithTargeting(inst, 'player', () => {
           G.player.discard.push(inst);
@@ -7185,7 +7238,7 @@ function tryActivateAbility(inst) {
 
   if (!hasExhaust && !hasOverExhaust && !hasPayOnly) {
     if (inst.type === 'Creature') {
-      log(`${inst.name} has no activated abilities. Use DECLARE ATTACK in Battle phase to attack.`, '');
+      log(`${inst.name} has no activated abilities. Use SELECT ATTACKERS in Battle phase to attack.`, '');
     } else {
       log(`${inst.name} has no activated abilities.`, '');
     }
@@ -7323,7 +7376,7 @@ function activatePayAbility(inst, pa) {
 
   // Hero moment for pay-only abilities (e.g. {P}: Glimpse 2)
   if (inst.owner === 'player') {
-    showHeroMoment(inst, { hold: 650 });
+    showHeroMoment(inst, { hold: 1600 });
   }
 
   // Resolve the effect
@@ -7844,7 +7897,7 @@ function applyExhaustForAbility(inst, mode) {
   // Hero moment: show the card large for a beat so the player sees what fired
   // (brief version — ability resolution continues immediately in parallel)
   if (inst.owner === 'player') {
-    showHeroMoment(inst, { hold: 650 });
+    showHeroMoment(inst, { hold: 1600 });
   }
 }
 
@@ -8290,7 +8343,7 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
     updateLifeDisplay(who);
     log(`${inst.name}: Gained ${bleedN} Bleed counter(s).`, 'bleed');
   }
-  else if (seg.includes('draw a card') || seg.includes('draw one card')) {
+  else if ((seg.includes('draw a card') || seg.includes('draw one card')) && !seg.includes('glimpse')) {
     drawFromDeck(who, G[who].main.length > 0 ? 'main' : 'land');
     log(`${inst.name}: Drew a card.`, '');
   }
@@ -10896,7 +10949,7 @@ const FACTION_GLOW_RGB = {
 
 function showHeroMoment(inst, options) {
   options = options || {};
-  const holdMs = options.hold || 900;
+  const holdMs = options.hold || 1600;
   const onDone = options.onDone || (() => {});
 
   // Find the source element (card in hand or on battlefield)
@@ -10950,6 +11003,20 @@ function showHeroMoment(inst, options) {
   sfx('card_play', 0.5);
   if (typeof hapticAct === 'function') hapticAct();
 
+  // Prepare ability panel content
+  const panel = document.getElementById('hero-ability-panel');
+  const panelLabel = document.getElementById('hap-label');
+  const panelText  = document.getElementById('hap-text');
+  if (panel && panelText) {
+    // Pick label based on card type
+    const labelTxt = inst.type === 'Spell' ? '⚡ CASTING SPELL'
+                   : inst.type === 'Relic' ? '🔮 RELIC ABILITY'
+                   : '⚔ CREATURE ABILITY';
+    if (panelLabel) panelLabel.textContent = labelTxt;
+    const ablStr = (inst.abilities || '—').replace(/\\n/g, '\n');
+    panelText.textContent = ablStr;
+  }
+
   // Phase 1: animate from origin → center with scale + flip
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
@@ -10961,16 +11028,23 @@ function showHeroMoment(inst, options) {
     });
   });
 
-  // Phase 2: hold in center with pulse glow
+  // Phase 2: hold in center with pulse glow + show ability panel
   setTimeout(() => {
     hero.classList.remove('lifting');
     hero.classList.add('holding');
+    // Position ability panel below the hero card
+    if (panel) {
+      const panelTop = (vh/2 - heroH/2) + heroH + 18;
+      panel.style.top = panelTop + 'px';
+      panel.classList.add('active');
+    }
   }, 450);
 
   // Phase 3: release — fly back to origin, fade
   setTimeout(() => {
     hero.classList.remove('holding');
     hero.classList.add('releasing');
+    if (panel) panel.classList.remove('active');
     // Snap styles back to origin geometry
     const newR = sourceEl.getBoundingClientRect();
     hero.style.left   = newR.left + 'px';
