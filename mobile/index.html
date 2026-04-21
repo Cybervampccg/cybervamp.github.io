@@ -4796,7 +4796,9 @@ function fireAttackTrigger(inst, who) {
     }
   }
 
-  if (!txt.includes('when this') || !txt.includes('attack')) return;
+  // Don't early-return here — downstream handlers use their own text matching
+  // (previous 'when this' + 'attack' gate excluded cards like Isolde with 'when attacking')
+  if (!txt.includes('attack')) return;
 
   // "When this creature is declared as an attacker, you may give +1 power to target Bat token" (id:206)
   if (txt.includes('attacker') && txt.includes('+1 power') && txt.includes('bat token')) {
@@ -5786,6 +5788,12 @@ function castSpellWithTargeting(inst, caster, onDone) {
   let mode = 'any-creature';
   if (isAttackTarget) mode = 'attacking-creature';
   else if (isBlockTarget) mode = 'blocking-creature';
+  // Idle Thoughts: "Target creature becomes exhausted OR target exhausted creature becomes overexhausted"
+  // Can target ANY creature (renewed or exhausted) — treat as any-creature
+  else if (txt.includes('becomes exhausted or') ||
+           (/target.*\bor\b.*target/i.test(txt) && (txt.includes('exhausted') || txt.includes('overexhausted')))) {
+    mode = 'any-creature';
+  }
   // 'target exhausted/overexhausted creature' — any creature with that state (no side restriction)
   else if (txt.includes('target exhausted') || txt.includes('target overexhausted')) mode = 'any-creature';
   else if (isNegative && !isPositive) mode = 'opponent-creature';
@@ -5803,6 +5811,13 @@ function castSpellWithTargeting(inst, caster, onDone) {
     if (mode === 'own-creature') return owner === caster;
     if (mode === 'attacking-creature') return t.attacking;
     if (mode === 'blocking-creature') return t.blocking;
+    // For "target exhausted" / "target overexhausted" ONLY (no OR clause), filter by state
+    if (txt.includes('target exhausted') && !txt.includes('target creature') && !/target.*\bor\b.*target/i.test(txt)) {
+      return t.exhaustState === 'exhausted';
+    }
+    if (txt.includes('target overexhausted') && !txt.includes('target creature') && !/target.*\bor\b.*target/i.test(txt)) {
+      return t.exhaustState === 'overexhausted';
+    }
     return true; // any-creature
   });
 
@@ -10318,9 +10333,13 @@ function isSpellTargetValid(spellInst, targetInst) {
                       txt.includes('target blocking') || txt.includes('target exhausted') ||
                       txt.includes('target overexhausted');
   if (!needsTarget) return false;
-  // Exhausted/overexhausted specific
-  if (txt.includes('target exhausted') && targetInst.exhaustState !== 'exhausted') return false;
-  if (txt.includes('target overexhausted') && targetInst.exhaustState !== 'overexhausted') return false;
+  // If the spell says "target creature... OR target exhausted creature..." it can target any creature
+  const hasOrClause = /target.*\bor\b.*target/i.test(txt) ||
+                      txt.includes('becomes exhausted or');
+  if (hasOrClause) return true;
+  // Exhausted/overexhausted specific (only if not in an OR clause)
+  if (txt.includes('target exhausted') && !txt.includes('target creature') && targetInst.exhaustState !== 'exhausted') return false;
+  if (txt.includes('target overexhausted') && !txt.includes('target creature') && targetInst.exhaustState !== 'overexhausted') return false;
   return true;
 }
 
