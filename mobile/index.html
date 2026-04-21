@@ -2344,11 +2344,139 @@ function shuffle(arr) {
 }
 
 // ── FACTION DECKS ─────────────────────────────────────────────
+// ── DEFAULT DECKS — mission-optimized ─────────────────────────
+// Land ratio: 12 core faction + 5 Gold + 3 dual = 20 total.
+// This prioritizes steady mana over dual-land recovery penalty.
+//
+// Main deck composition focuses on each faction's mission:
+// • Red (Bloodline Protocol): high Bleed density + 4+ attackers
+// • White (Covenant of Eternity): Relic-heavy + wall/defense
+// • Black (Pact of the Swarm): token producers + sacrifice engines
+// • Purple (Omniscience Engine): Glimpse cards + multi-Purple + Relics
 const FACTION_DECKS = {
-  Red: { main: shuffle([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,42,21,1,2,3,4,5,6,7,8,9,10,22,23,24,27,28,29,501,502,503]), land: shuffle([601,601,601,601,601,606,606,606,606,606,605,605,601,606,601,606,601,606,601,606]) },
-  White: { main: shuffle([101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,101,102,103,104,105,106,107,108,109,110,122,123,124,127,128,129,501,502,503]), land: shuffle([602,602,602,602,602,607,607,607,607,607,605,605,602,607,602,607,602,607,602,607]) },
-  Black: { main: shuffle([201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219,220,221,201,202,203,204,205,206,207,208,209,210,222,223,224,227,228,229,501,502,503]), land: shuffle([603,603,603,603,603,608,608,608,608,608,605,605,603,608,603,608,603,608,603,608]) },
-  Purple: { main: shuffle([301,302,303,304,305,306,307,308,309,310,311,312,313,314,315,316,317,318,319,320,321,301,302,303,304,305,306,307,308,309,310,322,323,324,327,328,329,501,502,503]), land: shuffle([604,604,604,604,604,609,609,609,609,609,605,605,604,609,604,609,604,609,604,609]) },
+  Red: {
+    // 40-card main deck — aggressive Bleed focus
+    // Low-curve aggro: 3× Neon Revenant Striker, 3× Glitch Crimson Reaver, 3× Pulse Jumper (Common R/RR)
+    // Mid: 3× Phase Techie, 3× Flame Bully, 3× Neon Revenant Blitzer, 2× Vein Hacker
+    // Payoffs: 2× Slashfang Sprinter (Bleed+1 when blocked), 2× Chrome Fang Berserker (Breach Bleed)
+    // Top end: 1× Zyra Vex (Breach Bleed 3), 1× Crimwire Overlord, 1× Zane Krov
+    // Support: 3× Blood Vial Toolbelt (+Bleed), 2× Hemotech Patch, 2× Flankwire Feint, 2× Blending In
+    // Neutral: 1× 501, 1× 502, 1× 503
+    main: shuffle([
+      1,1,1, 2,2,2, 3,3,3,           // 9× low aggro
+      4,4,4, 5,5,5, 6,6,6,           // 9× mid curve
+      7,7,                           // 2× Vein Hacker
+      10,10, 11,11,                  // 4× Bleed payoffs (Slashfang + Chrome Fang)
+      13,                            // 1× Nano Vein Flexer
+      16, 18, 42,                    // 3× mythic finishers (Zyra, Crimwire, Zane)
+      26,26,26,                      // 3× Blood Vial Toolbelt
+      24,24,                         // 2× Hemotech Patch
+      28,28, 27,27,                  // 4× spells (Flankwire, Blending)
+      501,502,503                    // 3× neutral
+    ]),
+    land: shuffle([
+      601,601,601,601,601,601,601,601,601,601,601,601,  // 12× Red Land
+      605,605,605,605,605,                                // 5× Gold Land
+      606,606,606                                         // 3× Crypto Mining Monolith (G/R dual)
+    ]),
+  },
+
+  White: {
+    // 40-card main deck — relic-heavy defense/control
+    // Curve: 3× Relic Scribe (Common, cost reducer), 3× Faithful Healer, 3× Knight of Dawn
+    // Walls: 3× Stone Chapel Sentinel, 2× Marble Block Guardian (Wall can block 2)
+    // Mid: 2× Vault Keeper, 2× Aristocrat Seer (sac relic draw), 2× Snowfleece Elder (+1 blocker)
+    // Top: 1× Marble Shield Sentinel (Breach Bleed 1 + block buff), 1× Count Vladislav
+    // RELICS (need 3+ in play for Fortified Estate): 3× Gilded Lifewell, 3× Ivory Hemaclaw, 2× Echo Reliquary
+    // Spells: 2× Cleansing Light (bleed removal), 2× Purity Pulse, 1× 501, 1× 502, 1× 503
+    main: shuffle([
+      102,102,102,                   // 3× Relic Scribe (reduces relic cost)
+      104,104,104,                   // 3× Faithful Healer
+      105,105,105,                   // 3× Knight of Dawn
+      108,108,108,                   // 3× Stone Chapel Sentinel (wall)
+      110,110,                       // 2× Marble Block Guardian (wall, block 2)
+      114,114,                       // 2× Aristocrat Seer (sac relic → draw)
+      116,116,                       // 2× Vault Keeper
+      119,119,                       // 2× Snowfleece Elder
+      120, 106,                      // 1× Marble Shield Sentinel, 1× Count Vladislav slot
+      111, 113, 117,                 // 1× Relic Guardian, 1× Runed Sentry, 1× Living Wall
+      122,122,122,                   // 3× Gilded Lifewell Chalice (Relic, cheap)
+      124,124,124,                   // 3× Ivory Hemaclaw (Relic)
+      125,125,                       // 2× Echo Reliquary (Relic + relic-cycle)
+      128,128, 129,129,              // 4× spells
+      501,502,503                    // 3× neutral
+    ]),
+    land: shuffle([
+      602,602,602,602,602,602,602,602,602,602,602,602,  // 12× White Land
+      605,605,605,605,605,                                // 5× Gold Land
+      607,607,607                                         // 3× Vault of Eternal Coins (G/W dual)
+    ]),
+  },
+
+  Black: {
+    // 40-card main deck — token swarm + graveyard
+    // Token producers: 3× Bonecarved Acolyte, 3× Graveyard Carrion, 3× Shadow Beast Rider
+    // Creatures: 3× Fenlily Seraphine (Zombie aura), 2× Ebonwing Matriarch (Bat aura + Siphon)
+    // Sacrifice engines: 2× Rothollow Packmaster, 2× Nightwing Defiler
+    // Mid/top: 2× Ironmaw Butcher (Breach Bleed + Hemorrhage), 1× Salizer Shade
+    // Relics: 2× Necroreaper Scythe (sac token), 2× Graveguard Amulet
+    // Spells: 3× Bat Proliferation (Siphon Life), 2× Grave Reanimation, 2× Echo Siphon, 1× 501-503
+    main: shuffle([
+      201,201,201,                   // 3× Bonecarved Acolyte (early creature)
+      202,202,202,                   // 3× Graveyard Carrion
+      203,203,203,                   // 3× Shadow Beast Rider
+      206,206,206,                   // 3× Fenlily Seraphine (Zombie token aura)
+      207,207,                       // 2× Ironmaw Butcher (Breach Bleed)
+      208,208,                       // 2× Ebonwing Matriarch (Bat aura)
+      210,210,                       // 2× Rothollow Packmaster (Wolf buff)
+      215,215,                       // 2× Nightwing Defiler (exhaust 2)
+      213, 214, 216, 218, 219,       // 5× mythic/rare creatures (Nyxara, Luminara, Fenlily, Valthor, Korzathrax)
+      221,                           // 1× Salizer Shade
+      222,222,                       // 2× Necroreaper Scythe (Relic)
+      224,224,                       // 2× Graveguard Amulet (Relic)
+      228,228,228,                   // 3× Siphon Life (token spell)
+      229,229, 227,227,              // 4× spells (Grave Reanimation, Echo Siphon)
+      501,502,503                    // 3× neutral
+    ]),
+    land: shuffle([
+      603,603,603,603,603,603,603,603,603,603,603,603,  // 12× Black Land
+      605,605,605,605,605,                                // 5× Gold Land
+      608,608,608                                         // 3× Reliquary Cache (G/B dual)
+    ]),
+  },
+
+  Purple: {
+    // 40-card main deck — Glimpse + multiple Purple creatures + Relics
+    // Curve: 3× Nexus Initiate, 3× Mindweaver Cleric, 3× Surveiling Adept
+    // Mid: 3× Arcane Seer, 3× Relic Scholar, 2× Prophecy Keeper
+    // Glimpse payoffs: 2× Aetheric Diviner (Overexhaust Glimpse 3 + draw)
+    // Multi-Purple (Veil Assembly needs 3+): most creatures above count
+    // Top: 1× Elara Relicrender, 1× Isolde Veil Sovereign, 1× Akane Chishiki
+    // Relics (for Relic Network — activate 2+ relics same turn): 3× Augur's Signet, 3× Crystal Reliquary
+    // Spells: 2× Veilcataclysm (Glimpse 3 + draw), 2× Focused Clairvoyance, 1× 501-503
+    main: shuffle([
+      301,301,301,                   // 3× Nexus Initiate
+      302,302,302,                   // 3× Mindweaver Cleric
+      303,303,303,                   // 3× Surveiling Adept
+      305,305,305,                   // 3× Arcane Seer (Glimpse payoff)
+      306,306,306,                   // 3× Relic Scholar
+      308,308,                       // 2× Aetheric Diviner (Glimpse 3 + draw)
+      309, 310, 315, 316, 317, 320,  // 6× Liora, Cassian, Grimoire Scribe, Runed Pageweaver, Mystic Trapper, Elias Veyr
+      311,                           // 1× Elara Relicrender
+      319,                           // 1× Isolde Veil Sovereign
+      321,                           // 1× Akane Chishiki
+      322,322,322,                   // 3× Augur's Signet (Relic)
+      324,324,324,                   // 3× Crystal Reliquary (Relic)
+      327,327,                       // 2× Focused Clairvoyance (Glimpse 5 + draw)
+      328,328, 329,                  // 3× spells (Veilcataclysm, etc.)
+      501,502,503                    // 3× neutral
+    ]),
+    land: shuffle([
+      604,604,604,604,604,604,604,604,604,604,604,604,  // 12× Purple Land
+      605,605,605,605,605,                                // 5× Gold Land
+      609,609,609                                         // 3× Golden Shard Requiem (G/P dual)
+    ]),
+  },
 };
 
 const FACTION_OPPOSITES = { Red:'Black', Black:'Red', White:'Purple', Purple:'White' };
@@ -2539,7 +2667,18 @@ function renderHand(who) {
 
   hand.forEach(inst => {
     const card = createCardElement(inst, true);
-    const affordable = canPayCost('player', inst.cost);
+    // Apply Relic Scribe discount for affordance check
+    let checkCost = inst.cost;
+    if (inst.type === 'Relic') {
+      const hasScribe = G.player.battlefield.some(b =>
+        b.name === 'Relic Scribe' && b.exhaustState === 'renewed' && b.type === 'Creature'
+      );
+      if (hasScribe) {
+        const gIdx = (checkCost || '').indexOf('G');
+        if (gIdx !== -1) checkCost = checkCost.slice(0, gIdx) + checkCost.slice(gIdx + 1);
+      }
+    }
+    const affordable = canPayCost('player', checkCost);
     const isLand = inst.type === 'Land';
     if (!affordable && !isLand) card.classList.add('unplayable');
     else card.classList.add('playable');
@@ -3282,8 +3421,9 @@ function endPlayerTurn() {
     if (checkWin()) return;
   }
 
-  // Clear end-of-turn power mods
+  // Clear end-of-turn power mods for BOTH sides (blocker buffs on opponent's creatures expire too)
   clearEotEffects('player');
+  clearEotEffects('ai');
 
   // Clear mana
   clearMana('player');
@@ -3363,6 +3503,7 @@ async function runAITurn() {
   }
 
   clearEotEffects('ai');
+  clearEotEffects('player');
   clearMana('ai');
   G.ai.landPlayedThisTurn = false;
 
@@ -4090,13 +4231,20 @@ function openSpellCaster() {
 function handleBlockingClick(inst, who) {
   if (combatPhase !== 'player-block') return;
 
-  // Click an AI attacker → mark it as block target
+  // Click an AI attacker → toggle selection (sticky — stays selected until you tap it again)
   if (who === 'ai' && inst.attacking) {
     if (hasKeyword(inst,'unblockable')) {
       log(`${inst.name} cannot be blocked.`, ''); return;
     }
+    // Tap the same attacker again to deselect
+    if (playerBlockTarget === inst.instId) {
+      playerBlockTarget = null;
+      log(`${inst.name} deselected.`, '');
+      updateUI();
+      return;
+    }
     playerBlockTarget = inst.instId;
-    log(`Select a blocker for ${inst.name}[${getEffectivePower(inst)}].`, 'important');
+    log(`⚔ ${inst.name}[${getEffectivePower(inst)}] selected — double-tap one or MORE blockers. Tap attacker again to switch.`, 'important');
     updateUI();
     return;
   }
@@ -4119,19 +4267,19 @@ function handleBlockingClick(inst, who) {
       log(`${atk.name} cannot be blocked by walls.`, ''); return;
     }
 
-    // Toggle off if already blocking this attacker
+    // Toggle off if already blocking this attacker (unassign)
     if (playerBlockers[inst.instId] === playerBlockTarget) {
       delete playerBlockers[inst.instId];
       inst.blocking = false;
       log(`${inst.name} unassigned.`, '');
-      playerBlockTarget = null;
+      // DO NOT clear playerBlockTarget — keep attacker selected (sticky)
       updateUI();
       return;
     }
 
     // Multi-block: if this creature can block 2+ attackers, allow second assignment
     const blkAbil = (inst.abilities || '').toLowerCase();
-    const canBlockTwo = blkAbil.includes('can block two') || blkAbil.includes('block two creatures');
+    const canBlockTwo = blkAbil.includes('can block two') || blkAbil.includes('block two creatures') || inst._canBlockTwo || inst._multiBlock;
     if (playerBlockers[inst.instId] !== undefined && !canBlockTwo) {
       // Already blocking — reassign
       playerBlockers[inst.instId] = playerBlockTarget;
@@ -4145,8 +4293,8 @@ function handleBlockingClick(inst, who) {
       playerBlockers[inst.instId] = playerBlockTarget;
     }
     inst.blocking = true;
-    log(`${inst.name}[${getEffectivePower(inst)}] → blocks ${atk?.name||'?'}[${atk?getEffectivePower(atk):'?'}].`, 'important');
-    playerBlockTarget = null;
+    log(`${inst.name}[${getEffectivePower(inst)}] → blocks ${atk?.name||'?'}[${atk?getEffectivePower(atk):'?'}]. Tap another blocker or switch attackers.`, 'important');
+    // DO NOT clear playerBlockTarget — allow stacking more blockers on the same attacker
     updateUI();
     return;
   }
@@ -4671,15 +4819,7 @@ function fireAttackTrigger(inst, who) {
     }
   }
 
-  // "When this creature is declared as an attacker, exhaust up to 2 target creatures" (id:319)
-  if (txt.includes('attacker') && txt.includes('exhaust up to 2')) {
-    if (who === 'player') {
-      log(`${inst.name}: Choose up to 2 creatures to exhaust (click them in targeting mode).`, 'important');
-      const opp = 'ai';
-      const targets = G[opp].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed').slice(0,2);
-      targets.forEach(t => { t.exhaustState = 'exhausted'; log(`${t.name} exhausted.`, ''); });
-    }
-  }
+  // (Isolde's "When attacking, exhaust up to 2" handled below by the Nightwing-pattern block.)
 
   // "Lose 1 life when this card attacks" (Salizer Shade)
   if (txt.includes('lose 1 life when this') && txt.includes('attack')) {
@@ -4703,16 +4843,61 @@ function fireAttackTrigger(inst, who) {
     }
   }
 
-  // "When attacking, you may exhaust up to 2 target creature cards" (Nightwing Defiler)
+  // "When attacking, you may exhaust up to 2 target creature cards" (Isolde, Nightwing Defiler)
   if (txt.includes('when attacking') && txt.includes('exhaust up to') && !txt.includes('selfbleed')) {
-    const opp = who === 'player' ? 'ai' : 'player';
-    const targets = G[opp].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed').slice(0,2);
-    targets.forEach(t => { t.exhaustState = 'exhausted'; log(`${inst.name}: ${t.name} exhausted.`, ''); });
-    if (targets.length > 0) {
-      // Overexhaust self at end of combat
-      inst._overexhaustAfterCombat = true;
+    if (who === 'player') {
+      // Any creature (both sides) that is renewed
+      const allTargets = [
+        ...G.player.battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed' && i.instId !== inst.instId).map(i=>({inst:i,owner:'player'})),
+        ...G.ai.battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed').map(i=>({inst:i,owner:'ai'})),
+      ];
+      if (allTargets.length === 0) {
+        log(`${inst.name}: No renewed creatures to exhaust.`, '');
+        return;
+      }
+      const exhausted = [];
+      const showPicker = (remaining) => {
+        if (remaining === 0 || allTargets.length === 0) {
+          if (exhausted.length > 0) inst._overexhaustAfterCombat = true;
+          return;
+        }
+        showModal(
+          `${inst.name}: EXHAUST UP TO 2 CREATURES`,
+          `Choose a creature to exhaust (${exhausted.length}/2 chosen). Picking ${2-exhausted.length} more gives ${inst.name} Overexhaust after combat.`,
+          allTargets.map(t => ({
+            label: `${t.inst.name} [${getEffectivePower(t.inst)}] (${t.owner})`,
+            cls: t.owner === 'ai' ? 'btn-danger' : 'btn-secondary',
+            action: () => {
+              t.inst.exhaustState = 'exhausted';
+              exhausted.push(t);
+              log(`${inst.name}: ${t.inst.name} exhausted.`, 'damage');
+              updateUI();
+              // Remove chosen target from pool
+              const idx = allTargets.indexOf(t);
+              if (idx !== -1) allTargets.splice(idx, 1);
+              showPicker(remaining - 1);
+            }
+          })).concat([
+            { label: exhausted.length > 0 ? `✓ DONE (${exhausted.length} exhausted)` : '✕ SKIP', cls: 'btn-muted', action: () => {
+              if (exhausted.length > 0) inst._overexhaustAfterCombat = true;
+              updateUI();
+            }}
+          ])
+        );
+      };
+      showPicker(2);
+    } else {
+      // AI: auto-pick up to 2 opposing creatures
+      const opp = 'player';
+      const targets = G[opp].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed').slice(0,2);
+      targets.forEach(t => { t.exhaustState = 'exhausted'; log(`${inst.name}: ${t.name} exhausted.`, ''); });
+      if (targets.length > 0) inst._overexhaustAfterCombat = true;
     }
   }
+
+  // Legacy "attacker + exhaust up to 2" handler — kept for backward compat, but Isolde's
+  // "when attacking" match above now takes precedence (her text says "attacking" not "attacker").
+  // Left as no-op if the above already handled — detect via _overexhaustAfterCombat.
 
 }
 // Called BEFORE damage so all creatures still exist for checks
@@ -4730,15 +4915,21 @@ function fireCombatTriggers(atkInsts, blkMap, defendingSide) {
 
   allBlockerInsts.forEach(blk => {
     const blkTxt = (blk.abilities || '').toLowerCase();
-    // "When blocking +1 power until end of turn"
+    // "When blocking +1 power until end of turn" — only once per blocker per combat
     if (blkTxt.includes('when blocking') && blkTxt.includes('+1 power')) {
-      blk.powerMods.push({ amount: 1, until: 'eot' });
-      log(`${blk.name}: +1 power while blocking.`, 'heal');
+      if (!blk._whenBlockingApplied) {
+        blk.powerMods.push({ amount: 1, until: 'eot' });
+        blk._whenBlockingApplied = true;
+        log(`${blk.name}: +1 power while blocking.`, 'heal');
+      }
     }
-    // "-1 power while blocking" (Neon Revenant Striker)
+    // "-1 power while blocking" (Neon Revenant Striker) — one-time
     if (blkTxt.includes('-1 power while blocking') || blkTxt.includes('-1 power when blocking')) {
-      blk.powerMods.push({ amount: -1, until: 'eot' });
-      log(`${blk.name}: -1 power while blocking.`, '');
+      if (!blk._whileBlockingPenaltyApplied) {
+        blk.powerMods.push({ amount: -1, until: 'eot' });
+        blk._whileBlockingPenaltyApplied = true;
+        log(`${blk.name}: -1 power while blocking.`, '');
+      }
     }
   });
 
@@ -8225,15 +8416,49 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
       (hasKeyword(i, 'wall') || i.type === 'Relic') && i.instId !== inst.instId
     );
     if (targets.length === 0) { log(`${inst.name}: No wall or relic to sacrifice.`, ''); return; }
-    const doDestroy = (t) => {
-      removeFromBattlefield(t, who);
-      drawFromDeck(who, G[who].main.length > 0 ? 'main' : 'land');
-      log(`${inst.name}: Sacrificed ${t.name} — drew a card.`, 'heal');
-      updateUI();
+
+    const promptDeckChoice = (sacTarget) => {
+      const mainAvail = G[who].main.length > 0;
+      const landAvail = G[who].land.length > 0;
+      // Card text says "from your main deck" — but support both if main is empty
+      const wantsMainOnly = seg.includes('main deck');
+      const finishDraw = (deckType) => {
+        removeFromBattlefield(sacTarget, who);
+        drawFromDeck(who, deckType);
+        log(`${inst.name}: Sacrificed ${sacTarget.name} — drew from ${deckType} deck.`, 'heal');
+        updateUI();
+      };
+      if (who !== 'player') {
+        // AI: always follow card text (main deck if specified)
+        const deck = (wantsMainOnly && mainAvail) ? 'main' : (mainAvail ? 'main' : 'land');
+        finishDraw(deck);
+        return;
+      }
+      // Player: let them choose if both decks are available
+      if (mainAvail && landAvail && !wantsMainOnly) {
+        showModal(inst.name, 'Draw from which deck?', [
+          { label: `📖 MAIN DECK (${G[who].main.length})`, cls: 'btn-primary',   action: () => finishDraw('main') },
+          { label: `🌍 LAND DECK (${G[who].land.length})`, cls: 'btn-secondary', action: () => finishDraw('land') },
+        ]);
+      } else {
+        finishDraw(mainAvail ? 'main' : 'land');
+      }
     };
-    if (targets.length === 1) doDestroy(targets[0]);
-    else showModal(inst.name, 'Choose a wall or relic to sacrifice:',
-      targets.map(t => ({ label: t.name, cls: 'btn-secondary', action: () => doDestroy(t) }))
+
+    // Always show target selection modal (even if only 1 target) so player can cancel
+    showModal(inst.name, 'Choose a wall or relic to sacrifice to draw a card:',
+      targets.map(t => ({
+        label: `${t.name} (${t.type === 'Relic' ? 'Relic' : 'Wall'})`,
+        cls: 'btn-danger',
+        action: () => promptDeckChoice(t)
+      })).concat([
+        { label: 'CANCEL', cls: 'btn-muted', action: () => {
+          // Un-exhaust since activation was cancelled
+          inst.exhaustState = 'renewed';
+          log(`${inst.name}: Cancelled.`, '');
+          updateUI();
+        }}
+      ])
     );
     return;
   }
@@ -8839,30 +9064,38 @@ function applyWhileAttackingAuras(who, attackingInsts) {
   G[who].battlefield.forEach(aura => {
     if (!aura.keywords.whileAttackingAura) return;
     const txt = (aura.abilities || '').toLowerCase();
-    // "+1 power"
-    if ((txt.includes('+1 power') || txt.includes('get +1')) && txt.includes('attacking')) {
+
+    // Extract the aura clause so we don't match the aura's own intrinsic keywords.
+    // Auras are phrased like "While [condition] ... gain/get X"
+    // We only apply effects that appear AFTER "gain" or "get" (so the aura's own
+    // Breach/Bleed listed as keywords don't false-trigger).
+    const gainMatch = txt.match(/(?:gain|get)\s+([^.\n]+)/);
+    const gainClause = gainMatch ? gainMatch[1] : '';
+
+    // "+1 power" — the aura must say "gain +1 power" or "get +1 power"
+    if ((gainClause.includes('+1 power') || gainClause.includes('+1 attack')) && txt.includes('attacking')) {
       attackingInsts.forEach(atk => {
-        if (atk.instId === aura.instId) return; // don't buff self twice
+        if (atk.instId === aura.instId) return;
         atk.powerMods.push({ amount: 1, until: 'eot' });
         log(`${aura.name}: ${atk.name} gets +1 power (while attacking).`, '');
       });
     }
-    // "gain breach"
-    if (txt.includes('breach') && txt.includes('attacking')) {
+    // "gain breach" — must appear in gain clause explicitly, NOT just from aura's own keywords
+    if (gainClause.includes('breach') && txt.includes('attacking')) {
       attackingInsts.forEach(atk => {
+        atk.tempKeywords = atk.tempKeywords || {};
         atk.tempKeywords.breach = true;
         log(`${aura.name}: ${atk.name} gains Breach (while attacking).`, '');
       });
     }
-    // "gain bleed +1" or "while on the battlefield...gain Bleed +1"
-    const bleedMatch = txt.match(/bleed \+(\d+)/) ||
-      (txt.includes('while on the battlefield') && txt.includes('bleed') ?
-        txt.match(/bleed (\d+)/) : null);
-    if (bleedMatch && txt.includes('attacking')) {
-      const bonus = parseInt(bleedMatch[1]);
+    // "gain bleed +N" — only from gain clause, applied as _bleedBoost so it resets EOT
+    const bleedBonusMatch = gainClause.match(/bleed \+?(\d+)/);
+    if (bleedBonusMatch && txt.includes('attacking')) {
+      const bonus = parseInt(bleedBonusMatch[1]);
       attackingInsts.forEach(atk => {
-        atk.keywords.bleed = (atk.keywords.bleed || 0) + bonus;
-        log(`${aura.name}: ${atk.name} gains Bleed +${bonus}.`, '');
+        if (atk.instId === aura.instId) return;
+        atk._bleedBoost = (atk._bleedBoost || 0) + bonus;
+        log(`${aura.name}: ${atk.name} gains Bleed +${bonus} (while attacking).`, '');
       });
     }
     // ── HEMORRHAGE while-attacking effects ──────────────────────
@@ -9220,6 +9453,8 @@ function clearEotEffects(who) {
     if (inst._bleedBoost) inst._bleedBoost = 0; // Blade Silhouette EOT clear
     if (inst._indestructibleEot) inst._indestructibleEot = false; // Legacy Ward
     if (inst._bleedAlwaysTriggers) inst._bleedAlwaysTriggers = false; // Flankwire Feint
+    if (inst._whenBlockingApplied) inst._whenBlockingApplied = false;
+    if (inst._whileBlockingPenaltyApplied) inst._whileBlockingPenaltyApplied = false;
     if (inst._lostWallThisTurn) { // Living Wall restores Wall
       inst._lostWallThisTurn = false;
       if (inst.tempKeywords) inst.tempKeywords.wall = undefined;
@@ -9985,7 +10220,18 @@ function moveDrag(e) {
     }
   }
 
-  const affordable = canPayCost('player', inst.cost);
+  // Apply Relic Scribe discount for drop-zone highlight
+  let checkCost = inst.cost;
+  if (inst.type === 'Relic') {
+    const hasScribe = G.player.battlefield.some(b =>
+      b.name === 'Relic Scribe' && b.exhaustState === 'renewed' && b.type === 'Creature'
+    );
+    if (hasScribe) {
+      const gIdx = (checkCost || '').indexOf('G');
+      if (gIdx !== -1) checkCost = checkCost.slice(0, gIdx) + checkCost.slice(gIdx + 1);
+    }
+  }
+  const affordable = canPayCost('player', checkCost);
   const isLand = inst.type === 'Land';
   if (affordable || isLand) {
     const zone = el.closest('#bf-player-creatures, #bf-player-relics, #bf-player-lands, #side-player');
@@ -10040,7 +10286,18 @@ function endDrag(e) {
 
   // ── CREATURE / RELIC / LAND DROP ────────────────────────────
   if (isOverPlayerSide(e.clientX, e.clientY)) {
-    const affordable = canPayCost('player', inst.cost);
+    // Apply Relic Scribe discount for drag-drop cost check (so it matches playCard's check)
+    let checkCost = inst.cost;
+    if (inst.type === 'Relic') {
+      const hasScribe = G.player.battlefield.some(b =>
+        b.name === 'Relic Scribe' && b.exhaustState === 'renewed' && b.type === 'Creature'
+      );
+      if (hasScribe) {
+        const gIdx = (checkCost || '').indexOf('G');
+        if (gIdx !== -1) checkCost = checkCost.slice(0, gIdx) + checkCost.slice(gIdx + 1);
+      }
+    }
+    const affordable = canPayCost('player', checkCost);
     const isLand = inst.type === 'Land';
     if (!affordable && !isLand) {
       const handEl = document.getElementById('hand-player-cards');
