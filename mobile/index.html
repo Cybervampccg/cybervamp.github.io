@@ -2823,6 +2823,7 @@ let mulliganUsed = { player: false, ai: false };
 let logOpen = false;
 let hoverCard = null;
 let nextInstId = 1;
+let _pendingAttackTriggers = [];
 
 function makeInst(cardId, owner) {
   const base = CARD_MAP[cardId];
@@ -3342,6 +3343,17 @@ function payCost(who, costStr) {
     needC -= pay;
   }
 
+  updateManaDisplay(who);
+}
+
+// Add mana back to a player's pool — used when a cast is cancelled mid-flow
+function refundCost(who, costStr) {
+  if (!costStr) { updateManaDisplay(who); return; }
+  const needed = parseCost(costStr);
+  const pool = G[who].mana;
+  for (const color of ['R','W','B','P','G','C']) {
+    pool[color] = (pool[color] || 0) + (needed[color] || 0);
+  }
   updateManaDisplay(who);
 }
 
@@ -4362,7 +4374,8 @@ function confirmAttack() {
   combatPhase = 'resolving';
   document.getElementById('btn-attack').style.display = 'none';
 
-  // Fire attack triggers now that attack is confirmed
+  // Reset pending trigger queue and fire attack triggers
+  _pendingAttackTriggers = [];
   atkInsts.forEach(inst => fireAttackTrigger(inst, 'player'));
 
   // Apply static selfBleed keyword for player's attackers
@@ -4412,6 +4425,13 @@ function confirmAttack() {
   });
 
   updateUI();
+
+  // Fire any deferred attack-trigger modals now (Isolde etc.) — queued in fireAttackTrigger
+  if (_pendingAttackTriggers && _pendingAttackTriggers.length > 0) {
+    const queue = _pendingAttackTriggers.slice();
+    _pendingAttackTriggers = [];
+    queue.forEach(fn => { try { fn(); } catch(e) { console.error(e); } });
+  }
 
   // ── Response window — cast spells/abilities before damage ─────
   combatPhase = 'response';
@@ -4857,37 +4877,41 @@ function fireAttackTrigger(inst, who) {
         log(`${inst.name}: No renewed creatures to exhaust.`, '');
         return;
       }
-      const exhausted = [];
-      const showPicker = (remaining) => {
-        if (remaining === 0 || allTargets.length === 0) {
-          if (exhausted.length > 0) inst._overexhaustAfterCombat = true;
-          return;
-        }
-        showModal(
-          `${inst.name}: EXHAUST UP TO 2 CREATURES`,
-          `Choose a creature to exhaust (${exhausted.length}/2 chosen). Picking ${2-exhausted.length} more gives ${inst.name} Overexhaust after combat.`,
-          allTargets.map(t => ({
-            label: `${t.inst.name} [${getEffectivePower(t.inst)}] (${t.owner})`,
-            cls: t.owner === 'ai' ? 'btn-danger' : 'btn-secondary',
-            action: () => {
-              t.inst.exhaustState = 'exhausted';
-              exhausted.push(t);
-              log(`${inst.name}: ${t.inst.name} exhausted.`, 'damage');
-              updateUI();
-              // Remove chosen target from pool
-              const idx = allTargets.indexOf(t);
-              if (idx !== -1) allTargets.splice(idx, 1);
-              showPicker(remaining - 1);
-            }
-          })).concat([
-            { label: exhausted.length > 0 ? `✓ DONE (${exhausted.length} exhausted)` : '✕ SKIP', cls: 'btn-muted', action: () => {
-              if (exhausted.length > 0) inst._overexhaustAfterCombat = true;
-              updateUI();
-            }}
-          ])
-        );
-      };
-      showPicker(2);
+      // Push a deferred modal to be shown AFTER confirmAttack finishes its flow
+      // (so the modal isn't immediately covered by the response overlay)
+      _pendingAttackTriggers = _pendingAttackTriggers || [];
+      _pendingAttackTriggers.push(() => {
+        const exhausted = [];
+        const showPicker = (remaining) => {
+          if (remaining === 0 || allTargets.length === 0) {
+            if (exhausted.length > 0) inst._overexhaustAfterCombat = true;
+            return;
+          }
+          showModal(
+            `${inst.name}: EXHAUST UP TO 2 CREATURES`,
+            `Choose a creature to exhaust (${exhausted.length}/2 chosen).`,
+            allTargets.map(t => ({
+              label: `${t.inst.name} [${getEffectivePower(t.inst)}] (${t.owner})`,
+              cls: t.owner === 'ai' ? 'btn-danger' : 'btn-secondary',
+              action: () => {
+                t.inst.exhaustState = 'exhausted';
+                exhausted.push(t);
+                log(`${inst.name}: ${t.inst.name} exhausted.`, 'damage');
+                updateUI();
+                const idx = allTargets.indexOf(t);
+                if (idx !== -1) allTargets.splice(idx, 1);
+                showPicker(remaining - 1);
+              }
+            })).concat([
+              { label: exhausted.length > 0 ? `✓ DONE (${exhausted.length} exhausted)` : '✕ SKIP', cls: 'btn-muted', action: () => {
+                if (exhausted.length > 0) inst._overexhaustAfterCombat = true;
+                updateUI();
+              }}
+            ])
+          );
+        };
+        showPicker(2);
+      });
     } else {
       // AI: auto-pick up to 2 opposing creatures
       const opp = 'player';
@@ -5839,7 +5863,13 @@ function castSpellWithTargeting(inst, caster, onDone) {
           label: `TARGET: ${validTargets[0].inst.name} [${getEffectivePower(validTargets[0].inst)}]`,
           cls: 'btn-danger',
           action: () => { resolveSpellOnTarget(inst, caster, validTargets[0].inst, validTargets[0].owner); onDone(); }
-        }, { label: 'CANCEL', cls: 'btn-muted', action: () => { if(G) updateUI(); } }]
+        }, { label: 'CANCEL', cls: 'btn-muted', action: () => {
+          // Return spell to hand and refund mana (spell was never really cast)
+          if (G[caster].hand && !G[caster].hand.some(i => i.instId === inst.instId)) G[caster].hand.push(inst);
+          refundCost(caster, inst.cost);
+          log(`${inst.name}: Cancelled — returned to hand.`, '');
+          updateUI();
+        } }]
       );
     } else {
       resolveSpellOnTarget(inst, caster, validTargets[0].inst, validTargets[0].owner);
@@ -5862,11 +5892,24 @@ function castSpellWithTargeting(inst, caster, onDone) {
           resolveSpellOnTarget(inst, caster, t, owner);
           onDone();
         }
-      })).concat([{ label: 'CANCEL', cls: 'btn-muted', action: () => { if(G) updateUI(); } }])
+      })).concat([{ label: 'CANCEL', cls: 'btn-muted', action: () => {
+        if (G[caster].hand && !G[caster].hand.some(i => i.instId === inst.instId)) G[caster].hand.push(inst);
+        refundCost(caster, inst.cost);
+        log(`${inst.name}: Cancelled — returned to hand.`, '');
+        updateUI();
+      } }])
     );
     return;
   }
   beginTargeting(inst, caster, mode, (target, targetOwner) => {
+    if (!target) {
+      // Targeting cancelled — return spell to hand
+      if (G[caster].hand && !G[caster].hand.some(i => i.instId === inst.instId)) G[caster].hand.push(inst);
+      refundCost(caster, inst.cost);
+      log(`${inst.name}: Cancelled — returned to hand.`, '');
+      updateUI();
+      return;
+    }
     resolveSpellOnTarget(inst, caster, target, targetOwner);
     onDone();
   });
@@ -7390,11 +7433,14 @@ function beginTargeting(spell, caster, mode, callback) {
 }
 
 function cancelTargeting() {
+  const cb = targetingState.callback;
   targetingState = { active: false, spell: null, caster: null, mode: null, callback: null };
   document.getElementById('targeting-hint').style.display = 'none';
   document.documentElement.classList.remove('targeting-active');
   document.body.classList.remove('targeting-active');
   updateUI();
+  // Fire callback with null so spell can be returned to hand
+  if (cb) cb(null, null);
 }
 
 function isValidTarget(inst, owner) {
