@@ -5878,41 +5878,24 @@ function castSpellWithTargeting(inst, caster, onDone) {
     return;
   }
 
-  // Multiple targets — enter targeting mode
-  // During blocking/response window, use modal picker instead of beginTargeting UI
-  // (avoids interference with the combat overlay)
-  if ((combatPhase === 'player-block' || combatPhase === 'response') && caster === 'player') {
-    showModal(
-      `${inst.name} — Choose Target`,
-      inst.abilities,
-      validTargets.map(({inst: t, owner}) => ({
-        label: `${t.name} [${getEffectivePower(t)}]${owner !== caster ? ' (opponent)' : ''}`,
-        cls: 'btn-secondary',
-        action: () => {
-          resolveSpellOnTarget(inst, caster, t, owner);
-          onDone();
-        }
-      })).concat([{ label: 'CANCEL', cls: 'btn-muted', action: () => {
-        if (G[caster].hand && !G[caster].hand.some(i => i.instId === inst.instId)) G[caster].hand.push(inst);
-        refundCost(caster, inst.cost);
-        log(`${inst.name}: Cancelled — returned to hand.`, '');
-        updateUI();
-      } }])
-    );
-    return;
-  }
-  beginTargeting(inst, caster, mode, (target, targetOwner) => {
-    if (!target) {
-      // Targeting cancelled — return spell to hand
+  // Multiple targets — always use modal picker (clearer UX, especially on mobile)
+  showModal(
+    `${inst.name} — Choose Target`,
+    inst.abilities,
+    validTargets.map(({inst: t, owner}) => ({
+      label: `${t.name} [${getEffectivePower(t)}]${owner !== caster ? ' (opponent)' : ' (yours)'}`,
+      cls: owner !== caster ? 'btn-danger' : 'btn-secondary',
+      action: () => {
+        resolveSpellOnTarget(inst, caster, t, owner);
+        onDone();
+      }
+    })).concat([{ label: '✕ CANCEL', cls: 'btn-muted', action: () => {
       if (G[caster].hand && !G[caster].hand.some(i => i.instId === inst.instId)) G[caster].hand.push(inst);
       refundCost(caster, inst.cost);
       log(`${inst.name}: Cancelled — returned to hand.`, '');
       updateUI();
-      return;
-    }
-    resolveSpellOnTarget(inst, caster, target, targetOwner);
-    onDone();
-  });
+    } }])
+  );
 }
 
 function resolveSpellOnTarget(inst, caster, target, targetOwner) {
@@ -10316,7 +10299,21 @@ function endDrag(e) {
 
   // ── SPELL + TARGET DROP ─────────────────────────────────────
   if (inst.type === 'Spell') {
-    const targetCard = el.closest('[data-inst]');
+    // Try to find a creature/relic target at the drop point — check the full stack,
+    // not just the topmost element (handles cases where drop lands on a child/overlay)
+    let targetCard = el.closest('[data-inst]');
+    if (!targetCard) {
+      // Fallback: scan element stack at drop point for any card node
+      const ghost = document.getElementById('drag-ghost');
+      const wasVisible = ghost && ghost.style.display !== 'none';
+      if (ghost) ghost.style.display = 'none';
+      const stack = (document.elementsFromPoint ? document.elementsFromPoint(e.clientX, e.clientY) : []);
+      if (ghost && wasVisible) ghost.style.display = 'block';
+      for (const node of stack) {
+        const hit = node.closest && node.closest('[data-inst]');
+        if (hit) { targetCard = hit; break; }
+      }
+    }
     if (targetCard) {
       const targetInstId = parseInt(targetCard.dataset.inst);
       const targetInst = G.ai.battlefield.find(i => i.instId === targetInstId) ||
@@ -10334,13 +10331,19 @@ function endDrag(e) {
         G.player.hand = G.player.hand.filter(i => i.instId !== inst.instId);
         sfx('card_play');
         log(`You cast ${inst.name} → ${targetInst.name}.`, 'important');
-        resolveSpellOnTarget(inst, 'player', targetInst, targetOwner);
-        G.player.discard.push(inst);
-        updateUI();
+        // Hero moment first, then resolve
+        showHeroMoment(inst, {
+          hold: 1600,
+          onDone: () => {
+            resolveSpellOnTarget(inst, 'player', targetInst, targetOwner);
+            G.player.discard.push(inst);
+            updateUI();
+          }
+        });
         return;
       }
     }
-    // No valid target on drop — fall through to normal play
+    // No valid target on drop — fall through to normal play (opens targeting UI)
     if (isOverPlayerSide(e.clientX, e.clientY)) { playCard(inst); return; }
     return;
   }
