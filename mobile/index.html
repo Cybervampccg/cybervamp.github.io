@@ -17,22 +17,38 @@
 ═══════════════════════════════════════════════════════════════ */
 *,*::before,*::after { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 :root {
-  --bg-deep:   #07080d;
-  --bg-panel:  #0d0f1a;
-  --bg-card:   #111420;
-  --border-dim:#2a2040;
-  --border-bright:#4a3860;
-  --text-bright:#e8e0ff;
-  --text-mid:  #a090c0;
-  --text-dim:  #604870;
-  --red:       #e03030;
-  --white-c:   #c8c0f0;
-  --black-c:   #6030c0;
-  --purple:    #a020f0;
-  --gold:      #d4a020;
-  --gold-glow: rgba(212,160,32,0.4);
-  --life-green:#50dc50;
-  --bleed-red: #dc3030;
+  /* ── Backgrounds (layered darks with subtle tint) ── */
+  --bg-deep:    #05060c;
+  --bg-panel:   #0e1022;
+  --bg-panel-2: #141730;    /* elevated panels */
+  --bg-card:    #171a30;
+  --bg-glass:   rgba(20, 16, 44, 0.72);
+
+  /* ── Borders (softer, warmer) ── */
+  --border-dim:   rgba(140, 110, 200, 0.14);
+  --border-mid:   rgba(180, 140, 230, 0.22);
+  --border-bright:rgba(212, 170, 240, 0.38);
+
+  /* ── Text hierarchy ── */
+  --text-bright: #f5efff;
+  --text-mid:    #b4a6d4;
+  --text-dim:    #7a6a98;
+  --text-faint:  #4a3c68;
+
+  /* ── Faction accent colors (slightly desaturated for UI use) ── */
+  --red:     #ef4444;
+  --red-glow: rgba(239,68,68,0.5);
+  --white-c: #f0eaff;
+  --black-c: #a855f7;        /* Bright violet for visibility on dark bg */
+  --purple:  #c084fc;
+  --gold:    #eab308;
+  --gold-bright: #fde047;
+  --gold-glow: rgba(234,179,8,0.45);
+
+  --life-green: #4ade80;
+  --bleed-red:  #f43f5e;
+
+  /* ── Card sizes ── */
   --card-w:    88px;
   --card-h:    123px;
   --bf-card-w: 68px;
@@ -41,15 +57,52 @@
   --relic-h:   81px;
   --land-w:    52px;
   --land-h:    52px;
+
+  /* ── Spacing scale (use these, not arbitrary px) ── */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+
+  /* ── Radii ── */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-full: 9999px;
+
+  /* ── Shadows (elevation) ── */
+  --sh-1: 0 1px 2px rgba(0,0,0,0.5);
+  --sh-2: 0 4px 12px rgba(0,0,0,0.55);
+  --sh-3: 0 8px 24px rgba(0,0,0,0.7);
+  --sh-glow-gold: 0 0 12px rgba(234,179,8,0.4);
 }
 html,body {
   width:100%; height:100%; margin:0; padding:0;
-  background:var(--bg-deep); color:var(--text-bright);
+  background:
+    radial-gradient(ellipse 100% 80% at 50% 0%,   rgba(80,40,140,0.14), transparent 60%),
+    radial-gradient(ellipse 100% 80% at 50% 100%, rgba(180,40,80,0.08), transparent 60%),
+    var(--bg-deep);
+  color:var(--text-bright);
   font-family:'Rajdhani',sans-serif;
   overflow:hidden; touch-action:none;
   -webkit-user-select:none; user-select:none;
   -webkit-touch-callout:none;
   -webkit-tap-highlight-color:transparent;
+}
+
+/* ── UI POLISH — subtle glass surfaces + smooth transitions ── */
+* { box-sizing: border-box; }
+/* Scrollbar polish */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(180,140,230,0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(180,140,230,0.4); }
+/* Smooth focus state for all interactive elements (avoid default blue ring) */
+button, [role="button"], [tabindex] { outline: none; }
+button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 
 /* ── FACTION CHOOSER (landing screen) ────────────────────────── */
@@ -112,37 +165,91 @@ html,body {
 
 /* ── TOP BAR ──────────────────────────────────────────────────── */
 #topbar {
-  display:flex; align-items:center; gap:6px;
-  padding:4px 8px; background:rgba(4,2,10,.95);
-  border-bottom:1px solid var(--border-dim);
-  flex-shrink:0; z-index:80; min-height:36px;
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: 6px var(--sp-3);
+  background: linear-gradient(180deg, rgba(10,6,24,0.98) 0%, rgba(4,2,10,0.92) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border-mid);
+  flex-shrink: 0; z-index: 80; min-height: 36px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  position: relative;
 }
-.logo { font-family:'Cinzel Decorative',serif; font-size:9px; color:var(--red);
-  letter-spacing:1px; white-space:nowrap; }
-#phase-track { display:flex; gap:2px; flex:1; justify-content:center; }
+#topbar::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(234,179,8,0.28), rgba(212,170,240,0.28), transparent);
+}
+.logo {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 10px;
+  color: var(--gold-bright);
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+  text-shadow: 0 0 8px rgba(234,179,8,0.4);
+}
+#phase-track { display: flex; gap: 3px; flex: 1; justify-content: center; }
 .phase-pip {
-  padding:2px 5px; font-size:8px; letter-spacing:.5px;
-  border-radius:3px; border:1px solid var(--border-dim);
-  color:var(--text-dim); transition:all .2s;
+  padding: 3px 7px;
+  font-size: 8px;
+  letter-spacing: 1px;
+  font-weight: 600;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border-dim);
+  color: var(--text-dim);
+  background: rgba(20, 16, 36, 0.5);
+  transition: all 0.25s cubic-bezier(.3,.1,.3,1.2);
+  text-transform: uppercase;
 }
-.phase-pip.active { background:var(--red); color:#fff; border-color:var(--red); }
-.phase-pip.done   { color:var(--text-dim); opacity:.4; }
-#turn-info { font-size:9px; color:var(--text-dim); white-space:nowrap; font-family:'Share Tech Mono',monospace; }
-#btn-mute { background:none; border:1px solid var(--border-dim); color:var(--text-dim);
-  padding:2px 6px; border-radius:3px; font-size:10px; cursor:pointer; }
+.phase-pip.active {
+  background: linear-gradient(180deg, #f14a4a 0%, #c02020 100%);
+  color: #fff;
+  border-color: rgba(239,68,68,0.6);
+  box-shadow: 0 0 8px rgba(239,68,68,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+  transform: scale(1.08);
+}
+.phase-pip.done { color: var(--text-faint); opacity: 0.5; }
+#turn-info {
+  font-size: 10px;
+  color: var(--text-mid);
+  white-space: nowrap;
+  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  background: rgba(20, 16, 36, 0.5);
+  border-radius: var(--r-full);
+  border: 1px solid var(--border-dim);
+}
+#btn-mute {
+  background: rgba(20,16,36,0.5);
+  border: 1px solid var(--border-dim);
+  color: var(--text-mid);
+  padding: 4px 8px;
+  border-radius: var(--r-full);
+  font-size: 11px;
+  cursor: pointer;
+  min-width: 32px;
+  transition: all 0.15s;
+}
+#btn-mute:hover { background: rgba(40,30,70,0.7); color: var(--gold-bright); }
 
 /* ── AI ZONE (top ~28% of screen) ────────────────────────────── */
 #hand-ai {
-  display:flex; align-items:stretch;
-  background:rgba(10,6,24,.9); border-bottom:1px solid var(--border-dim);
-  flex-shrink:0; min-height:72px; max-height:80px; filter:brightness(.85);
+  display: flex; align-items: stretch;
+  background: linear-gradient(180deg, rgba(14,8,32,0.92) 0%, rgba(8,4,20,0.9) 100%);
+  border-bottom: 1px solid var(--border-mid);
+  flex-shrink: 0; min-height: 72px; max-height: 80px;
+  filter: brightness(0.88);
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.02);
 }
 /* AI vitals */
 #hand-ai .hand-vitals {
-  display:flex; flex-direction:row; align-items:center; gap:8px;
-  padding:4px 8px; flex-shrink:0;
-  background:rgba(0,0,0,.3); border-right:1px solid var(--border-dim);
-  filter:brightness(1.15);
+  display: flex; flex-direction: row; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2); flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.35);
+  border-right: 1px solid var(--border-dim);
+  filter: brightness(1.15);
 }
 #hand-ai .hand-vital-block {
   display:flex; flex-direction:column; align-items:center; gap:1px;
@@ -221,16 +328,47 @@ html,body {
 
 /* AI info strip */
 #ai-info-strip {
-  display:flex; align-items:center; gap:8px; padding:2px 8px; flex-shrink:0;
-  background:rgba(20,10,50,.9); border-bottom:1px solid var(--border-dim); min-height:22px;
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: 4px var(--sp-3); flex-shrink: 0;
+  background: linear-gradient(180deg, rgba(24,14,50,0.85) 0%, rgba(14,8,30,0.9) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-dim);
+  min-height: 26px;
 }
-#ai-faction-label { font-family:'Cinzel Decorative',serif; font-size:8px; letter-spacing:1px; color:var(--text-dim); }
-.pool-spacer { flex:1; }
-.pool-label { font-size:9px; letter-spacing:1px; color:var(--text-dim); flex-shrink:0; }
-.resource-row { display:flex; gap:2px; align-items:center; flex-wrap:wrap; }
-.mana-pip { width:14px!important; height:14px!important; border-radius:50%; flex-shrink:0;
-  display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:700; }
-.mana-pip img { width:100%; height:100%; object-fit:contain; display:block; }
+#ai-faction-label {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 9px;
+  letter-spacing: 1.4px;
+  color: var(--text-mid);
+  text-transform: uppercase;
+}
+.pool-spacer { flex: 1; }
+.pool-label {
+  font-size: 9px;
+  letter-spacing: 1.4px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.resource-row {
+  display: flex; gap: 3px; align-items: center; flex-wrap: wrap;
+  padding: 2px 6px;
+  background: rgba(8, 4, 20, 0.55);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--r-full);
+}
+.mana-pip {
+  width: 16px !important; height: 16px !important;
+  border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+  transition: transform 0.15s;
+}
+.mana-pip:hover { transform: scale(1.12); }
+.mana-pip img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
 /* ── BATTLEFIELD ─────────────────────────────────────────────── */
 #bf-wrapper {
@@ -258,20 +396,50 @@ html,body {
 
 /* Divider between AI/player battlefield halves */
 #bf-divider {
-  height:1px; background:linear-gradient(90deg,transparent,rgba(212,160,32,.3),transparent);
-  flex-shrink:0; z-index:1; position:relative;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(234, 179, 8, 0.15) 20%,
+    rgba(234, 179, 8, 0.5) 50%,
+    rgba(234, 179, 8, 0.15) 80%,
+    transparent 100%);
+  flex-shrink: 0;
+  z-index: 1;
+  position: relative;
+  box-shadow: 0 0 8px rgba(234, 179, 8, 0.25);
 }
 
 /* Discard piles */
-.discard-pile { margin-left:auto; flex-shrink:0; }
-.discard-stack { display:flex; flex-direction:column; align-items:center; gap:1px;
-  cursor:pointer; padding:2px; }
-.ds-top { width:40px; height:56px; border-radius:3px;
-  border:1px dashed var(--border-dim); background:rgba(0,0,0,.3);
-  overflow:hidden; position:relative; }
-.ds-top img { width:100%; height:100%; object-fit:cover; display:block; }
-.ds-count { font-size:9px; font-family:'Share Tech Mono',monospace; color:var(--text-mid); }
-.ds-label { font-size:6px; letter-spacing:1px; color:var(--text-dim); }
+.discard-pile { margin-left: auto; flex-shrink: 0; }
+.discard-stack {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; padding: 3px;
+  border-radius: var(--r-sm);
+  transition: background 0.15s, transform 0.12s;
+}
+.discard-stack:hover { background: rgba(60,40,100,0.2); transform: translateY(-1px); }
+.discard-stack:active { transform: scale(0.95); }
+.ds-top {
+  width: 42px; height: 58px; border-radius: var(--r-sm);
+  border: 1px dashed var(--border-mid);
+  background: rgba(0,0,0,0.4);
+  overflow: hidden; position: relative;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+}
+.ds-top img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ds-count {
+  font-size: 10px;
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--text-mid);
+  font-weight: 700;
+}
+.ds-label {
+  font-size: 7px;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-weight: 600;
+}
 
 /* ── BATTLEFIELD CARD SIZES ───────────────────────────────────── */
 /* Creatures */
@@ -302,16 +470,45 @@ html,body {
 }
 /* Player vitals */
 .hand-vitals {
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:6px; padding:6px 10px; flex-shrink:0;
-  background:rgba(0,0,0,.3); border-right:1px solid var(--border-dim); min-width:64px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3); flex-shrink: 0;
+  background: linear-gradient(180deg, rgba(8,4,18,0.6) 0%, rgba(4,2,10,0.8) 100%);
+  border-right: 1px solid var(--border-dim);
+  min-width: 70px;
+  box-shadow: inset -1px 0 0 rgba(255,255,255,0.03);
 }
-.hand-vital-block { display:flex; flex-direction:column; align-items:center; gap:1px; }
-.hand-vital-icon  { font-size:12px; }
-.hand-vital-val   { font-family:'Cinzel Decorative',serif; font-size:24px; font-weight:700; line-height:1; min-width:30px; text-align:center; }
-.hand-vital-val.life  { color:var(--life-green); text-shadow:0 0 12px rgba(80,220,80,.5); }
-.hand-vital-val.bleed { color:var(--bleed-red);  text-shadow:0 0 12px rgba(220,48,48,.5); }
-.hand-vital-label { font-size:7px; letter-spacing:2px; color:var(--text-dim); }
+.hand-vital-block {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 2px 4px;
+  border-radius: var(--r-sm);
+  transition: background 0.2s;
+}
+.hand-vital-icon  { font-size: 13px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); }
+.hand-vital-val {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 32px;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+.hand-vital-val.life  {
+  color: var(--life-green);
+  text-shadow: 0 0 14px rgba(74,222,128,0.55), 0 0 4px rgba(74,222,128,0.3);
+}
+.hand-vital-val.bleed {
+  color: var(--bleed-red);
+  text-shadow: 0 0 14px rgba(244,63,94,0.55), 0 0 4px rgba(244,63,94,0.3);
+}
+.hand-vital-label {
+  font-size: 7px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  font-weight: 600;
+  text-transform: uppercase;
+}
 
 /* ── BLEED ACTIVE PULSE (Hemorrhage indicator) ───────────────── */
 @keyframes bleed-pulse {
@@ -370,23 +567,97 @@ html,body {
 
 /* ── ACTION BAR ───────────────────────────────────────────────── */
 #action-bar {
-  display:flex; gap:6px; align-items:center; justify-content:center;
-  padding:5px 8px; background:rgba(4,2,10,.97); flex-shrink:0;
-  border-top:1px solid var(--border-dim); flex-wrap:wrap;
-  padding-bottom:max(8px, env(safe-area-inset-bottom));
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-2) var(--sp-3);
+  background: linear-gradient(180deg, rgba(10,6,24,0.95) 0%, rgba(4,2,10,0.98) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border-mid);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  padding-bottom: max(var(--sp-2), env(safe-area-inset-bottom));
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.4);
+  position: relative;
+}
+#action-bar::before {
+  content: '';
+  position: absolute;
+  top: -1px; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(212, 170, 240, 0.35) 30%,
+    rgba(234, 179, 8, 0.35) 50%,
+    rgba(212, 170, 240, 0.35) 70%,
+    transparent 100%);
 }
 .btn {
-  padding:10px 16px; border-radius:6px; cursor:pointer; font-size:12px;
-  font-family:'Cinzel',serif; letter-spacing:1px; border:none;
-  font-weight:700; transition:all .15s; flex-shrink:0;
-  min-height:44px;  /* iOS minimum tap target */
+  padding: 10px 18px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: 'Cinzel', serif;
+  letter-spacing: 1.2px;
+  border: 1px solid var(--border-mid);
+  font-weight: 700;
+  flex-shrink: 0;
+  min-height: 44px;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: var(--sh-1), inset 0 1px 0 rgba(255,255,255,0.06);
+  transition: transform 0.12s ease-out, box-shadow 0.2s, background 0.2s, border-color 0.2s;
 }
-.btn-primary  { background:var(--red); color:#fff; }
-.btn-secondary{ background:rgba(40,20,80,.9); color:var(--text-bright); border:1px solid var(--border-bright); }
-.btn-danger   { background:rgba(180,30,30,.8); color:#fff; }
-.btn-muted    { background:rgba(20,16,36,.8); color:var(--text-dim); border:1px solid var(--border-dim); }
-.btn-gold     { background:rgba(120,80,0,.6); color:var(--gold); border:1px solid rgba(212,160,32,.4); }
-.btn:active   { transform:scale(.97); opacity:.85; }
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--sh-2), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.btn:active {
+  transform: scale(0.96) translateY(0);
+  box-shadow: var(--sh-1), inset 0 2px 6px rgba(0,0,0,0.3);
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-primary {
+  background: linear-gradient(180deg, #f14a4a 0%, #c02020 100%);
+  color: #fff;
+  border-color: rgba(255, 100, 100, 0.55);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+.btn-secondary {
+  background: linear-gradient(180deg, rgba(60,40,120,0.9) 0%, rgba(40,20,80,0.85) 100%);
+  color: var(--text-bright);
+  border-color: var(--border-bright);
+}
+.btn-danger {
+  background: linear-gradient(180deg, #b91c2c 0%, #7d1320 100%);
+  color: #fff;
+  border-color: rgba(220, 80, 80, 0.4);
+}
+.btn-muted {
+  background: rgba(20, 16, 36, 0.75);
+  color: var(--text-mid);
+  border-color: var(--border-dim);
+}
+.btn-gold {
+  background: linear-gradient(180deg, rgba(234,179,8,0.35) 0%, rgba(140,90,0,0.7) 100%);
+  color: var(--gold-bright);
+  border-color: rgba(234, 179, 8, 0.5);
+  text-shadow: 0 0 8px rgba(234,179,8,0.4);
+}
+.btn-gold:hover:not(:disabled) {
+  box-shadow: var(--sh-2), var(--sh-glow-gold), inset 0 1px 0 rgba(255,255,255,0.1);
+}
 
 #targeting-hint { font-size:10px; color:#30e0ff; letter-spacing:1px; padding:0 6px;
   display:none; text-align:center; width:100%; }
@@ -500,22 +771,40 @@ html,body {
 
 /* ── MODALS ───────────────────────────────────────────────────── */
 #modal-overlay {
-  position:fixed; inset:0; z-index:5000; pointer-events:none;
-  opacity:0; transition:opacity .15s;
-  background:rgba(4,2,10,.88);
-  display:flex; align-items:center; justify-content:center; padding:12px;
+  position: fixed; inset: 0; z-index: 5000; pointer-events: none;
+  opacity: 0; transition: opacity 0.2s;
+  background: rgba(4, 2, 12, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--sp-3);
 }
-#modal-overlay.visible { opacity:1; pointer-events:all; }
+#modal-overlay.visible { opacity: 1; pointer-events: all; }
 #modal-box {
-  background:var(--bg-panel); border:1px solid var(--border-bright);
-  border-radius:12px; padding:20px 16px; max-width:360px; width:100%;
-  max-height:85vh; overflow-y:auto; box-shadow:0 16px 64px rgba(0,0,0,.9);
+  background: linear-gradient(180deg, rgba(30,24,54,0.96) 0%, rgba(14,12,36,0.98) 100%);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--r-lg);
+  padding: var(--sp-4) var(--sp-4) var(--sp-3);
+  max-width: 380px; width: 100%;
+  max-height: 85vh; overflow-y: auto;
+  box-shadow: 0 20px 80px rgba(0,0,0,0.95), 0 0 0 1px rgba(255,255,255,0.03),
+              inset 0 1px 0 rgba(255,255,255,0.06);
+  transform: translateY(16px) scale(0.98);
+  opacity: 0;
+  transition: transform 0.25s cubic-bezier(.3,.1,.3,1.2), opacity 0.2s;
 }
-#modal-title { font-family:'Cinzel Decorative',serif; font-size:14px;
-  color:var(--gold); margin-bottom:10px; }
-#modal-body  { font-size:12px; color:var(--text-mid); line-height:1.6; margin-bottom:14px; white-space:pre-wrap; }
-#modal-actions { display:flex; flex-direction:column; gap:8px; }
-#modal-actions .btn { width:100%; text-align:center; padding:12px; font-size:12px; }
+#modal-overlay.visible #modal-box { transform: translateY(0) scale(1); opacity: 1; }
+#modal-title {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 15px;
+  color: var(--gold-bright);
+  margin-bottom: var(--sp-2);
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 12px rgba(234, 179, 8, 0.3);
+}
+#modal-body { font-size: 13px; color: var(--text-mid); line-height: 1.6; margin-bottom: var(--sp-4); white-space: pre-wrap; }
+#modal-actions { display: flex; flex-direction: column; gap: var(--sp-2); }
+#modal-actions .btn { width: 100%; text-align: center; padding: 13px; font-size: 12px; }
 
 /* ── TURN BANNER ──────────────────────────────────────────────── */
 /* ── TURN CHANGE LIGHT SWEEP ──────────────────────────────────── */
@@ -554,35 +843,49 @@ html,body {
 }
 
 #turn-banner {
-  position:fixed; inset:0; z-index:4000; pointer-events:none;
-  display:flex; align-items:center; justify-content:center;
-  background:rgba(4,2,10,.75); opacity:0; transition:opacity .2s;
+  position: fixed; inset: 0; z-index: 4000; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at center, rgba(4,2,10,0.88) 0%, rgba(4,2,10,0.6) 100%);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0; transition: opacity 0.25s;
 }
-#turn-banner.visible { opacity:1; pointer-events:all; }
-.turn-banner-text { font-family:'Cinzel Decorative',serif; font-size:28px;
-  color:var(--gold); letter-spacing:4px; text-shadow:0 0 32px rgba(212,160,32,.6); }
+#turn-banner.visible { opacity: 1; pointer-events: all; }
+.turn-banner-text {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 30px;
+  color: var(--gold-bright);
+  letter-spacing: 5px;
+  text-shadow: 0 0 24px rgba(234,179,8,0.7), 0 0 48px rgba(234,179,8,0.3);
+  animation: turn-banner-in 0.4s cubic-bezier(.3,.1,.3,1.3);
+}
+@keyframes turn-banner-in {
+  from { transform: scale(0.85); opacity: 0; letter-spacing: 12px; }
+  to   { transform: scale(1);    opacity: 1; letter-spacing: 5px; }
+}
 
 /* ── DAMAGE VIGNETTE ──────────────────────────────────────────── */
 #damage-vignette {
-  position:fixed; inset:0; pointer-events:none; z-index:200;
-  border:0 solid rgba(220,30,30,0);
-  transition:border-width .05s,border-color .05s;
+  position: fixed; inset: 0; pointer-events: none; z-index: 200;
+  border: 0 solid rgba(244,63,94,0);
+  transition: border-width 0.05s, border-color 0.05s;
 }
-#damage-vignette.active { border-width:20px; border-color:rgba(220,30,30,.6); }
+#damage-vignette.active { border-width: 24px; border-color: rgba(244,63,94,0.65); }
 
 /* ── ACTION OVERLAY (blocking / response) ────────────────────── */
-/* Action overlay: bottom strip — does NOT cover the battlefield */
 #action-overlay {
-  position:fixed; bottom:0; left:0; right:0; z-index:3500;
-  background:rgba(4,2,10,.96);
-  border-top:2px solid #30e0ff;
-  border-radius:12px 12px 0 0;
-  display:flex; flex-direction:column; align-items:center;
-  gap:8px; padding:12px 16px;
-  padding-bottom:max(12px, env(safe-area-inset-bottom));
-  box-shadow:0 -8px 32px rgba(0,0,0,.8);
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 3500;
+  background: linear-gradient(180deg, rgba(14,10,32,0.96) 0%, rgba(4,2,10,0.98) 100%);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-top: 2px solid #22d3ee;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--sp-2); padding: var(--sp-3) var(--sp-4);
+  padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom));
+  box-shadow: 0 -12px 40px rgba(0,0,0,0.85);
 }
-#action-overlay.response-mode { border-top-color:var(--gold); }
+#action-overlay.response-mode { border-top-color: var(--gold-bright); }
 #action-overlay .overlay-title {
   font-family:'Cinzel Decorative',serif; font-size:13px; color:#30e0ff; letter-spacing:1.5px;
 }
@@ -598,24 +901,52 @@ html,body {
 
 /* ── LOG PANEL ────────────────────────────────────────────────── */
 #log-panel {
-  position:fixed; bottom:0; left:0; right:0; z-index:2000;
-  background:rgba(4,2,10,.95); border-top:1px solid var(--border-dim);
-  max-height:40vh; overflow-y:auto; padding:8px;
-  transform:translateY(100%); transition:transform .2s;
-  -webkit-overflow-scrolling:touch;
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 2000;
+  background: linear-gradient(180deg, rgba(10,6,24,0.97) 0%, rgba(4,2,10,0.98) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--border-mid);
+  max-height: 45vh; overflow-y: auto;
+  padding: var(--sp-3);
+  transform: translateY(100%);
+  transition: transform 0.25s cubic-bezier(.3,.1,.3,1);
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.6);
 }
-#log-panel.open { transform:translateY(0); }
+#log-panel.open { transform: translateY(0); }
 #log-toggle {
-  position:fixed; right:8px; bottom:calc(max(6px, env(safe-area-inset-bottom)) + 56px);
-  z-index:250; background:var(--bg-panel); border:1px solid var(--border-dim);
-  color:var(--text-mid); padding:4px 8px; border-radius:3px; cursor:pointer; font-size:9px;
+  position: fixed;
+  right: var(--sp-3);
+  bottom: calc(max(var(--sp-2), env(safe-area-inset-bottom)) + 60px);
+  z-index: 250;
+  background: rgba(20, 16, 36, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border-mid);
+  color: var(--text-mid);
+  padding: 5px 10px;
+  border-radius: var(--r-full);
+  cursor: pointer;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  transition: all 0.15s;
+  box-shadow: var(--sh-1);
 }
-.log-entry { font-size:10px; font-family:'Share Tech Mono',monospace;
-  padding:2px 0; color:var(--text-mid); border-bottom:1px solid rgba(255,255,255,.04); }
-.log-entry.important { color:var(--text-bright); }
-.log-entry.heal { color:var(--life-green); }
-.log-entry.bleed { color:var(--bleed-red); }
-.log-entry.phase { color:var(--gold); }
+#log-toggle:hover { background: rgba(40,30,70,0.9); color: var(--gold-bright); }
+.log-entry {
+  font-size: 11px;
+  font-family: 'Share Tech Mono', monospace;
+  padding: 3px 2px;
+  color: var(--text-mid);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  line-height: 1.4;
+}
+.log-entry.important { color: var(--text-bright); font-weight: 600; }
+.log-entry.heal   { color: var(--life-green); }
+.log-entry.bleed  { color: var(--bleed-red); }
+.log-entry.damage { color: #ff8a60; }
+.log-entry.phase  { color: var(--gold-bright); font-weight: 600; }
 
 /* ── GLIMPSE PANEL ────────────────────────────────────────────── */
 #glimpse-panel {
@@ -971,37 +1302,72 @@ html,body {
 /* ── HERO MOMENT — card lifts to center on cast/activate ───── */
 .hero-moment {
 
-/* ── SPELL/ABILITY TARGET HIGHLIGHT — pulse + arrow ─────────── */
+/* ── SPELL/ABILITY TARGET HIGHLIGHT — pulse + arrow + beam ─────── */
 .spell-target-highlight {
   position: relative;
   animation: spell-target-pulse 0.9s ease-in-out infinite;
-  z-index: 9993 !important;
   outline: 3px solid rgba(255, 220, 60, 1);
   outline-offset: 2px;
-  filter: brightness(1.35) saturate(1.2) drop-shadow(0 0 14px rgba(255,220,60,0.9));
+  filter: brightness(1.45) saturate(1.3) drop-shadow(0 0 18px rgba(255,220,60,1)) !important;
+}
+/* When a target is lifted during hero moment, it sits ABOVE the backdrop */
+.spell-target-highlight.target-lifted {
+  z-index: 9991 !important;
+  transform: scale(1.12);
+  transition: transform 0.3s cubic-bezier(.3,.1,.3,1.3);
 }
 @keyframes spell-target-pulse {
-  0%,100% { box-shadow: 0 0 12px 4px rgba(255,220,60,0.7); }
-  50%     { box-shadow: 0 0 28px 10px rgba(255,220,60,1); }
+  0%,100% { box-shadow: 0 0 14px 4px rgba(255,220,60,0.75); }
+  50%     { box-shadow: 0 0 32px 12px rgba(255,220,60,1); }
 }
 .spell-target-highlight::after {
   content: '⬇';
   position: absolute;
-  top: -28px; left: 50%; transform: translateX(-50%);
-  font-size: 24px;
+  top: -30px; left: 50%; transform: translateX(-50%);
+  font-size: 26px;
   color: #ffdc3c;
-  text-shadow: 0 0 8px #ffdc3c, 0 0 14px rgba(255,220,60,0.9);
-  animation: spell-target-arrow 0.8s ease-in-out infinite;
+  text-shadow: 0 0 8px #ffdc3c, 0 0 16px rgba(255,220,60,1);
+  animation: spell-target-arrow 0.7s ease-in-out infinite;
   pointer-events: none;
+  z-index: 2;
 }
 @keyframes spell-target-arrow {
   0%,100% { transform: translateX(-50%) translateY(0); opacity: 1; }
-  50%     { transform: translateX(-50%) translateY(6px); opacity: 0.6; }
+  50%     { transform: translateX(-50%) translateY(8px); opacity: 0.55; }
 }
-/* Dim siblings so target stands out */
+/* Dim everything else when target highlighting is active */
 body.target-highlighting .card:not(.spell-target-highlight) {
-  filter: brightness(0.4) saturate(0.6);
+  filter: brightness(0.35) saturate(0.5);
   transition: filter 0.25s;
+}
+
+/* ── TARGETING BEAM — line from source (hero card) to target ─── */
+.target-beam {
+  position: fixed;
+  height: 4px;
+  background: linear-gradient(90deg,
+              rgba(255,220,60,0) 0%,
+              rgba(255,220,60,0.85) 15%,
+              rgba(255,255,255,1) 50%,
+              rgba(255,220,60,0.85) 85%,
+              rgba(255,220,60,0) 100%);
+  transform-origin: 0 50%;
+  z-index: 9989;
+  pointer-events: none;
+  box-shadow: 0 0 12px rgba(255,220,60,1), 0 0 24px rgba(255,220,60,0.6);
+  animation: target-beam-pulse 0.5s ease-in-out infinite alternate;
+  border-radius: 2px;
+  opacity: 0;
+  animation: target-beam-appear 0.3s ease-out forwards,
+             target-beam-pulse 0.5s ease-in-out 0.3s infinite alternate;
+}
+@keyframes target-beam-appear {
+  from { opacity: 0; transform-origin: 0 50%; }
+  to   { opacity: 1; }
+}
+@keyframes target-beam-pulse {
+  from { filter: brightness(1) blur(0); }
+  to   { filter: brightness(1.5) blur(1px); }
 }
 
 .hero-moment {
@@ -3942,24 +4308,29 @@ async function aiPlayCards() {
       sfx('card_play', 0.4);
       log(`AI casts ${inst.name}.`, 'important');
       // ── SPELL VISUAL: show card on battlefield briefly ────────
-      // Place a temporary card element in the AI main row so player can see what was cast
       const spellEl = createCardElement(inst, false);
       spellEl.style.cssText += ';position:relative;z-index:200;animation:spell-cast-reveal 0.35s ease-out;';
       spellEl.id = '_ai_spell_preview';
-      spellEl.setAttribute('data-inst', inst.instId); // allow showHeroMoment to find it
+      spellEl.setAttribute('data-inst', inst.instId);
       const spellRow = document.getElementById('bf-ai-main');
       if (spellRow) spellRow.prepend(spellEl);
       updateUI();
-      await delay(150); // let it render
+      await delay(150);
 
-      // Hero moment for AI spell — same animation as player cast
+      // Predetermine target so hero moment can highlight it during the hold
+      const aiSpellTarget = aiPickSpellTarget(inst);
+
+      // Unified hero moment — spell resolves mid-hold
       await new Promise(resolve => {
-        showHeroMoment(inst, { hold: 1600, onDone: resolve });
+        showHeroMoment(inst, {
+          hold: 1600,
+          target: aiSpellTarget,
+          onResolve: () => { aiResolveSpell(inst, aiSpellTarget); updateUI(); },
+          onDone: resolve
+        });
       });
 
-      // Resolve effects
-      aiResolveSpell(inst);
-      await delay(400);
+      await delay(200);
       // Remove preview and move to discard
       const preview = document.getElementById('_ai_spell_preview');
       if (preview) {
@@ -3976,18 +4347,41 @@ async function aiPlayCards() {
   }
 }
 
-function aiResolveSpell(inst) {
+// Pick a reasonable target for an AI spell (strongest enemy creature, etc.)
+// Returns the target inst, or null for non-targeted spells.
+function aiPickSpellTarget(inst) {
+  const txt = (inst.abilities || '').toLowerCase();
+  const opp = 'player';
+  if (!txt.includes('target')) return null;
+  // Destroy target creature — strongest player creature
+  if (txt.includes('destroy') && txt.includes('target creature')) {
+    return G[opp].battlefield.filter(i => i.type==='Creature')
+      .sort((a,b) => getEffectivePower(b) - getEffectivePower(a))[0] || null;
+  }
+  // Exhaust target creature — strongest renewed player creature
+  if (txt.includes('exhaust') && txt.includes('target')) {
+    return G[opp].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed')
+      .sort((a,b) => getEffectivePower(b) - getEffectivePower(a))[0] || null;
+  }
+  // Any other "target creature" → pick strongest player creature by default
+  if (txt.includes('target creature')) {
+    return G[opp].battlefield.filter(i => i.type==='Creature')
+      .sort((a,b) => getEffectivePower(b) - getEffectivePower(a))[0] || null;
+  }
+  return null;
+}
+
+function aiResolveSpell(inst, presetTarget) {
   const txt = (inst.abilities || '').toLowerCase();
   const opp = 'player';
 
-  // Destroy target creature — pick the strongest player creature
+  // Destroy target creature — use presetTarget if given (already picked for hero moment)
   if (txt.includes('destroy') && txt.includes('target creature')) {
-    const targets = G[opp].battlefield.filter(i => i.type==='Creature')
-      .sort((a,b) => getEffectivePower(b) - getEffectivePower(a));
-    if (targets.length) {
-      highlightTarget(targets[0], 1500);
-      destroyCreature(targets[0], opp);
-      log(`AI: ${inst.name} destroys ${targets[0].name}.`, 'damage');
+    const target = presetTarget || G[opp].battlefield.filter(i => i.type==='Creature')
+      .sort((a,b) => getEffectivePower(b) - getEffectivePower(a))[0];
+    if (target) {
+      destroyCreature(target, opp);
+      log(`AI: ${inst.name} destroys ${target.name}.`, 'damage');
     }
     return;
   }
@@ -4014,12 +4408,11 @@ function aiResolveSpell(inst) {
   }
   // Exhaust target
   if (txt.includes('exhaust') && txt.includes('target')) {
-    const targets = G[opp].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed')
-      .sort((a,b) => getEffectivePower(b) - getEffectivePower(a));
-    if (targets.length) {
-      highlightTarget(targets[0], 1500);
-      targets[0].exhaustState = 'exhausted';
-      log(`AI: ${inst.name} exhausts ${targets[0].name}.`, '');
+    const target = presetTarget || G[opp].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed')
+      .sort((a,b) => getEffectivePower(b) - getEffectivePower(a))[0];
+    if (target) {
+      target.exhaustState = 'exhausted';
+      log(`AI: ${inst.name} exhausts ${target.name}.`, '');
     }
     return;
   }
@@ -5559,16 +5952,31 @@ function playCard(inst) {
   } else if (inst.type === 'Spell') {
     sfx('card_play');
     log(`You cast ${inst.name}.`, 'important');
-    // Hero moment: lift spell to center, hold, then resolve
-    showHeroMoment(inst, {
-      hold: 1800,
-      onDone: () => {
-        castSpellWithTargeting(inst, 'player', () => {
-          G.player.discard.push(inst);
-          updateUI();
-        });
-      }
-    });
+    const sAbl = (inst.abilities || '').toLowerCase();
+    const needsTarget = sAbl.includes('target creature') ||
+                        sAbl.includes('target attacking') ||
+                        sAbl.includes('target blocking') ||
+                        sAbl.includes('target exhausted') ||
+                        sAbl.includes('target overexhausted');
+    if (needsTarget) {
+      // Go straight to targeting — hero moment will fire AFTER target is picked,
+      // bundled with the target highlight as a unified sequence.
+      castSpellWithTargeting(inst, 'player', () => {
+        G.player.discard.push(inst);
+        updateUI();
+      });
+    } else {
+      // Non-targeted spell — simple hero moment then resolve
+      showHeroMoment(inst, {
+        hold: 1800,
+        onResolve: () => {
+          castSpellWithTargeting(inst, 'player', () => {
+            G.player.discard.push(inst);
+            updateUI();
+          });
+        }
+      });
+    }
   }
 }
 
@@ -5952,15 +6360,24 @@ function castSpellWithTargeting(inst, caster, onDone) {
 
   // If only one valid target, auto-select it — but confirm during combat window
   if (validTargets.length === 1) {
+    const t = validTargets[0].inst;
+    const ownerOfT = validTargets[0].owner;
     if (combatPhase === 'player-block' || combatPhase === 'response') {
       // During combat, always confirm so player knows what's happening
       showModal(
         `${inst.name} — Confirm Target`,
         inst.abilities,
         [{
-          label: `TARGET: ${validTargets[0].inst.name} [${getEffectivePower(validTargets[0].inst)}]`,
+          label: `TARGET: ${t.name} [${getEffectivePower(t)}]`,
           cls: 'btn-danger',
-          action: () => { resolveSpellOnTarget(inst, caster, validTargets[0].inst, validTargets[0].owner); onDone(); }
+          action: () => {
+            showHeroMoment(inst, {
+              hold: 1600,
+              target: t,
+              onResolve: () => { resolveSpellOnTarget(inst, caster, t, ownerOfT); updateUI(); },
+              onDone: onDone
+            });
+          }
         }, { label: 'CANCEL', cls: 'btn-muted', action: () => {
           // Return spell to hand and refund mana (spell was never really cast)
           if (G[caster].hand && !G[caster].hand.some(i => i.instId === inst.instId)) G[caster].hand.push(inst);
@@ -5970,8 +6387,13 @@ function castSpellWithTargeting(inst, caster, onDone) {
         } }]
       );
     } else {
-      resolveSpellOnTarget(inst, caster, validTargets[0].inst, validTargets[0].owner);
-      onDone();
+      // Non-combat: unified hero moment with target
+      showHeroMoment(inst, {
+        hold: 1600,
+        target: t,
+        onResolve: () => { resolveSpellOnTarget(inst, caster, t, ownerOfT); updateUI(); },
+        onDone: onDone
+      });
     }
     return;
   }
@@ -5984,8 +6406,16 @@ function castSpellWithTargeting(inst, caster, onDone) {
       label: `${t.name} [${getEffectivePower(t)}]${owner !== caster ? ' (opponent)' : ' (yours)'}`,
       cls: owner !== caster ? 'btn-danger' : 'btn-secondary',
       action: () => {
-        resolveSpellOnTarget(inst, caster, t, owner);
-        onDone();
+        // Unified hero moment: source card lifts + target pulses together
+        showHeroMoment(inst, {
+          hold: 1600,
+          target: t,
+          onResolve: () => {
+            resolveSpellOnTarget(inst, caster, t, owner);
+            updateUI();
+          },
+          onDone: onDone
+        });
       }
     })).concat([{ label: '✕ CANCEL', cls: 'btn-muted', action: () => {
       if (G[caster].hand && !G[caster].hand.some(i => i.instId === inst.instId)) G[caster].hand.push(inst);
@@ -5999,8 +6429,12 @@ function castSpellWithTargeting(inst, caster, onDone) {
 function resolveSpellOnTarget(inst, caster, target, targetOwner) {
   const txt = (inst.abilities || '').toLowerCase();
 
-  // Visual: pulse + arrow on the target for ~1.5s so player sees what was targeted
-  highlightTarget(target, 1500);
+  // Note: target highlight is handled by the hero moment when it's active.
+  // If this is called directly without a hero moment (e.g. response window),
+  // show a brief standalone highlight.
+  if (!document.querySelector('.hero-moment')) {
+    highlightTarget(target, 1400);
+  }
 
   // ── SPELL-TARGETED REACTIVE TRIGGERS on the target card ──────
   // "If this card is the target of any spell: Gain +3 power, Breach until end of turn" (Elias Veyr)
@@ -8309,8 +8743,10 @@ function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
   const txt = (inst.abilities || '').toLowerCase();
   const opp = who === 'player' ? 'ai' : 'player';
 
-  // Visual: pulse + arrow on the target so both players see what was targeted
-  if (target) highlightTarget(target, 1500);
+  // Target highlight handled by hero moment when active; standalone fallback otherwise
+  if (target && !document.querySelector('.hero-moment')) {
+    highlightTarget(target, 1400);
+  }
 
   // Use getEffectSeg to correctly extract the effect after the tag
   const seg = getEffectSeg(txt, mode);
@@ -10431,11 +10867,15 @@ function endDrag(e) {
         G.player.hand = G.player.hand.filter(i => i.instId !== inst.instId);
         sfx('card_play');
         log(`You cast ${inst.name} → ${targetInst.name}.`, 'important');
-        // Hero moment first, then resolve
+        // Unified hero moment — target highlights during hold, spell resolves mid-hold
         showHeroMoment(inst, {
           hold: 1600,
-          onDone: () => {
+          target: targetInst,
+          onResolve: () => {
             resolveSpellOnTarget(inst, 'player', targetInst, targetOwner);
+            updateUI();
+          },
+          onDone: () => {
             G.player.discard.push(inst);
             updateUI();
           }
@@ -11556,23 +11996,59 @@ function removeTargetHighlight() {
   document.querySelectorAll('.spell-target-highlight').forEach(el => el.classList.remove('spell-target-highlight'));
 }
 
+// Draw a visible "beam" from source card center → target card center.
+// Returns a cleanup function.
+function drawTargetBeam(sourceEl, targetEl) {
+  if (!sourceEl || !targetEl) return () => {};
+  const sr = sourceEl.getBoundingClientRect();
+  const tr = targetEl.getBoundingClientRect();
+  const sx = sr.left + sr.width/2;
+  const sy = sr.top  + sr.height/2;
+  const tx = tr.left + tr.width/2;
+  const ty = tr.top  + tr.height/2;
+  const dx = tx - sx, dy = ty - sy;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  const ang = Math.atan2(dy, dx) * 180 / Math.PI;
+
+  const beam = document.createElement('div');
+  beam.className = 'target-beam';
+  beam.style.left = sx + 'px';
+  beam.style.top  = sy + 'px';
+  beam.style.width = len + 'px';
+  beam.style.transform = `rotate(${ang}deg)`;
+  document.body.appendChild(beam);
+
+  return () => { beam.remove(); };
+}
+
+// Hero moment: lift source card, optionally highlight a target, show a beam.
+// Options: hold (ms), target (inst), onDone (cb), onResolve (cb fires mid-hold for effect resolution)
 function showHeroMoment(inst, options) {
   options = options || {};
   const holdMs = options.hold || 1600;
   const onDone = options.onDone || (() => {});
+  const onResolve = options.onResolve || null;
+  const targetInst = options.target || null;
 
   // Find the source element (card in hand or on battlefield)
   const sourceEl = document.querySelector(`[data-inst="${inst.instId}"]`);
-  if (!sourceEl) { onDone(); return; }
+  if (!sourceEl) {
+    // Source missing — still resolve, still highlight target briefly
+    if (targetInst) highlightTarget(targetInst, 1400);
+    if (onResolve) onResolve();
+    onDone();
+    return;
+  }
 
   const r = sourceEl.getBoundingClientRect();
   const w = r.width, h = r.height;
 
-  // Final hero position: center of screen
+  // Final hero position: center-upper (leaves room for target below to be visible)
   const vw = window.innerWidth, vh = window.innerHeight;
-  // Sized to be large and readable; aspect 10:14
-  const heroW = Math.min(vw * 0.55, 260);
+  // Smaller when a target is present so the target card can still show below
+  const heroW = Math.min(vw * (targetInst ? 0.42 : 0.55), targetInst ? 200 : 260);
   const heroH = heroW * 1.4;
+  const heroCenterY = targetInst ? (vh * 0.32) : (vh / 2);
 
   // Build the hero element
   const hero = document.createElement('div');
@@ -11617,7 +12093,6 @@ function showHeroMoment(inst, options) {
   const panelLabel = document.getElementById('hap-label');
   const panelText  = document.getElementById('hap-text');
   if (panel && panelText) {
-    // Pick label based on card type
     const labelTxt = inst.type === 'Spell' ? '⚡ CASTING SPELL'
                    : inst.type === 'Relic' ? '🔮 RELIC ABILITY'
                    : '⚔ CREATURE ABILITY';
@@ -11626,34 +12101,60 @@ function showHeroMoment(inst, options) {
     panelText.textContent = ablStr;
   }
 
+  let cleanupBeam = () => {};
+
   // Phase 1: animate from origin → center with scale + flip
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       hero.style.left   = (vw/2 - heroW/2) + 'px';
-      hero.style.top    = (vh/2 - heroH/2) + 'px';
+      hero.style.top    = (heroCenterY - heroH/2) + 'px';
       hero.style.width  = heroW + 'px';
       hero.style.height = heroH + 'px';
       hero.classList.add('lifting');
     });
   });
 
-  // Phase 2: hold in center with pulse glow + show ability panel
+  // Phase 2: hold in center with pulse glow + show ability panel + highlight target + beam
   setTimeout(() => {
     hero.classList.remove('lifting');
     hero.classList.add('holding');
-    // Position ability panel below the hero card
-    if (panel) {
-      const panelTop = (vh/2 - heroH/2) + heroH + 18;
+    // Position ability panel below the hero card (only if no target — otherwise we show target below)
+    if (panel && !targetInst) {
+      const panelTop = (heroCenterY - heroH/2) + heroH + 18;
       panel.style.top = panelTop + 'px';
       panel.classList.add('active');
     }
+
+    // When a target is present, highlight it now and draw a beam from hero → target
+    if (targetInst) {
+      const targetEl = document.querySelector(`[data-inst="${targetInst.instId}"]`);
+      if (targetEl) {
+        // Raise target above the backdrop so it's visible
+        targetEl.classList.add('spell-target-highlight', 'target-lifted');
+        document.body.classList.add('target-highlighting');
+        // Draw beam from hero's CURRENT (centered) position to target
+        cleanupBeam = drawTargetBeam(hero, targetEl);
+      }
+    }
+
+    // Fire the resolution callback mid-hold so damage/exhaust happens when the beam lands
+    if (onResolve) {
+      setTimeout(() => {
+        try { onResolve(); } catch(e) { console.error(e); }
+      }, 250);
+    }
   }, 450);
 
-  // Phase 3: release — fly back to origin, fade
+  // Phase 3: release — fly back to origin, fade, clear target
   setTimeout(() => {
     hero.classList.remove('holding');
     hero.classList.add('releasing');
     if (panel) panel.classList.remove('active');
+    // Clear target highlight + beam together
+    cleanupBeam();
+    removeTargetHighlight();
+    document.querySelectorAll('.target-lifted').forEach(el => el.classList.remove('target-lifted'));
+
     // Snap styles back to origin geometry
     const newR = sourceEl.getBoundingClientRect();
     hero.style.left   = newR.left + 'px';
