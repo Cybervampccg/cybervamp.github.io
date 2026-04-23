@@ -970,6 +970,41 @@ html,body {
 
 /* ── HERO MOMENT — card lifts to center on cast/activate ───── */
 .hero-moment {
+
+/* ── SPELL/ABILITY TARGET HIGHLIGHT — pulse + arrow ─────────── */
+.spell-target-highlight {
+  position: relative;
+  animation: spell-target-pulse 0.9s ease-in-out infinite;
+  z-index: 9993 !important;
+  outline: 3px solid rgba(255, 220, 60, 1);
+  outline-offset: 2px;
+  filter: brightness(1.35) saturate(1.2) drop-shadow(0 0 14px rgba(255,220,60,0.9));
+}
+@keyframes spell-target-pulse {
+  0%,100% { box-shadow: 0 0 12px 4px rgba(255,220,60,0.7); }
+  50%     { box-shadow: 0 0 28px 10px rgba(255,220,60,1); }
+}
+.spell-target-highlight::after {
+  content: '⬇';
+  position: absolute;
+  top: -28px; left: 50%; transform: translateX(-50%);
+  font-size: 24px;
+  color: #ffdc3c;
+  text-shadow: 0 0 8px #ffdc3c, 0 0 14px rgba(255,220,60,0.9);
+  animation: spell-target-arrow 0.8s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes spell-target-arrow {
+  0%,100% { transform: translateX(-50%) translateY(0); opacity: 1; }
+  50%     { transform: translateX(-50%) translateY(6px); opacity: 0.6; }
+}
+/* Dim siblings so target stands out */
+body.target-highlighting .card:not(.spell-target-highlight) {
+  filter: brightness(0.4) saturate(0.6);
+  transition: filter 0.25s;
+}
+
+.hero-moment {
   position:fixed; z-index:9990; pointer-events:none;
   transform-origin:center center;
   box-shadow: 0 16px 40px rgba(0,0,0,0.85),
@@ -1726,6 +1761,8 @@ html.targeting-active .valid-target { cursor:pointer!important; }
     <button class="btn btn-muted"     id="btn-end-combat"  onclick="endCombatPhase()" style="display:none">END CMB</button>
     <button class="btn btn-secondary" id="btn-next-phase"  onclick="nextPhase()">NEXT ▶</button>
     <button class="btn btn-gold"      id="btn-mulligan"    onclick="doMulligan()" style="display:none">MULL</button>
+    <button class="btn btn-gold"      id="btn-pause-ai"    onclick="togglePauseAI()" style="display:none">⏸ PAUSE AI</button>
+    <button class="btn btn-primary"   id="btn-resume-ai"   onclick="resumeAI()" style="display:none">▶ RESUME AI</button>
     <div id="targeting-hint">⊕ TAP TARGET — or tap here to cancel</div>
   </div>
 
@@ -3469,12 +3506,45 @@ function endPlayerTurn() {
 }
 
 // ── AI TURN ───────────────────────────────────────────────────
+let _aiPaused = false;
+let _aiPauseResolve = null;
+let _aiTurnActive = false;
+
+function togglePauseAI() {
+  if (!_aiTurnActive) return;
+  _aiPaused = true;
+  log('⏸ AI paused. Activate abilities / cast spells, then tap RESUME AI.', 'important');
+  document.getElementById('btn-pause-ai').style.display  = 'none';
+  document.getElementById('btn-resume-ai').style.display = 'inline-block';
+  if (typeof hapticAct === 'function') hapticAct();
+}
+
+function resumeAI() {
+  _aiPaused = false;
+  document.getElementById('btn-resume-ai').style.display = 'none';
+  if (_aiTurnActive) document.getElementById('btn-pause-ai').style.display = 'inline-block';
+  if (_aiPauseResolve) { const r = _aiPauseResolve; _aiPauseResolve = null; r(); }
+  log('▶ AI resumed.', '');
+  if (typeof hapticTap === 'function') hapticTap();
+}
+
+// Called at each phase break during AI turn — waits if player has paused
+async function aiPauseBreak() {
+  if (!_aiPaused) return;
+  await new Promise(resolve => { _aiPauseResolve = resolve; });
+}
+
 async function runAITurn() {
   showBanner("AI'S TURN");
+  _aiTurnActive = true;
+  _aiPaused = false;
+  document.getElementById('btn-pause-ai').style.display = 'inline-block';
+  document.getElementById('btn-resume-ai').style.display = 'none';
 
   // Phase 1: Renew
   await delay(300);
   renewPhase('ai');
+  await aiPauseBreak();
 
   // Phase 2: Draw — AI picks land if low on lands, else main deck
   await delay(300);
@@ -3484,25 +3554,31 @@ async function runAITurn() {
   const aiDrawDeck = aiPreferLand ? 'land' : (G.ai.main.length > 0 ? 'main' : 'land');
   drawFromDeck('ai', aiDrawDeck);
   log(`AI draws from ${aiDrawDeck === 'main' ? 'Main' : 'Land'} Deck.`, '');
+  await aiPauseBreak();
 
   // Phase 3: Pre-Battle — play land + cards
   await delay(400);
   aiPlayLand();
+  await aiPauseBreak();
   await delay(400);
   await aiPlayCards();
+  await aiPauseBreak();
 
   // Phase 4: Battle
   await delay(500);
   setPhase('battle');
   await delay(400);
+  await aiPauseBreak();
   await aiDeclareAttack();
 
   // Phase 5: Post-Battle
   await delay(400);
   setPhase('postbattle');
+  await aiPauseBreak();
 
   // AI activates simple exhaust abilities in post-battle
   await aiActivateAbilities();
+  await aiPauseBreak();
 
   if (G.ai.bleed > 0) {
     const dmg = G.ai.bleed;
@@ -3511,8 +3587,14 @@ async function runAITurn() {
     sfx('bleed');
     log(`AI takes ${dmg} Bleed damage.`, 'bleed');
     updateLifeDisplay('ai');
-    if (checkWin()) return;
+    if (checkWin()) { _aiTurnActive = false; document.getElementById('btn-pause-ai').style.display='none'; document.getElementById('btn-resume-ai').style.display='none'; return; }
   }
+
+  // End of AI turn — clean up pause UI
+  _aiTurnActive = false;
+  _aiPaused = false;
+  document.getElementById('btn-pause-ai').style.display = 'none';
+  document.getElementById('btn-resume-ai').style.display = 'none';
 
   clearEotEffects('ai');
   clearEotEffects('player');
@@ -3864,19 +3946,20 @@ async function aiPlayCards() {
       const spellEl = createCardElement(inst, false);
       spellEl.style.cssText += ';position:relative;z-index:200;animation:spell-cast-reveal 0.35s ease-out;';
       spellEl.id = '_ai_spell_preview';
+      spellEl.setAttribute('data-inst', inst.instId); // allow showHeroMoment to find it
       const spellRow = document.getElementById('bf-ai-main');
       if (spellRow) spellRow.prepend(spellEl);
       updateUI();
-      await delay(200); // let it render
-      // Highlight each ability line in sequence
-      const abilLines = (inst.abilities || '').split('\n').filter(l => l.trim());
-      for (const line of abilLines) {
-        showBanner(`⚡ ${inst.name}: ${line.substring(0, 60)}`);
-        await delay(900);
-      }
+      await delay(150); // let it render
+
+      // Hero moment for AI spell — same animation as player cast
+      await new Promise(resolve => {
+        showHeroMoment(inst, { hold: 1600, onDone: resolve });
+      });
+
       // Resolve effects
       aiResolveSpell(inst);
-      await delay(600);
+      await delay(400);
       // Remove preview and move to discard
       const preview = document.getElementById('_ai_spell_preview');
       if (preview) {
@@ -3902,6 +3985,7 @@ function aiResolveSpell(inst) {
     const targets = G[opp].battlefield.filter(i => i.type==='Creature')
       .sort((a,b) => getEffectivePower(b) - getEffectivePower(a));
     if (targets.length) {
+      highlightTarget(targets[0], 1500);
       destroyCreature(targets[0], opp);
       log(`AI: ${inst.name} destroys ${targets[0].name}.`, 'damage');
     }
@@ -3933,6 +4017,7 @@ function aiResolveSpell(inst) {
     const targets = G[opp].battlefield.filter(i => i.type==='Creature' && i.exhaustState==='renewed')
       .sort((a,b) => getEffectivePower(b) - getEffectivePower(a));
     if (targets.length) {
+      highlightTarget(targets[0], 1500);
       targets[0].exhaustState = 'exhausted';
       log(`AI: ${inst.name} exhausts ${targets[0].name}.`, '');
     }
@@ -4160,6 +4245,11 @@ async function aiDeclareAttack() {
 // ── ACTION OVERLAY (blocking / response windows) ──────────────
 function showActionOverlay(mode) {
   const el = document.getElementById('action-overlay');
+  // Hide AI pause buttons — player already has control during block/response windows
+  const pb = document.getElementById('btn-pause-ai');
+  const rb = document.getElementById('btn-resume-ai');
+  if (pb) pb.style.display = 'none';
+  if (rb) rb.style.display = 'none';
   if (mode === 'block') {
     el.innerHTML = `
       <span style="font-size:11px;color:#30e0ff;letter-spacing:1px;">
@@ -4184,6 +4274,14 @@ function hideActionOverlay() {
   const el = document.getElementById('action-overlay');
   el.innerHTML = '';
   el.style.display = 'none';
+  // If AI turn still active, restore pause/resume button
+  if (_aiTurnActive) {
+    if (_aiPaused) {
+      document.getElementById('btn-resume-ai').style.display = 'inline-block';
+    } else {
+      document.getElementById('btn-pause-ai').style.display = 'inline-block';
+    }
+  }
 }
 
 function confirmBlocking() {
@@ -5901,6 +5999,9 @@ function castSpellWithTargeting(inst, caster, onDone) {
 function resolveSpellOnTarget(inst, caster, target, targetOwner) {
   const txt = (inst.abilities || '').toLowerCase();
 
+  // Visual: pulse + arrow on the target for ~1.5s so player sees what was targeted
+  highlightTarget(target, 1500);
+
   // ── SPELL-TARGETED REACTIVE TRIGGERS on the target card ──────
   // "If this card is the target of any spell: Gain +3 power, Breach until end of turn" (Elias Veyr)
   // "When targeted by any spell Glimpse 2" (Vesper Lockscar)
@@ -7470,9 +7571,10 @@ function handleCardClick(inst, who) {
     return;
   }
 
-  // During AI turn: allow ability activation + land tapping in block/response windows
+  // During AI turn: allow ability activation + land tapping
+  // — in blocking/response windows OR when player has paused the AI
   if (who === 'player' && G.activePlayer === 'ai' &&
-      (combatPhase === 'player-block' || combatPhase === 'response')) {
+      (combatPhase === 'player-block' || combatPhase === 'response' || _aiPaused)) {
     if (inst.type === 'Land') {
       tapLandForMana(inst); return;
     }
@@ -7680,10 +7782,8 @@ function activatePayAbility(inst, pa) {
   if (pa.cost) payCost('player', pa.cost);
   log(`Activated ${inst.name}${pa.cost?' (cost: '+pa.cost+')':''}.`, '');
 
-  // Hero moment for pay-only abilities (e.g. {P}: Glimpse 2)
-  if (inst.owner === 'player') {
-    showHeroMoment(inst, { hold: 1600 });
-  }
+  // Hero moment for pay-only abilities (both sides)
+  showHeroMoment(inst, { hold: 1600 });
 
   // Resolve the effect
   const effect = pa.effect.toLowerCase();
@@ -8200,17 +8300,17 @@ function activateAbility(inst, mode) {
 function applyExhaustForAbility(inst, mode) {
   inst.exhaustState = mode === 'exhaust' ? 'exhausted' : 'overexhausted';
   updateUI();
-  // Hero moment: show the card large for a beat so the player sees what fired
-  // (brief version — ability resolution continues immediately in parallel)
-  if (inst.owner === 'player') {
-    showHeroMoment(inst, { hold: 1600 });
-  }
+  // Hero moment: show the card large for a beat so both players can see what fired
+  showHeroMoment(inst, { hold: 1600 });
 }
 
 
 function resolveAbilityEffect(inst, mode, who, target, targetOwner) {
   const txt = (inst.abilities || '').toLowerCase();
   const opp = who === 'player' ? 'ai' : 'player';
+
+  // Visual: pulse + arrow on the target so both players see what was targeted
+  if (target) highlightTarget(target, 1500);
 
   // Use getEffectSeg to correctly extract the effect after the tag
   const seg = getEffectSeg(txt, mode);
@@ -11436,6 +11536,25 @@ const FACTION_GLOW_RGB = {
   Black:  'rgba(160,80,255,0.7)',
   Purple: 'rgba(200,80,255,0.7)',
 };
+
+// Highlight a creature/relic as the target of a spell or ability.
+// Call highlightTarget(inst) to start, and removeTargetHighlight() to clear.
+function highlightTarget(targetInst, durationMs) {
+  if (!targetInst) return;
+  const el = document.querySelector(`[data-inst="${targetInst.instId}"]`);
+  if (!el) return;
+  document.body.classList.add('target-highlighting');
+  el.classList.add('spell-target-highlight');
+  if (typeof hapticSelect === 'function') hapticSelect();
+  if (durationMs) {
+    setTimeout(() => removeTargetHighlight(), durationMs);
+  }
+}
+
+function removeTargetHighlight() {
+  document.body.classList.remove('target-highlighting');
+  document.querySelectorAll('.spell-target-highlight').forEach(el => el.classList.remove('spell-target-highlight'));
+}
 
 function showHeroMoment(inst, options) {
   options = options || {};
