@@ -12028,6 +12028,14 @@ function showHeroMoment(inst, options) {
   const onResolve = options.onResolve || null;
   const targetInst = options.target || null;
 
+  // Lands never get a hero moment — too frequent, no meaningful effect
+  if (inst && inst.type === 'Land') {
+    if (targetInst) highlightTarget(targetInst, 1200);
+    if (onResolve) onResolve();
+    onDone();
+    return;
+  }
+
   // Find the source element (card in hand or on battlefield)
   const sourceEl = document.querySelector(`[data-inst="${inst.instId}"]`);
   if (!sourceEl) {
@@ -12043,10 +12051,10 @@ function showHeroMoment(inst, options) {
 
   // Final hero position: center-upper (leaves room for target below to be visible)
   const vw = window.innerWidth, vh = window.innerHeight;
-  // Smaller when a target is present so the target card can still show below
-  const heroW = Math.min(vw * (targetInst ? 0.42 : 0.55), targetInst ? 200 : 260);
+  // Dimensions — keep comfortable on phone screens (~140-170px wide)
+  const heroW = Math.min(vw * (targetInst ? 0.36 : 0.44), targetInst ? 160 : 200);
   const heroH = heroW * 1.4;
-  const heroCenterY = targetInst ? (vh * 0.32) : (vh / 2);
+  const heroCenterY = targetInst ? (vh * 0.32) : (vh * 0.42);
 
   // Build the hero element
   const hero = document.createElement('div');
