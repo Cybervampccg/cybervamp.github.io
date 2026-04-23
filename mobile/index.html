@@ -3545,7 +3545,25 @@ function parseKeywords(txt) {
   if (!txt) return {};
   const t = txt.toLowerCase();
   const kw = {};
-  if (t.includes('haste')) kw.haste = true;
+  // Haste — standing keyword, but NOT when it's a property of a created copy/token
+  // (e.g. Elara: "Make a copy ... it has Haste" — only the copy has haste, not Elara)
+  if (t.includes('haste')) {
+    const hasteIdx = t.indexOf('haste');
+    const before = t.substring(0, hasteIdx);
+    // Descriptive clause that grants Haste to something OTHER than this card:
+    // "it has haste", "gains haste", "with haste", "and haste" (post copy/token)
+    // Key signal: a verb/preposition like "has/gains/with/having" right before "haste"
+    const isDescriptive =
+      /\b(has|have|gains?|with|having)\s+$/i.test(before) ||
+      /\b(it|token|copy|they|each)\b[^,\n]*\s(has|gains?|with)\s+$/i.test(before);
+    // Inside a conditional-grant context
+    const isConditional = before.includes(': ') && (
+      before.includes('if ') || before.includes('when ') ||
+      before.includes('target of') || before.includes('targeted') ||
+      before.includes('make a copy') || before.includes('create')
+    );
+    if (!isDescriptive && !isConditional) kw.haste = true;
+  }
   if (t.includes('tireless')) kw.tireless = true;
   // Wall: only a standalone keyword — NOT 'cannot be blocked by walls',
   // 'destroy a wall', 'target wall', etc.
@@ -3565,8 +3583,30 @@ function parseKeywords(txt) {
     if (!isConditional) kw.breach = true;
   }
   if (t.includes('siphon')) kw.siphon = true;
-  const bm = t.match(/bleed (\d+)/); if (bm) kw.bleed = parseInt(bm[1]);
-  const sb = t.match(/selfbleed (\d+)/i); if (sb) kw.selfBleed = parseInt(sb[1]);
+  // "Bleed N" — standing keyword, but NOT when it's part of an activated ability cost/effect
+  // Match `bleed N` NOT preceded by "self" (that's Selfbleed, a separate thing).
+  const bm = t.match(/(?:^|[^a-z])bleed (\d+)/);
+  if (bm) {
+    const bIdx = t.indexOf(bm[0]);
+    const bBefore = t.substring(0, bIdx);
+    const inAbility = bBefore.includes('{exhaust}') || bBefore.includes('{overexhaust}') ||
+                      bBefore.includes(': ') || bBefore.includes('gains ') ||
+                      bBefore.includes('gain ') || bBefore.includes('target') ||
+                      /bleed \+\d/.test(t.substring(bIdx - 2, bIdx + bm[0].length));
+    if (!inAbility) kw.bleed = parseInt(bm[1]);
+  }
+  // Selfbleed — standing keyword ONLY when top-level, not as an ability cost/effect
+  const sb = t.match(/selfbleed (\d+)/i);
+  if (sb) {
+    const sbIdx = t.indexOf(sb[0]);
+    const sbBefore = t.substring(0, sbIdx);
+    const inAbility = sbBefore.includes('{exhaust}') || sbBefore.includes('{overexhaust}') ||
+                      sbBefore.includes(': ') || sbBefore.includes('when attacking') ||
+                      sbBefore.includes('when this') || sbBefore.includes('whenever') ||
+                      sbBefore.includes('may ') || sbBefore.includes('pay ') ||
+                      sbBefore.includes('to ') || sbBefore.includes(' and ');
+    if (!inAbility) kw.selfBleed = parseInt(sb[1]);
+  }
   // "Cannot be blocked" — fully unblockable
   if (t.includes('cannot be blocked') && !t.includes('cannot be blocked by')) kw.unblockable = true;
   // "Cannot be blocked by walls" — only walls cannot block it
