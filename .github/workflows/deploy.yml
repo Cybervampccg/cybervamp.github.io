@@ -1,0 +1,57 @@
+name: Deploy v2 preview
+
+on:
+  push:
+    branches: [cybervamp-v2]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout cybervamp-v2 branch
+        uses: actions/checkout@v4
+        with:
+          ref: cybervamp-v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to gh-pages /v2/ subfolder
+        run: |
+          # Save dist contents
+          cp -r dist /tmp/v2-dist
+
+          # Switch to main branch (where GitHub Pages serves from)
+          git fetch origin main
+          git checkout main
+          git pull origin main
+
+          # Wipe any existing /v2 folder and replace with new build
+          rm -rf v2
+          mkdir -p v2
+          cp -r /tmp/v2-dist/* v2/
+
+          # Configure git
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit and push if changed
+          git add v2
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "deploy: update /v2/ from cybervamp-v2 branch"
+            git push origin main
+          fi

@@ -1,0 +1,98 @@
+[
+  {
+    "name": "Veinstorm Detonator",
+    "id": 22,
+    "flags": [
+      "missing image URL"
+    ],
+    "originalCost": "GGGGG"
+  },
+  {
+    "name": "Rayfield Infiltrator",
+    "id": 23,
+    "flags": [
+      "missing image URL"
+    ],
+    "originalCost": "GGG"
+  },
+  {
+    "name": "Count Vladislav Dracul",
+    "id": 65,
+    "flags": [
+      "missing image URL"
+    ],
+    "originalCost": "GGGGGGG"
+  },
+  {
+    "name": "Rothollow Packmaster",
+    "id": 107,
+    "flags": [
+      "missing image URL"
+    ],
+    "originalCost": "GGGG"
+  },
+  {
+    "name": "Dr. Elias Crowe",
+    "id": 108,
+    "flags": [
+      "missing image URL"
+    ],
+    "originalCost": "GGGGGGG"
+  },
+  {
+    "name": "Archsage Alaris Vox",
+    "id": 150,
+    "flags": [
+      "missing image URL"
+    ],
+    "originalCost": "GGGGGGG"
+  },
+  {
+    "name": "Raven Token",
+    "id": 191,
+    "flags": [
+      "no cost on non-land"
+    ],
+    "originalCost": ""
+  },
+  {
+    "name": "Bat Token",
+    "id": 192,
+    "flags": [
+      "no cost on non-land"
+    ],
+    "originalCost": ""
+  },
+  {
+    "name": "Wolf Token",
+    "id": 193,
+    "flags": [
+      "no cost on non-land"
+    ],
+    "originalCost": ""
+  },
+  {
+    "name": "Zombie Token",
+    "id": 194,
+    "flags": [
+      "no cost on non-land"
+    ],
+    "originalCost": ""
+  },
+  {
+    "name": "Illusion Token",
+    "id": 195,
+    "flags": [
+      "no cost on non-land"
+    ],
+    "originalCost": ""
+  },
+  {
+    "name": "Golem Token",
+    "id": 196,
+    "flags": [
+      "no cost on non-land"
+    ],
+    "originalCost": ""
+  }
+]
