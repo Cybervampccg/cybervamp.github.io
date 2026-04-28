@@ -7,7 +7,7 @@ import { defineConfig } from 'vite';
 // In dev mode (npm run dev), base is '/' so localhost works normally.
 
 export default defineConfig(({ command }) => ({
-  base: command === 'build' ? '/v2/' : '/',
+  base: command === 'build' ? '/cybervamp.github.io/v2/' : '/',
   server: {
     port: 5173,
     open: true,
