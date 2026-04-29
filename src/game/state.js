@@ -66,7 +66,7 @@ function makeSideState(deck, startingBlood) {
     deck: shuffle([...deck]),     // remaining deck (draw from end via .pop())
     discard: [],                  // graveyard
 
-    creatures: [null, null, null, null, null], // 5 slots; null = empty
+    creatures: [null, null, null, null], // 4 slots; null = empty
     relics: [null, null, null, null],          // 4 slots
   };
 }

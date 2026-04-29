@@ -1,8 +1,8 @@
 // ─────────────────────────────────────────────────────────────
 // Home Screen — Test/Dev Hub
 //
-// Now: clicking "Open Battle" pre-initializes G (Red vs Black) THEN
-// mounts the battle screen. State is ready when battle screen mounts.
+// Same as Session C but with C-1 label. Battle screen will mount
+// the new overlay-on-background battle UI.
 // ─────────────────────────────────────────────────────────────
 
 import { CARDS } from '../game/cards.js';
@@ -17,7 +17,7 @@ export function mountHomeScreen(container) {
   container.innerHTML = `
     <div id="home-screen">
       <div class="home-logo">CYBERVAMP</div>
-      <div class="home-sub">v2.0 · Session C · First Playable Loop</div>
+      <div class="home-sub">v2.0 · Session C-1 · UI Overhaul</div>
 
       <div class="home-info">
         <div>📇 ${CARDS.length} cards loaded</div>
@@ -27,8 +27,8 @@ export function mountHomeScreen(container) {
       </div>
 
       <div class="home-instructions">
-        Pick a matchup to start a playable battle. You can play creatures
-        from your hand. Combat and spells come in the next sessions.
+        Pick a matchup to start a playable battle. Long-press any hand card
+        for a fullscreen preview. Tap to select, tap again to play.
       </div>
 
       <div class="home-actions">
@@ -62,11 +62,9 @@ function handleAction(action, container) {
     case 'battle-red-black':
       startBattle('Red', 'Black', container);
       break;
-
     case 'battle-purple-white':
       startBattle('Purple', 'White', container);
       break;
-
     case 'inspect-state': {
       const G = window.G;
       if (!G) {
@@ -79,7 +77,6 @@ function handleAction(action, container) {
       status.className = 'home-status success';
       break;
     }
-
     case 'reset-meta': {
       if (!confirm('Wipe all save data? This cannot be undone.')) return;
       resetMeta();
@@ -94,13 +91,9 @@ function startBattle(playerFaction, aiFaction, container) {
   const playerDeck = buildDefaultDeck(playerFaction, 'player');
   const aiDeck = buildDefaultDeck(aiFaction, 'ai');
   const G_new = makeInitialState({ playerFaction, aiFaction, playerDeck, aiDeck });
-
-  // Make G inspectable in console
   window.G = G_new;
   window.getEffectivePower = getEffectivePower;
   window._battleLog = [`— Battle begins: ${playerFaction} vs ${aiFaction} —`];
-
   console.log(`▶ Battle: ${playerFaction} vs ${aiFaction}`);
-
   mountBattleScreen(container);
 }

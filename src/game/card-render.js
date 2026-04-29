@@ -2,8 +2,9 @@
 // Card rendering — produce DOM elements from inst data
 //
 // Contexts:
-//   - 'hand' — small fan card with cost badge, art, name
-//   - 'battlefield' — board slot with power
+//   - 'hand' — card in hand fan, full-size with prominent cost coin
+//   - 'battlefield' — card in slot, fills the slot frame
+//   - 'preview' — full-screen preview (fired by long-press)
 // ─────────────────────────────────────────────────────────────
 
 import { getEffectivePower } from './state.js';
@@ -18,6 +19,8 @@ export function createCardElement(inst, context = 'hand') {
     renderHandCard(el, inst);
   } else if (context === 'battlefield') {
     renderBattlefieldCard(el, inst);
+  } else if (context === 'preview') {
+    renderPreviewCard(el, inst);
   }
 
   return el;
@@ -30,10 +33,10 @@ function renderHandCard(el, inst) {
 
   el.innerHTML = `
     ${art}
-    <div class="card-cost-row">${renderCostBadges(inst)}</div>
-    <div class="card-name-band" title="${escapeAttr(inst.name)}">${truncate(inst.name, 18)}</div>
+    <div class="card-cost-stack">${renderCostCoins(inst, 'large')}</div>
+    <div class="card-name-strip" title="${escapeAttr(inst.name)}">${truncate(inst.name, 18)}</div>
     ${inst.type === 'Creature' && inst.basePower != null ?
-      `<div class="card-power-band">${getEffectivePower(inst)}</div>` : ''}
+      `<div class="card-power-coin">${getEffectivePower(inst)}</div>` : ''}
   `;
 }
 
@@ -49,7 +52,7 @@ function renderBattlefieldCard(el, inst) {
   el.innerHTML = `
     ${art}
     ${inst.type === 'Creature' ?
-      `<div class="card-power-bf ${damaged ? 'damaged' : ''}">${displayPower}</div>` : ''}
+      `<div class="card-power-coin bf ${damaged ? 'damaged' : ''}">${displayPower}</div>` : ''}
   `;
 
   if (inst.exhaustState === 'exhausted') el.classList.add('is-exhausted');
@@ -57,25 +60,44 @@ function renderBattlefieldCard(el, inst) {
   if (inst.newlyTurned) el.classList.add('is-newly-turned');
 }
 
-function renderCostBadges(inst) {
+function renderPreviewCard(el, inst) {
+  const art = inst.image
+    ? `<img class="card-art" src="${inst.image}" alt="" loading="lazy" />`
+    : `<div class="card-art card-art-placeholder">${factionGlyph(inst.faction)}</div>`;
+
+  el.innerHTML = `
+    ${art}
+    <div class="preview-info">
+      <div class="preview-name">${escapeHtml(inst.name)}</div>
+      <div class="preview-meta">
+        ${inst.type}${inst.subtype ? ` · ${inst.subtype}` : ''}
+        ${inst.faction ? ` · ${inst.faction}` : ''}
+      </div>
+      <div class="preview-cost">${renderCostCoins(inst, 'preview')}</div>
+      ${inst.type === 'Creature' && inst.basePower != null ?
+        `<div class="preview-stat-row"><span class="stat-label">Power</span> <span class="stat-val">${getEffectivePower(inst)}</span></div>` : ''}
+      ${inst.abilities ? `<div class="preview-abilities">${escapeHtml(inst.abilities)}</div>` : ''}
+      ${inst.flavor ? `<div class="preview-flavor">${escapeHtml(inst.flavor)}</div>` : ''}
+    </div>
+  `;
+}
+
+function renderCostCoins(inst, size = 'large') {
   const parts = [];
   if (inst.goldCost > 0) {
-    parts.push(`<span class="cost-badge cost-gold" title="Gold cost">${inst.goldCost}</span>`);
+    parts.push(`<span class="cost-coin gold ${size}" title="Gold">${inst.goldCost}</span>`);
   }
   if (inst.bloodCost > 0) {
-    parts.push(`<span class="cost-badge cost-blood" title="Blood cost (HP)">${inst.bloodCost}</span>`);
+    parts.push(`<span class="cost-coin blood ${size}" title="Blood (HP)">${inst.bloodCost}</span>`);
   }
   if (parts.length === 0) {
-    parts.push(`<span class="cost-badge cost-zero" title="Free">0</span>`);
+    parts.push(`<span class="cost-coin zero ${size}" title="Free">0</span>`);
   }
   return parts.join('');
 }
 
 function factionGlyph(faction) {
-  const map = {
-    Red: '🔴', White: '⚪', Black: '🟣', Purple: '🟪', Colorless: '◇',
-  };
-  return map[faction] || '◇';
+  return ({ Red:'🔴', White:'⚪', Black:'🟣', Purple:'🟪', Colorless:'◇' })[faction] || '◇';
 }
 
 function truncate(str, n) {
@@ -85,4 +107,9 @@ function truncate(str, n) {
 
 function escapeAttr(s) {
   return String(s || '').replace(/"/g, '&quot;');
+}
+
+function escapeHtml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
