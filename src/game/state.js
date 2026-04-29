@@ -1,13 +1,253 @@
-// Battle state — built in a future session
-// See design doc 07-keyword-transition.md for the planned shape.
+// ─────────────────────────────────────────────────────────────
+// Battle state foundation
+//
+// G is the single source of truth for an in-progress battle.
+// Modules read/write G directly; UI reads G to render.
+//
+// Card instances (insts) are created from cards.js card definitions.
+// Each inst has its own runtime state (damageTaken, exhaustState, tokens, etc.)
+// while the underlying card data stays immutable.
+// ─────────────────────────────────────────────────────────────
 
-// Will export:
-//   makeInitialState(playerFaction, aiFaction) → G object
-//   makeInst(cardId, owner) → instance with fresh keywords/state
-//   getEffectivePower(inst) → base + token bonuses + powerMods
-//   etc.
+import { CARDS_BY_ID } from './cards.js';
+import { parseKeywords } from './keywords.js';
 
-export function makeInitialState() {
-  console.warn('[state] makeInitialState — not yet implemented');
-  return null;
+// Module-level instance ID counter — unique per battle.
+let _nextInstId = 1;
+
+// Module-level G reference. Exported for read-only access; mutators below.
+export let G = null;
+
+// ── State construction ───────────────────────────────────────
+
+export function makeInitialState({ playerFaction, aiFaction, playerDeck, aiDeck }) {
+  _nextInstId = 1;
+
+  G = {
+    turn: 1,
+    activePlayer: 'player',
+    phase: 'renew',         // 'renew' | 'main' | 'combat' | 'end'
+
+    playerFaction,
+    aiFaction,
+
+    player: makeSideState(playerDeck, /*starting blood*/ 30),
+    ai:     makeSideState(aiDeck,     /*starting blood*/ 30),
+
+    // Combat state (populated during combat phase)
+    combat: null,           // { attackers: [], blocks: { attackerInstId: { blockerInstId, supporterInstIds:[] } } }
+
+    // Win/loss
+    winner: null,           // null | 'player' | 'ai'
+
+    // Stats for end-of-game summary
+    stats: {
+      damageDealt: { player: 0, ai: 0 },
+      cardsPlayed: { player: 0, ai: 0 },
+      bleedDealt:  { player: 0, ai: 0 },
+    },
+  };
+
+  // Draw starting hands (5 cards each)
+  drawCards('player', 5);
+  drawCards('ai', 5);
+
+  return G;
+}
+
+function makeSideState(deck, startingBlood) {
+  return {
+    blood: startingBlood,         // HP and spell currency (single pool)
+    bleedPool: 0,                 // accumulates bleed; resolves at end of own turn
+    gold: 0,                      // turn N = N gold, capped at 10
+    maxGoldThisTurn: 0,           // for UI display "3/3"
+
+    hand: [],                     // array of insts (cards drawn but not played)
+    deck: shuffle([...deck]),     // remaining deck (draw from end via .pop())
+    discard: [],                  // graveyard
+
+    creatures: [null, null, null, null, null], // 5 slots; null = empty
+    relics: [null, null, null, null],          // 4 slots
+  };
+}
+
+// Fisher-Yates shuffle (in place, returns same array)
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ── Card instance factory ────────────────────────────────────
+
+export function makeInst(cardId, owner) {
+  const card = CARDS_BY_ID[cardId];
+  if (!card) {
+    console.error(`[state] makeInst — unknown card ID: ${cardId}`);
+    return null;
+  }
+  return {
+    instId: _nextInstId++,
+    cardId,
+    name: card.name,
+    type: card.type,
+    faction: card.faction,
+    image: card.image,
+    abilities: card.abilities,
+    flavor: card.flavor,
+
+    // Cost (snapshot from card data)
+    goldCost: card.goldCost,
+    bloodCost: card.bloodCost,
+
+    // Power (creatures only)
+    basePower: card.power || 0,
+    damageTaken: 0,            // resets at end of turn
+
+    // Owner / location
+    owner,                     // 'player' | 'ai'
+    location: 'deck',          // 'deck' | 'hand' | 'creatures' | 'relics' | 'discard' | 'exile'
+    slotIdx: null,             // index in creatures[] or relics[]
+
+    // Standing keywords parsed from ability text
+    keywords: parseKeywords(card.abilities),
+
+    // Per-instance temp state
+    exhaustState: 'renewed',   // 'renewed' | 'exhausted' | 'overexhausted'
+    newlyTurned: true,         // summoning sickness; cleared at start of next turn
+    attacking: false,
+    blocking: false,
+    supporting: false,
+
+    // Orbiting tokens — array of token names (e.g. ['Raven', 'Bat'])
+    // Max 3 per host. Tokens grant bonuses calculated in getEffectivePower.
+    tokens: [],
+
+    // Temporary keyword grants (e.g. spells that give Haste until EOT)
+    tempKeywords: {},
+
+    // Per-instance bonus tracking (e.g. "+1 power until EOT")
+    powerMods: 0,
+  };
+}
+
+// ── Effective power calculation ──────────────────────────────
+
+export function getEffectivePower(inst) {
+  if (!inst) return 0;
+  let pw = inst.basePower + (inst.powerMods || 0);
+
+  // Token bonuses
+  for (const tokName of inst.tokens || []) {
+    if (tokName === 'Raven') pw += 1;
+    else if (tokName === 'Bat') pw += 1;
+    else if (tokName === 'Wolf') pw += 2;
+    else if (tokName === 'Zombie') pw += 3;
+  }
+
+  // Subtract damage taken (display only — for "x/y" rendering, see UI layer)
+  // The actual destroyed-on-damage check is `damageTaken >= effectivePower`.
+  return Math.max(0, pw);
+}
+
+export function isDestroyed(inst) {
+  return inst && (inst.damageTaken >= getEffectivePower(inst));
+}
+
+// ── Token helpers ────────────────────────────────────────────
+
+const ORBIT_TOKEN_TYPES = new Set(['Raven', 'Bat', 'Wolf', 'Zombie']);
+
+export function isOrbitToken(name) { return ORBIT_TOKEN_TYPES.has(name); }
+
+export function attachToken(host, tokenName) {
+  if (!host || !isOrbitToken(tokenName)) return false;
+  if (host.tokens.length >= 3) return false;  // capped at 3
+  host.tokens.push(tokenName);
+  return true;
+}
+
+export function removeToken(host, tokenName) {
+  const idx = host.tokens.indexOf(tokenName);
+  if (idx >= 0) {
+    host.tokens.splice(idx, 1);
+    return true;
+  }
+  return false;
+}
+
+// ── Hand / deck ──────────────────────────────────────────────
+
+export function drawCards(who, n) {
+  const side = G[who];
+  const drawn = [];
+  for (let i = 0; i < n; i++) {
+    if (side.deck.length === 0) break;
+    const inst = side.deck.pop();
+    inst.location = 'hand';
+    side.hand.push(inst);
+    drawn.push(inst);
+  }
+  return drawn;
+}
+
+// ── Slot placement ───────────────────────────────────────────
+
+// Find lowest-index empty slot in creatures[] or relics[].
+export function findEmptySlot(side, type) {
+  const slots = type === 'Creature' ? side.creatures : side.relics;
+  for (let i = 0; i < slots.length; i++) {
+    if (slots[i] === null) return i;
+  }
+  return -1;
+}
+
+// ── Resource helpers ─────────────────────────────────────────
+
+export function canAfford(who, goldCost, bloodCost) {
+  const side = G[who];
+  return side.gold >= goldCost && side.blood > bloodCost;
+  // NOTE: blood > bloodCost (strict) — you can't pay exact remaining HP and live
+}
+
+export function pay(who, goldCost, bloodCost) {
+  const side = G[who];
+  side.gold -= goldCost;
+  side.blood -= bloodCost;
+  if (side.blood <= 0) G.winner = (who === 'player' ? 'ai' : 'player');
+}
+
+// Turn-start gold gain (called from turn cycler)
+export function grantTurnGold(who) {
+  const side = G[who];
+  const target = Math.min(10, G.turn);
+  side.gold = target;
+  side.maxGoldThisTurn = target;
+}
+
+// End-of-turn cleanup
+export function endTurnCleanup(who) {
+  const side = G[who];
+  // Drain bleed pool to HP
+  if (side.bleedPool > 0) {
+    side.blood -= side.bleedPool;
+    side.bleedPool = 0;
+    if (side.blood <= 0) G.winner = (who === 'player' ? 'ai' : 'player');
+  }
+  // Reset gold to 0
+  side.gold = 0;
+  side.maxGoldThisTurn = 0;
+  // Clear damage on all creatures
+  for (const inst of side.creatures) {
+    if (inst) inst.damageTaken = 0;
+  }
+  // Clear temp keywords + power mods
+  for (const inst of [...side.creatures, ...side.relics]) {
+    if (inst) {
+      inst.tempKeywords = {};
+      inst.powerMods = 0;
+    }
+  }
 }
