@@ -22,31 +22,32 @@ export function mountBattleScreen(container) {
 
   container.innerHTML = `
     <div id="battle-screen">
-      <!-- The background image carries all UI chrome (rails, slots, phase pills, etc.) -->
-      <div class="battle-bg"></div>
+      <!-- The playfield locks to bg image's aspect ratio (1170:1733).
+           Letterbox bars (black) appear above/below on tall phones. -->
+      <div class="battle-playfield">
+        <!-- Dynamic overlays anchored to %-coords of the playfield -->
+        <div class="overlay-layer">
+          ${renderTopBarOverlay()}
+          ${renderVitalsOverlay('opponent')}
+          ${renderDeckIndicator()}
+          ${renderSlotsOverlay('opponent')}
+          ${renderSlotsOverlay('player')}
+          ${renderVitalsOverlay('player')}
+          ${renderHandFan()}
+          ${renderEndTurnButton()}
+          ${renderSideDock()}
+        </div>
 
-      <!-- Dynamic overlays anchored to %-coords of the bg image -->
-      <div class="overlay-layer">
-        ${renderTopBarOverlay()}
-        ${renderVitalsOverlay('opponent')}
-        ${renderDeckIndicator()}
-        ${renderSlotsOverlay('opponent')}
-        ${renderSlotsOverlay('player')}
-        ${renderVitalsOverlay('player')}
-        ${renderHandFan()}
-        ${renderEndTurnButton()}
-        ${renderSideDock()}
+        <!-- Status text appears in combat zone band -->
+        <div id="status-text"></div>
+
+        <!-- Gold coin animation layer -->
+        <div id="gold-pulse-layer"></div>
       </div>
 
-      <!-- Side panel + card preview overlays (top-most layer) -->
+      <!-- Side panel + card preview overlays (top-most layer, screen-fixed) -->
       ${renderDockPanel()}
       <div id="card-preview-overlay" class="hidden"></div>
-
-      <!-- Status text appears in combat zone band -->
-      <div id="status-text"></div>
-
-      <!-- Gold coin animation layer -->
-      <div id="gold-pulse-layer"></div>
     </div>
   `;
 

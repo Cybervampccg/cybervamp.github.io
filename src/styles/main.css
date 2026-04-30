@@ -1,5 +1,12 @@
 /* ═══════════════════════════════════════════════════════════
-   Cybervamp v2 — Design tokens + home screen + battle (overlay model)
+   Cybervamp v2 — Design tokens + home + battle (LETTERBOXED)
+   ═══════════════════════════════════════════════════════════
+   The battle playfield locks to the background image's natural
+   aspect ratio (1170×1733 ≈ 1:1.481). Letterbox bars appear
+   above and/or below on phones with different aspect ratios.
+   All overlay percentages are calculated against the playfield
+   container, NOT the viewport — so they map exactly to the
+   background image regardless of screen size.
    ═══════════════════════════════════════════════════════════ */
 
 :root {
@@ -35,7 +42,7 @@
 
 html, body {
   width: 100%; height: 100%; margin: 0; padding: 0;
-  background: var(--bg-deep);
+  background: #000;
   color: var(--text-bright);
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   overflow: hidden;
@@ -130,121 +137,139 @@ html, body {
 
 
 /* ═══════════════════════════════════════════════════════════
-   BATTLE SCREEN — overlay-on-background
+   BATTLE SCREEN — letterboxed playfield + overlays
    ═══════════════════════════════════════════════════════════ */
 
 #battle-screen {
   position: absolute; inset: 0;
-  /* Use container queries via aspect ratio of bg: 1170x1733 ≈ 1:1.481 */
-  /* The bg image fills the screen via background-size: cover. */
-  /* For a phone with taller aspect, image will be cropped on sides;
-     for shorter aspect, cropped on top/bottom. We picked vertical cover. */
+  background: #000;
+  /* Center the playfield horizontally + vertically */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.battle-bg {
-  position: absolute; inset: 0;
+/* The playfield is the actual game canvas — locked to bg aspect ratio */
+.battle-playfield {
+  position: relative;
+  /* Aspect ratio = bg image dimensions = 1170:1733 */
+  aspect-ratio: 1170 / 1733;
+  /* Scale to fit viewport */
+  height: 100vh;
+  max-height: 100vh;
+  /* Cap width so on landscape/wide devices the bg doesn't dominate */
+  max-width: 100vw;
+  /* If width-limited (very tall phones), height becomes auto */
   background-image: url('/v2/images/ui/battlefield-bg.jpg');
-  background-size: cover;
+  background-size: 100% 100%;
   background-position: center center;
   background-repeat: no-repeat;
-  z-index: 0;
-  /* Fallback dark gradient if image missing */
   background-color: #0a0612;
 }
 
-/* In dev mode (vite serves at /), the path is /images/ui/battlefield-bg.jpg.
-   In production (/v2/), it's /v2/images/ui/battlefield-bg.jpg.
-   Vite handles this automatically for assets in /public/ — they resolve to
-   the base URL. Since we put the file in /public/images/ui/, the actual
-   served path in dev is /images/ui/...  In production with base /v2/,
-   it's /v2/images/ui/...
-   Below is a helper using both paths via a CSS variable set in JS,
-   but since Vite rewrites public assets according to base, both should work. */
+/* On wider/shorter screens, fit by width instead */
+@media (min-aspect-ratio: 1170/1733) {
+  .battle-playfield {
+    width: auto;
+    height: 100vh;
+  }
+}
+@media (max-aspect-ratio: 1170/1733) {
+  .battle-playfield {
+    width: 100vw;
+    height: auto;
+  }
+}
+
+/* Everything else lives INSIDE .battle-playfield and uses % of it */
 
 .overlay-layer {
   position: absolute; inset: 0;
-  z-index: 1;
   pointer-events: none;
 }
 .overlay-layer > * { pointer-events: auto; }
 
-/* ─── TOP BAR OVERLAY ─── */
+/* ─── TOP BAR / PHASE / TURN / HOME ─── */
 
-.overlay-topbar {
+/* Phase pills are drawn INTO the bg (RNW MAIN CMB END at top).
+   We just overlay the active highlight + the dynamic TURN text. */
+
+.overlay-phase-highlight {
   position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 5%;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 0 6%;
+  /* Phase pill row is at ~y=2.5% in the bg image */
+  top: 1.4%;
+  width: 16%;
+  height: 3.6%;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(ellipse, rgba(255,80,80,0.45), transparent 70%);
+  transition: left 0.3s cubic-bezier(.3,.1,.3,1.2);
+  box-shadow: 0 0 18px rgba(255,60,60,0.6);
   z-index: 5;
 }
+.overlay-phase-highlight[data-phase="renew"]   { left: 6%; }
+.overlay-phase-highlight[data-phase="main"]    { left: 24%; }
+.overlay-phase-highlight[data-phase="combat"]  { left: 42%; }
+.overlay-phase-highlight[data-phase="end"]     { left: 60%; }
 
 .overlay-turn-text {
+  position: absolute;
+  top: 1.5%;
+  right: 14%;
   font-family: 'Cinzel', serif;
-  font-size: 11px; font-weight: 700;
+  font-size: 14px;
+  font-weight: 700;
   letter-spacing: 2px;
   color: var(--text-bright);
-  margin-right: var(--sp-3);
-  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  text-shadow: 0 1px 4px rgba(0,0,0,1);
+  z-index: 5;
+  pointer-events: none;
 }
 
 .overlay-home-btn {
+  position: absolute;
+  top: 1%;
+  right: 3%;
   background: rgba(20, 16, 36, 0.6);
   border: 1px solid var(--border-mid);
   color: var(--text-mid);
   padding: 4px 8px;
   border-radius: 9999px;
-  font-size: 13px; cursor: pointer;
-  min-width: 28px;
-  margin-left: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  min-width: 30px;
+  z-index: 5;
 }
 
-/* Phase highlight: overlays a subtle glow on whichever phase pip is active.
-   The pips themselves are drawn into the background image. */
-.overlay-phase-highlight {
-  position: absolute;
-  /* Phases drawn around y=2.5%, x ranges roughly 11%-39% in 4 pills */
-  top: 2.2%;
-  height: 3.2%;
-  width: 7%;
-  border-radius: 9999px;
-  pointer-events: none;
-  background: radial-gradient(circle, rgba(255,80,80,0.5), transparent 70%);
-  transition: left 0.3s cubic-bezier(.3,.1,.3,1.2);
-}
-.overlay-phase-highlight[data-phase="renew"]   { left: 12%; }
-.overlay-phase-highlight[data-phase="main"]    { left: 21%; }
-.overlay-phase-highlight[data-phase="combat"]  { left: 30%; }
-.overlay-phase-highlight[data-phase="end"]     { left: 39%; }
+/* ─── OPPONENT VITALS (top, ~5-10%) ─── */
 
-/* ─── VITALS OVERLAYS (opponent top, player bottom) ─── */
-
-.overlay-vitals {
+.overlay-vitals-opponent {
   position: absolute;
+  top: 5%;
+  left: 2%;
+  height: 6%;
   display: flex;
   align-items: center;
   gap: var(--sp-2);
   z-index: 4;
 }
 
-.overlay-vitals-opponent {
-  top: 5.5%;
-  left: 3%;
-  height: 7.5%;
-  width: 70%;
-}
+/* ─── PLAYER VITALS (bottom, ~57-63%) ─── */
 
 .overlay-vitals-player {
-  top: 64.5%;
-  left: 3%;
-  height: 7%;
-  width: 70%;
+  position: absolute;
+  top: 57.5%;
+  left: 2%;
+  height: 6%;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  z-index: 4;
 }
 
 .vitals-avatar {
-  width: 48px; height: 48px;
+  width: 9%;
+  aspect-ratio: 1 / 1;
   border-radius: 50%;
   background: rgba(20, 14, 40, 0.7);
   border: 2px solid var(--border-bright);
@@ -253,19 +278,27 @@ html, body {
   box-shadow: 0 0 12px rgba(0,0,0,0.7);
   overflow: hidden;
 }
+
+.overlay-vitals-opponent .vitals-avatar,
+.overlay-vitals-player .vitals-avatar {
+  /* Avatar is sized in % of playfield width */
+  width: 56px;
+  height: 56px;
+}
+
 .vitals-avatar-placeholder {
   font-size: 24px;
 }
 
 .vitals-label {
   font-family: 'Cinzel', serif;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 2px;
   font-weight: 700;
   color: var(--text-mid);
   text-transform: uppercase;
   text-shadow: 0 1px 3px rgba(0,0,0,0.9);
-  margin-right: var(--sp-1);
+  white-space: nowrap;
 }
 
 .vitals-stats {
@@ -281,53 +314,50 @@ html, body {
 }
 
 .vital-icon {
-  font-size: 14px;
-  filter: drop-shadow(0 0 4px rgba(0,0,0,0.8));
+  font-size: 16px;
+  filter: drop-shadow(0 0 4px rgba(0,0,0,0.9));
 }
 
 .vital-num {
   font-family: 'Cinzel Decorative', serif;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
-  color: var(--text-bright);
-  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
-  min-width: 18px;
+  color: var(--bleed-red);
+  text-shadow: 0 1px 3px rgba(0,0,0,1);
+  min-width: 22px;
 }
 
-.vital-stat .vital-icon ~ .vital-num { color: var(--bleed-red); }
-.vital-stat:has(.vital-icon:nth-child(1)):nth-child(1) .vital-num { color: var(--bleed-red); }
-
 .gold-stat {
-  background: rgba(40, 26, 0, 0.55);
-  border: 1px solid rgba(234, 179, 8, 0.4);
+  background: rgba(40, 26, 0, 0.65);
+  border: 1px solid rgba(234, 179, 8, 0.5);
   border-radius: 9999px;
-  padding: 3px 10px;
+  padding: 3px 12px;
   transition: opacity 0.3s;
 }
 .gold-stat .vital-num { color: var(--gold-bright); }
 .gold-stat.dim { opacity: 0.4; }
 
-/* ─── DECK INDICATOR ─── */
+/* ─── DECK INDICATOR (top-right, ~6%) ─── */
 
 .overlay-deck {
   position: absolute;
-  top: 6%;
-  right: 4.5%;
+  top: 5.5%;
+  right: 3%;
   display: flex;
   align-items: center;
   gap: 4px;
   z-index: 4;
 }
 .deck-stack {
-  font-size: 24px;
-  filter: drop-shadow(0 0 4px rgba(0,0,0,0.8));
+  font-size: 26px;
+  filter: drop-shadow(0 0 6px rgba(0,0,0,1));
 }
 .deck-count {
   font-family: 'Cinzel', serif;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-bright);
-  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  text-shadow: 0 1px 3px rgba(0,0,0,1);
 }
 
 /* ─── BOARD SLOTS OVERLAY ─── */
@@ -335,20 +365,23 @@ html, body {
 .overlay-slots {
   position: absolute;
   display: flex;
-  justify-content: center;
-  gap: 2%;
-  padding: 0 12%;
-  width: 100%;
+  justify-content: space-between;
+  align-items: stretch;
+  width: 78%;
+  left: 11%;
   z-index: 3;
 }
 
+/* Opponent slots: ~y=14-27%, ~13% height */
 .overlay-slots-opp {
   top: 14%;
-  height: 18%;
+  height: 13.5%;
 }
+
+/* Player slots: ~y=43-57%, ~14% height */
 .overlay-slots-pla {
-  top: 47.5%;
-  height: 18%;
+  top: 43%;
+  height: 14%;
 }
 
 .board-slot {
@@ -357,61 +390,55 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  max-width: 22%;
+  margin: 0 1%;
 }
 
 .slot-token-orbit {
-  display: flex;
-  justify-content: center;
-  gap: 2px;
-  margin-bottom: 2px;
-  height: 18px;
+  /* Token orbit dots are drawn into the bg above opponent slots,
+     but for player we add a row above (or skip on this side). */
+  display: none;  /* Hidden for now; tokens land in Session G */
+  height: 0;
 }
 .token-mini {
-  width: 18px; height: 18px;
+  width: 16px; height: 16px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px;
-  background: rgba(0, 0, 0, 0.5);
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.6);
   border: 1px solid rgba(180, 140, 230, 0.3);
 }
 .token-mini:not(.filled) { opacity: 0; }
 
 .slot-card-host {
   width: 100%;
-  flex: 1;
+  height: 100%;
   display: flex;
   align-items: stretch;
   justify-content: center;
 }
 
-/* When slot is empty, the bg image's drawn frame shows through */
-
 /* ─── HAND FAN ─── */
 
 #hand-fan-overlay {
   position: absolute;
-  bottom: 1%;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
+  /* Hand area in bg: ~y=66-88% */
+  top: 66%;
+  left: 0;
+  right: 0;
+  bottom: 12%;
   z-index: 6;
   pointer-events: none;
-  width: 100%;
-  height: 24%;
 }
 
 .hand-slot {
   position: absolute;
-  bottom: 8%;
+  bottom: 2%;
   left: 50%;
-  margin-left: -50px;
-  width: 100px;
-  height: 140px;
+  margin-left: -42px;
+  width: 84px;
+  height: 117px;
   transform-origin: bottom center;
-  transition: transform 0.25s cubic-bezier(.3,.1,.3,1.2), z-index 0s;
+  transition: transform 0.25s cubic-bezier(.3,.1,.3,1.2);
   pointer-events: auto;
   cursor: pointer;
 }
@@ -427,7 +454,7 @@ html, body {
   border-radius: var(--r-md);
   border: 1px solid var(--border-mid);
   background: var(--bg-card);
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.85);
   overflow: hidden;
   cursor: pointer;
   user-select: none;
@@ -455,8 +482,7 @@ html, body {
   border: 2px solid var(--border-bright);
   box-shadow:
     0 4px 14px rgba(0, 0, 0, 0.85),
-    0 0 0 1px rgba(192, 132, 252, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 0 0 1px rgba(192, 132, 252, 0.3);
 }
 .card-hand.unaffordable {
   filter: brightness(0.4) saturate(0.4);
@@ -465,8 +491,7 @@ html, body {
   border-color: var(--gold-bright);
   box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.9),
-    0 0 28px rgba(234, 179, 8, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    0 0 28px rgba(234, 179, 8, 0.55);
 }
 
 .card-cost-stack {
@@ -488,9 +513,9 @@ html, body {
   box-shadow: 0 2px 6px rgba(0,0,0,0.85), inset 0 1px 2px rgba(255,255,255,0.4);
 }
 .cost-coin.large {
-  width: 26px; height: 26px;
+  width: 24px; height: 24px;
   border-radius: 50%;
-  font-size: 14px;
+  font-size: 13px;
 }
 .cost-coin.preview {
   width: 36px; height: 36px;
@@ -514,36 +539,36 @@ html, body {
 
 .card-name-strip {
   position: absolute;
-  bottom: 18px;
+  bottom: 16px;
   left: 0; right: 0;
-  padding: 3px 6px;
-  background: linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.85) 100%);
-  font-size: 9px;
+  padding: 2px 4px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.9) 100%);
+  font-size: 8px;
   font-weight: 700;
   text-align: center;
   color: var(--text-bright);
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
   z-index: 3;
   text-shadow: 0 1px 2px rgba(0,0,0,1);
 }
 
 .card-power-coin {
   position: absolute;
-  bottom: 4px; right: 4px;
-  width: 26px; height: 26px;
+  bottom: 3px; right: 3px;
+  width: 22px; height: 22px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 25%, #fff7c2 0%, #fde047 35%, #b8870a 100%);
   color: #2a1f00;
   font-family: 'Cinzel Decorative', serif;
-  font-size: 14px; font-weight: 700;
+  font-size: 13px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   border: 2px solid rgba(0,0,0,0.7);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.4);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.8);
   z-index: 4;
 }
 .card-power-coin.bf {
-  width: 24px; height: 24px;
-  font-size: 13px;
+  width: 22px; height: 22px;
+  font-size: 12px;
   bottom: 3px; right: 3px;
 }
 .card-power-coin.bf.damaged {
@@ -552,21 +577,18 @@ html, body {
   animation: damage-pulse 0.8s ease-in-out infinite;
 }
 
-/* BATTLEFIELD CARD */
+/* BATTLEFIELD CARD — fits the slot frame in the bg */
 .card-battlefield {
-  width: 88%;
-  aspect-ratio: 5/7;
-  border: 1px solid rgba(180, 140, 230, 0.45);
-  box-shadow:
-    0 2px 10px rgba(0, 0, 0, 0.85),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  width: 92%;
+  height: 92%;
+  border: 1px solid rgba(180, 140, 230, 0.4);
   border-radius: var(--r-sm);
-  margin: 0 auto;
+  align-self: center;
 }
 .card-battlefield.is-newly-turned::after {
   content: '';
   position: absolute; inset: 0;
-  background: radial-gradient(circle at center, transparent 40%, rgba(234, 179, 8, 0.15) 80%);
+  background: radial-gradient(circle at center, transparent 40%, rgba(234, 179, 8, 0.18) 80%);
   pointer-events: none;
   border-radius: var(--r-sm);
 }
@@ -670,22 +692,21 @@ html, body {
   text-align: center;
 }
 
-/* ─── END TURN BUTTON (hex, bottom-right) ─── */
+/* ─── END TURN BUTTON (red hex, bottom-right) ─── */
 
 .overlay-end-turn {
   position: absolute;
-  bottom: 1%;
-  right: 4%;
-  width: 16%;
-  height: 8%;
+  bottom: 1.5%;
+  right: 3.5%;
+  width: 17%;
+  height: 7%;
   background: linear-gradient(180deg, #b91c2c 0%, #6e0d18 100%);
   color: var(--gold-bright);
   font-family: 'Cinzel Decorative', serif;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 1.5px;
-  border: 2px solid rgba(255, 200, 200, 0.4);
-  /* Hex-ish shape using clip-path */
+  border: 2px solid rgba(255, 200, 200, 0.5);
   clip-path: polygon(15% 0%, 85% 0%, 100% 50%, 85% 100%, 15% 100%, 0% 50%);
   cursor: pointer;
   display: flex;
@@ -693,12 +714,13 @@ html, body {
   align-items: center;
   justify-content: center;
   text-shadow: 0 1px 3px rgba(0,0,0,0.9);
-  box-shadow: 0 0 16px rgba(180,30,30,0.5);
+  box-shadow: 0 0 20px rgba(180,30,30,0.6);
   z-index: 7;
   transition: transform 0.15s, box-shadow 0.2s;
+  line-height: 1.1;
 }
 .overlay-end-turn:hover {
-  box-shadow: 0 0 24px rgba(255,80,80,0.7);
+  box-shadow: 0 0 28px rgba(255,80,80,0.8);
 }
 .overlay-end-turn:active {
   transform: scale(0.96);
@@ -708,24 +730,25 @@ html, body {
   pointer-events: none;
 }
 
-/* ─── SIDE DOCK ─── */
+/* ─── SIDE DOCK (right edge, mid-height) ─── */
 
 #side-dock-overlay {
   position: absolute;
-  top: 50%;
+  top: 64%;
   right: 0;
-  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
   z-index: 7;
 }
 
 .dock-btn {
-  width: 36px; height: 36px;
+  width: 38px;
+  height: 38px;
   border: 1px solid var(--border-mid);
   background: rgba(10, 6, 24, 0.7);
   color: var(--text-dim);
-  font-size: 14px; cursor: pointer;
+  font-size: 16px;
+  cursor: pointer;
   margin: 2px 0;
   border-radius: var(--r-md) 0 0 var(--r-md);
   transition: all 0.15s;
@@ -807,7 +830,7 @@ html, body {
 
 #status-text {
   position: absolute;
-  top: 38%;
+  top: 35%;
   left: 50%;
   transform: translateX(-50%);
   font-family: 'Cinzel Decorative', serif;
@@ -815,7 +838,7 @@ html, body {
   color: var(--gold-bright);
   letter-spacing: 1.5px;
   padding: 6px 16px;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.75);
   border: 1px solid var(--border-bright);
   border-radius: 9999px;
   pointer-events: none;
@@ -827,16 +850,16 @@ html, body {
 }
 #status-text.visible { opacity: 1; }
 #status-text.big {
-  font-size: 24px;
+  font-size: 28px;
   letter-spacing: 4px;
-  padding: 12px 28px;
+  padding: 14px 28px;
 }
 
 /* ─── GOLD COIN ANIMATION ─── */
 
 #gold-pulse-layer {
   position: absolute;
-  top: 50%;
+  top: 38%;
   left: 50%;
   width: 0;
   height: 0;
