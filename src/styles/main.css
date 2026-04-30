@@ -149,36 +149,23 @@ html, body {
   justify-content: center;
 }
 
-/* The playfield is the actual game canvas — locked to bg aspect ratio */
+/* The playfield is the actual game canvas — locked to bg aspect ratio.
+   Always fits to viewport HEIGHT, with letterbox on left/right if needed.
+   This guarantees vertical content fills the screen on tall phones. */
 .battle-playfield {
   position: relative;
   /* Aspect ratio = bg image dimensions = 1170:1733 */
   aspect-ratio: 1170 / 1733;
-  /* Scale to fit viewport */
+  /* Fill the viewport vertically */
   height: 100vh;
-  max-height: 100vh;
-  /* Cap width so on landscape/wide devices the bg doesn't dominate */
-  max-width: 100vw;
-  /* If width-limited (very tall phones), height becomes auto */
+  height: 100dvh; /* dvh respects mobile browser chrome */
+  /* Width auto-calculates from height + aspect */
+  width: auto;
   background-image: url('/v2/images/ui/battlefield-bg.jpg');
   background-size: 100% 100%;
   background-position: center center;
   background-repeat: no-repeat;
   background-color: #0a0612;
-}
-
-/* On wider/shorter screens, fit by width instead */
-@media (min-aspect-ratio: 1170/1733) {
-  .battle-playfield {
-    width: auto;
-    height: 100vh;
-  }
-}
-@media (max-aspect-ratio: 1170/1733) {
-  .battle-playfield {
-    width: 100vw;
-    height: auto;
-  }
 }
 
 /* Everything else lives INSIDE .battle-playfield and uses % of it */
@@ -421,22 +408,23 @@ html, body {
 
 #hand-fan-overlay {
   position: absolute;
-  /* Hand area in bg: ~y=66-88% */
-  top: 66%;
+  /* Hand area in bg: ~y=70-91% (tucked just inside drawn hand frame) */
+  top: 70%;
   left: 0;
   right: 0;
-  bottom: 12%;
+  bottom: 9%;
   z-index: 6;
   pointer-events: none;
 }
 
 .hand-slot {
   position: absolute;
-  bottom: 2%;
+  bottom: 4%;
   left: 50%;
-  margin-left: -42px;
-  width: 84px;
-  height: 117px;
+  /* Card size as % of playfield — scales with whole UI */
+  width: 13%;
+  aspect-ratio: 5 / 7;
+  margin-left: -6.5%; /* half of width to center */
   transform-origin: bottom center;
   transition: transform 0.25s cubic-bezier(.3,.1,.3,1.2);
   pointer-events: auto;

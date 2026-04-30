@@ -440,12 +440,14 @@ function renderHand() {
     const offset = idx - center;
     const angleStep = total > 6 ? 5 : 7;
     const rotation = offset * angleStep;
-    const yLift = Math.abs(offset) * 6;
-    const xOffset = offset * 38; // horizontal spacing
+    const yLift = Math.abs(offset) * 4;
+    // Use percentage of playfield width for spacing (scales with UI)
+    // 7% per card position keeps cards mostly visible without too much overlap
+    const xOffsetPct = offset * 7;
 
     const slot = document.createElement('div');
     slot.className = 'hand-slot';
-    slot.style.transform = `translateX(${xOffset}px) translateY(${yLift}px) rotate(${rotation}deg)`;
+    slot.style.transform = `translateX(${xOffsetPct}vmin) translateY(${yLift}px) rotate(${rotation}deg)`;
     slot.style.zIndex = 10 - Math.abs(offset);
     slot.dataset.handIdx = idx;
     slot.dataset.instId = inst.instId;
@@ -457,7 +459,7 @@ function renderHand() {
     if (_selectedHandInstId === inst.instId) {
       card.classList.add('selected');
       slot.classList.add('selected');
-      slot.style.transform = `translateX(${xOffset}px) translateY(-50px) rotate(0deg) scale(1.18)`;
+      slot.style.transform = `translateX(${xOffsetPct}vmin) translateY(-12vmin) rotate(0deg) scale(1.25)`;
       slot.style.zIndex = 100;
     }
 
