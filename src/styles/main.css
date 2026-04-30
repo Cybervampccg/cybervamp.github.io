@@ -150,17 +150,25 @@ html, body {
 }
 
 /* The playfield is the actual game canvas — locked to bg aspect ratio.
-   Always fits to viewport HEIGHT, with letterbox on left/right if needed.
-   This guarantees vertical content fills the screen on tall phones. */
+   Sized via min() of width-derived height vs viewport-height,
+   so it fits within both viewport dimensions and letterboxes whichever
+   dimension is leftover.
+
+   Background image dimensions: 1170 × 2340 → aspect ratio 1170/2340 ≈ 0.5
+   This means height = width × (2340/1170) = width × 2.
+
+   On a tall phone (e.g. iPhone Pro, 1:2.17): width-fit, slight top/bottom letterbox
+   On a shorter phone (1:1.78): height-fit, slight left/right letterbox
+   On a tablet/landscape: significant left/right letterbox
+*/
 .battle-playfield {
   position: relative;
-  /* Aspect ratio = bg image dimensions = 1170:1733 */
-  aspect-ratio: 1170 / 1733;
-  /* Fill the viewport vertically */
-  height: 100vh;
-  height: 100dvh; /* dvh respects mobile browser chrome */
-  /* Width auto-calculates from height + aspect */
-  width: auto;
+  /* Aspect ratio = bg image dimensions = 1170:2340 = 1:2 */
+  aspect-ratio: 1170 / 2340;
+  /* Fill whichever viewport dimension is more constrained.
+     min() ensures we never overflow either dimension. */
+  width: min(100vw, calc(100vh * 1170 / 2340));
+  height: min(100vh, calc(100vw * 2340 / 1170));
   background-image: url('/v2/images/ui/battlefield-bg.jpg');
   background-size: 100% 100%;
   background-position: center center;
@@ -183,10 +191,10 @@ html, body {
 
 .overlay-phase-highlight {
   position: absolute;
-  /* Phase pill row is at ~y=2.5% in the bg image */
-  top: 1.4%;
+  /* Phase pill row is at ~y=14% in new 1170x2340 bg image */
+  top: 14%;
   width: 16%;
-  height: 3.6%;
+  height: 2.7%;
   border-radius: 9999px;
   pointer-events: none;
   background: radial-gradient(ellipse, rgba(255,80,80,0.45), transparent 70%);
@@ -201,7 +209,7 @@ html, body {
 
 .overlay-turn-text {
   position: absolute;
-  top: 1.5%;
+  top: 14.1%;
   right: 14%;
   font-family: 'Cinzel', serif;
   font-size: 14px;
@@ -215,7 +223,7 @@ html, body {
 
 .overlay-home-btn {
   position: absolute;
-  top: 1%;
+  top: 13.7%;
   right: 3%;
   background: rgba(20, 16, 36, 0.6);
   border: 1px solid var(--border-mid);
@@ -232,9 +240,9 @@ html, body {
 
 .overlay-vitals-opponent {
   position: absolute;
-  top: 5%;
+  top: 16.7%;
   left: 2%;
-  height: 6%;
+  height: 4.5%;
   display: flex;
   align-items: center;
   gap: var(--sp-2);
@@ -245,9 +253,9 @@ html, body {
 
 .overlay-vitals-player {
   position: absolute;
-  top: 57.5%;
+  top: 55.6%;
   left: 2%;
-  height: 6%;
+  height: 4.5%;
   display: flex;
   align-items: center;
   gap: var(--sp-2);
@@ -328,7 +336,7 @@ html, body {
 
 .overlay-deck {
   position: absolute;
-  top: 5.5%;
+  top: 17.1%;
   right: 3%;
   display: flex;
   align-items: center;
@@ -359,16 +367,16 @@ html, body {
   z-index: 3;
 }
 
-/* Opponent slots: ~y=14-27%, ~13% height */
+/* Opponent slots: y=23-33% in new bg image (was 14-27.5% in old) */
 .overlay-slots-opp {
-  top: 14%;
-  height: 13.5%;
+  top: 23.4%;
+  height: 10%;
 }
 
-/* Player slots: ~y=43-57%, ~14% height */
+/* Player slots: y=44-55% in new bg image (was 43-57% in old) */
 .overlay-slots-pla {
-  top: 43%;
-  height: 14%;
+  top: 44.8%;
+  height: 10.4%;
 }
 
 .board-slot {
@@ -408,11 +416,11 @@ html, body {
 
 #hand-fan-overlay {
   position: absolute;
-  /* Hand area in bg: ~y=70-91% (tucked just inside drawn hand frame) */
-  top: 70%;
+  /* Hand area in new 1170x2340 bg: ~y=63-87% */
+  top: 63%;
   left: 0;
   right: 0;
-  bottom: 9%;
+  bottom: 13%;
   z-index: 6;
   pointer-events: none;
 }
@@ -424,7 +432,7 @@ html, body {
   /* Card size as % of playfield — scales with whole UI */
   width: 13%;
   aspect-ratio: 5 / 7;
-  margin-left: -6.5%; /* half of width to center */
+  margin-left: -6.5%;
   transform-origin: bottom center;
   transition: transform 0.25s cubic-bezier(.3,.1,.3,1.2);
   pointer-events: auto;
@@ -684,10 +692,10 @@ html, body {
 
 .overlay-end-turn {
   position: absolute;
-  bottom: 1.5%;
+  bottom: 2%;
   right: 3.5%;
   width: 17%;
-  height: 7%;
+  height: 5%;
   background: linear-gradient(180deg, #b91c2c 0%, #6e0d18 100%);
   color: var(--gold-bright);
   font-family: 'Cinzel Decorative', serif;
@@ -722,7 +730,7 @@ html, body {
 
 #side-dock-overlay {
   position: absolute;
-  top: 64%;
+  top: 56%;
   right: 0;
   display: flex;
   flex-direction: column;
@@ -818,7 +826,7 @@ html, body {
 
 #status-text {
   position: absolute;
-  top: 35%;
+  top: 39%;
   left: 50%;
   transform: translateX(-50%);
   font-family: 'Cinzel Decorative', serif;
@@ -847,7 +855,7 @@ html, body {
 
 #gold-pulse-layer {
   position: absolute;
-  top: 38%;
+  top: 40%;
   left: 50%;
   width: 0;
   height: 0;
