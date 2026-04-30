@@ -438,12 +438,13 @@ function renderHand() {
   hand.forEach((inst, idx) => {
     const center = (total - 1) / 2;
     const offset = idx - center;
-    const angleStep = total > 6 ? 5 : 7;
+    // Fan curve: tighter angle for bigger cards
+    const angleStep = total > 6 ? 4 : 6;
     const rotation = offset * angleStep;
     const yLift = Math.abs(offset) * 4;
-    // Use percentage of playfield width via 'cqw' — falls back gracefully
-    // 8% per card position keeps 7 cards mostly visible without too much overlap
-    const xOffsetPct = offset * 8;
+    // Spacing per card slot — % of #hand-fan-overlay width (= playfield width)
+    // Bigger cards (16% wide) need more spacing so they don't overlap excessively
+    const xOffsetPct = offset * 9;
 
     const slot = document.createElement('div');
     slot.className = 'hand-slot';
@@ -459,7 +460,8 @@ function renderHand() {
     if (_selectedHandInstId === inst.instId) {
       card.classList.add('selected');
       slot.classList.add('selected');
-      slot.style.transform = `translateX(${xOffsetPct}%) translateY(-30%) rotate(0deg) scale(1.3)`;
+      // Selected card centers horizontally, rises above hand zone, scales up
+      slot.style.transform = `translateX(0%) translateY(-90%) rotate(0deg) scale(1.4)`;
       slot.style.zIndex = 100;
     }
 
