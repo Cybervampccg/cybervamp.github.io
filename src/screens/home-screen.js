@@ -1,8 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-// Home Screen — Test/Dev Hub
-//
-// Same as Session C but with C-1 label. Battle screen will mount
-// the new overlay-on-background battle UI.
+// Home Screen — Test/Dev Hub with Template Mode toggle
 // ─────────────────────────────────────────────────────────────
 
 import { CARDS } from '../game/cards.js';
@@ -17,7 +14,7 @@ export function mountHomeScreen(container) {
   container.innerHTML = `
     <div id="home-screen">
       <div class="home-logo">CYBERVAMP</div>
-      <div class="home-sub">v2.0 · Session C-1 · UI Overhaul</div>
+      <div class="home-sub">v2.0 · Session C-Final · UI Anchors</div>
 
       <div class="home-info">
         <div>📇 ${CARDS.length} cards loaded</div>
@@ -27,8 +24,7 @@ export function mountHomeScreen(container) {
       </div>
 
       <div class="home-instructions">
-        Pick a matchup to start a playable battle. Long-press any hand card
-        for a fullscreen preview. Tap to select, tap again to play.
+        <strong>Template Mode</strong> shows colored boxes where each UI region sits — no background image needed. Use this to confirm anchors before generating new bg art.
       </div>
 
       <div class="home-actions">
@@ -37,6 +33,9 @@ export function mountHomeScreen(container) {
         </button>
         <button class="home-btn home-btn-primary" data-action="battle-purple-white">
           ⚔ Battle: Purple vs White
+        </button>
+        <button class="home-btn home-btn-secondary" data-action="template-mode">
+          📐 Template Mode (anchor preview)
         </button>
         <button class="home-btn home-btn-secondary" data-action="inspect-state">
           🔍 Inspect current G state
@@ -60,10 +59,14 @@ function handleAction(action, container) {
 
   switch (action) {
     case 'battle-red-black':
-      startBattle('Red', 'Black', container);
+      startBattle('Red', 'Black', container, false);
       break;
     case 'battle-purple-white':
-      startBattle('Purple', 'White', container);
+      startBattle('Purple', 'White', container, false);
+      break;
+    case 'template-mode':
+      // Init a Red vs Black battle but render in template mode
+      startBattle('Red', 'Black', container, true);
       break;
     case 'inspect-state': {
       const G = window.G;
@@ -87,13 +90,13 @@ function handleAction(action, container) {
   }
 }
 
-function startBattle(playerFaction, aiFaction, container) {
+function startBattle(playerFaction, aiFaction, container, templateMode) {
   const playerDeck = buildDefaultDeck(playerFaction, 'player');
   const aiDeck = buildDefaultDeck(aiFaction, 'ai');
   const G_new = makeInitialState({ playerFaction, aiFaction, playerDeck, aiDeck });
   window.G = G_new;
   window.getEffectivePower = getEffectivePower;
   window._battleLog = [`— Battle begins: ${playerFaction} vs ${aiFaction} —`];
-  console.log(`▶ Battle: ${playerFaction} vs ${aiFaction}`);
-  mountBattleScreen(container);
+  console.log(`▶ Battle: ${playerFaction} vs ${aiFaction}${templateMode ? ' (TEMPLATE MODE)' : ''}`);
+  mountBattleScreen(container, { templateMode });
 }

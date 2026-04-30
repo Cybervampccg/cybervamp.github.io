@@ -17,14 +17,18 @@ let _aiTurnRunning = false;
 let _previewOpen = false;
 let _longPressTimer = null;
 
-export function mountBattleScreen(container) {
+export function mountBattleScreen(container, opts = {}) {
   _container = container;
+  const templateMode = opts.templateMode === true;
+
+  const playfieldClass = templateMode ? 'battle-playfield template-mode' : 'battle-playfield';
 
   container.innerHTML = `
     <div id="battle-screen">
-      <!-- The playfield locks to bg image's aspect ratio (1170:1733).
+      <!-- The playfield locks to bg image's aspect ratio (1170:2340).
            Letterbox bars (black) appear above/below on tall phones. -->
-      <div class="battle-playfield">
+      <div class="${playfieldClass}">
+        ${templateMode ? renderTemplateRegions() : ''}
         <!-- Dynamic overlays anchored to %-coords of the playfield -->
         <div class="overlay-layer">
           ${renderTopBarOverlay()}
@@ -62,7 +66,42 @@ export function mountBattleScreen(container) {
 
 // ── Static overlay templates ──
 
-function renderTopBarOverlay() {
+function renderTemplateRegions() {
+  // Visual debug overlay — colored boxes showing where each UI region anchors.
+  // Use template-mode to verify positioning without bg image.
+  const regions = [
+    ['PHASE PILLS',  '2%',    '12%',   '42%', '3%',    'rgba(255,80,80,.35)'],
+    ['TURN PILL',    '2%',    '55%',   '23%', '3%',    'rgba(255,200,0,.35)'],
+    ['GEAR',         '1.5%',  '83%',   '9%',  '4%',    'rgba(180,180,180,.35)'],
+    ['OPP AVATAR',   '8.5%',  '2%',    '12%', '10%',   'rgba(150,80,200,.4)'],
+    ['OPP VITALS',   '12%',   '14.5%', '50%', '4.5%',  'rgba(220,60,60,.3)'],
+    ['DECK',         '10%',   '80%',   '12%', '11%',   'rgba(60,180,80,.4)'],
+    ['OPP TOKENS',   '21%',   '18%',   '47%', '2%',    'rgba(180,140,230,.4)'],
+    ['OPP SLOT 1',   '23.5%', '15.5%', '16%', '14.5%', 'rgba(220,60,60,.25)'],
+    ['OPP SLOT 2',   '23.5%', '33.5%', '16%', '14.5%', 'rgba(220,60,60,.25)'],
+    ['OPP SLOT 3',   '23.5%', '51.5%', '16%', '14.5%', 'rgba(220,60,60,.25)'],
+    ['OPP SLOT 4',   '23.5%', '69.5%', '16%', '14.5%', 'rgba(220,60,60,.25)'],
+    ['COMBAT ZONE',  '42%',   '5%',    '90%', '12%',   'rgba(180,80,200,.3)'],
+    ['PLA SLOT 1',   '55%',   '15.5%', '16%', '14%',   'rgba(150,80,220,.25)'],
+    ['PLA SLOT 2',   '55%',   '33.5%', '16%', '14%',   'rgba(150,80,220,.25)'],
+    ['PLA SLOT 3',   '55%',   '51.5%', '16%', '14%',   'rgba(150,80,220,.25)'],
+    ['PLA SLOT 4',   '55%',   '69.5%', '16%', '14%',   'rgba(150,80,220,.25)'],
+    ['PLA AVATAR',   '69%',   '2%',    '12%', '10%',   'rgba(150,80,200,.4)'],
+    ['PLA VITALS',   '73%',   '14.5%', '30%', '4.5%',  'rgba(220,60,60,.3)'],
+    ['GOLD PILL',    '75%',   '22%',   '18%', '4%',    'rgba(255,200,0,.4)'],
+    ['SIDE DOCK',    '68%',   '88%',   '10%', '19%',   'rgba(120,180,200,.35)'],
+    ['HAND FAN',     '80%',   '2%',    '96%', '13%',   'rgba(150,80,220,.25)'],
+    ['END TURN HEX', '92.5%', '82%',   '16%', '6.2%',  'rgba(220,60,60,.55)'],
+  ];
+
+  return regions.map(([name, top, left, w, h, bg]) => `
+    <div class="template-region" style="top:${top}; left:${left}; width:${w}; height:${h}; background:${bg};">
+      <span>${name}</span>
+    </div>
+  `).join('');
+}
+
+
   // The phase pills + TURN text + gear icon are baked into the bg.
   // We only overlay: the active phase highlight + the dynamic turn number.
   return `

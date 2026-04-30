@@ -1,36 +1,24 @@
 /* ═══════════════════════════════════════════════════════════
-   Cybervamp v2 — Design tokens + home + battle (LETTERBOXED)
-   ═══════════════════════════════════════════════════════════
-   The battle playfield locks to the background image's natural
-   aspect ratio (1170×1733 ≈ 1:1.481). Letterbox bars appear
-   above and/or below on phones with different aspect ratios.
-   All overlay percentages are calculated against the playfield
-   container, NOT the viewport — so they map exactly to the
-   background image regardless of screen size.
+   Cybervamp v2 — FINAL anchors, measured from battlefield-bg.jpg
+   Image: 1170 × 2340 (aspect 1:2)
+   All percentages derived from pixel-level analysis of bg image.
    ═══════════════════════════════════════════════════════════ */
 
 :root {
   --bg-deep:    #05060c;
-  --bg-panel:   #0e1022;
   --bg-card:    #171a30;
-
-  --border-dim:    rgba(140, 110, 200, 0.14);
   --border-mid:    rgba(180, 140, 230, 0.22);
   --border-bright: rgba(212, 170, 240, 0.4);
-
   --text-bright: #f5efff;
   --text-mid:    #b4a6d4;
   --text-dim:    #7a6a98;
-
   --gold:        #eab308;
   --gold-bright: #fde047;
   --bleed-red:   #f43f5e;
   --life-green:  #4ade80;
-
   --r-sm: 6px;
   --r-md: 10px;
   --r-lg: 14px;
-
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
@@ -51,7 +39,7 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
-#app { width: 100%; height: 100vh; position: relative; }
+#app { width: 100%; height: 100vh; height: 100dvh; position: relative; }
 
 /* ═══ HOME SCREEN ═══ */
 
@@ -85,7 +73,7 @@ html, body {
   margin: var(--sp-4) auto;
   max-width: 360px; font-size: 14px; color: var(--text-mid);
 }
-.home-info > div { padding: var(--sp-1) 0; }
+.home-info > div { padding: 4px 0; }
 .home-instructions {
   font-size: 12px; color: var(--text-dim);
   margin: var(--sp-4) auto var(--sp-5);
@@ -137,38 +125,25 @@ html, body {
 
 
 /* ═══════════════════════════════════════════════════════════
-   BATTLE SCREEN — letterboxed playfield + overlays
+   BATTLE SCREEN — FINAL letterboxed playfield
    ═══════════════════════════════════════════════════════════ */
 
 #battle-screen {
   position: absolute; inset: 0;
   background: #000;
-  /* Center the playfield horizontally + vertically */
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* The playfield is the actual game canvas — locked to bg aspect ratio.
-   Sized via min() of width-derived height vs viewport-height,
-   so it fits within both viewport dimensions and letterboxes whichever
-   dimension is leftover.
-
-   Background image dimensions: 1170 × 2340 → aspect ratio 1170/2340 ≈ 0.5
-   This means height = width × (2340/1170) = width × 2.
-
-   On a tall phone (e.g. iPhone Pro, 1:2.17): width-fit, slight top/bottom letterbox
-   On a shorter phone (1:1.78): height-fit, slight left/right letterbox
-   On a tablet/landscape: significant left/right letterbox
-*/
+/* The playfield is locked to bg image's natural aspect ratio (1:2).
+   Sized via min() to fit within both viewport dimensions.
+   Letterbox bars appear on whichever axis isn't binding. */
 .battle-playfield {
   position: relative;
-  /* Aspect ratio = bg image dimensions = 1170:2340 = 1:2 */
-  aspect-ratio: 1170 / 2340;
-  /* Fill whichever viewport dimension is more constrained.
-     min() ensures we never overflow either dimension. */
-  width: min(100vw, calc(100vh * 1170 / 2340));
-  height: min(100vh, calc(100vw * 2340 / 1170));
+  aspect-ratio: 1 / 2;
+  width: min(100vw, 50vh);
+  height: min(100vh, 200vw);
   background-image: url('/v2/images/ui/battlefield-bg.jpg');
   background-size: 100% 100%;
   background-position: center center;
@@ -176,7 +151,25 @@ html, body {
   background-color: #0a0612;
 }
 
-/* Everything else lives INSIDE .battle-playfield and uses % of it */
+/* TEMPLATE MODE — show colored boxes where each UI region sits.
+   Toggle by adding class "template-mode" to .battle-playfield */
+.battle-playfield.template-mode {
+  background-image: none;
+  background: #1a1428;
+}
+.template-mode .template-region {
+  position: absolute;
+  border: 2px dashed rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: monospace;
+  text-align: center;
+  text-shadow: 0 1px 2px black;
+}
 
 .overlay-layer {
   position: absolute; inset: 0;
@@ -184,64 +177,75 @@ html, body {
 }
 .overlay-layer > * { pointer-events: auto; }
 
-/* ─── TOP BAR / PHASE / TURN / HOME ─── */
-
-/* Phase pills are drawn INTO the bg (RNW MAIN CMB END at top).
-   We just overlay the active highlight + the dynamic TURN text. */
+/* ─── PHASE HIGHLIGHT ─── */
+/* Phase pills row: y=2.0% to 4.7%
+   RNW pill: x=14-22% (center 18%)
+   MAIN pill: x=23-32% (center 27.5%)
+   CMB pill: x=33-42% (center 37.5%)
+   END pill: x=43-52% (center 47.5%) */
 
 .overlay-phase-highlight {
   position: absolute;
-  /* Phase pill row is at ~y=14% in new 1170x2340 bg image */
-  top: 14%;
-  width: 16%;
-  height: 2.7%;
+  top: 2.4%;
+  width: 9%;
+  height: 2.6%;
   border-radius: 9999px;
   pointer-events: none;
-  background: radial-gradient(ellipse, rgba(255,80,80,0.45), transparent 70%);
+  background: radial-gradient(ellipse, rgba(255, 80, 80, 0.45), transparent 70%);
   transition: left 0.3s cubic-bezier(.3,.1,.3,1.2);
-  box-shadow: 0 0 18px rgba(255,60,60,0.6);
+  box-shadow: 0 0 18px rgba(255, 60, 60, 0.6);
   z-index: 5;
 }
-.overlay-phase-highlight[data-phase="renew"]   { left: 6%; }
-.overlay-phase-highlight[data-phase="main"]    { left: 24%; }
-.overlay-phase-highlight[data-phase="combat"]  { left: 42%; }
-.overlay-phase-highlight[data-phase="end"]     { left: 60%; }
+.overlay-phase-highlight[data-phase="renew"]   { left: 13.5%; }
+.overlay-phase-highlight[data-phase="main"]    { left: 23.0%; }
+.overlay-phase-highlight[data-phase="combat"]  { left: 32.5%; }
+.overlay-phase-highlight[data-phase="end"]     { left: 42.5%; }
+
+/* ─── TURN TEXT ─── */
+/* The long horizontal pill at top: x=55-77%, y=2-5% */
 
 .overlay-turn-text {
   position: absolute;
-  top: 14.1%;
-  right: 14%;
+  top: 2.6%;
+  left: 55%;
+  width: 22%;
+  height: 2.4%;
+  display: flex; align-items: center; justify-content: center;
   font-family: 'Cinzel', serif;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 2px;
   color: var(--text-bright);
-  text-shadow: 0 1px 4px rgba(0,0,0,1);
+  text-shadow: 0 1px 3px rgba(0,0,0,1);
   z-index: 5;
   pointer-events: none;
 }
 
+/* Home button — overlay near gear icon area */
 .overlay-home-btn {
   position: absolute;
-  top: 13.7%;
-  right: 3%;
+  top: 2.0%;
+  right: 1.5%;
   background: rgba(20, 16, 36, 0.6);
   border: 1px solid var(--border-mid);
   color: var(--text-mid);
   padding: 4px 8px;
   border-radius: 9999px;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
-  min-width: 30px;
+  min-width: 28px;
   z-index: 5;
 }
 
-/* ─── OPPONENT VITALS (top, ~5-10%) ─── */
+/* ─── OPPONENT VITALS ─── */
+/* Avatar ring: x=2-14%, y=8.5-18.5% (large ring drawn into bg)
+   Centered around x=7.5%, y=13.5%
+   "OPPONENT" + ❤🩸⛁ inline next to avatar */
 
 .overlay-vitals-opponent {
   position: absolute;
-  top: 16.7%;
-  left: 2%;
+  top: 12%;
+  left: 14.5%;
   height: 4.5%;
   display: flex;
   align-items: center;
@@ -249,12 +253,15 @@ html, body {
   z-index: 4;
 }
 
-/* ─── PLAYER VITALS (bottom, ~57-63%) ─── */
+/* ─── PLAYER VITALS ─── */
+/* Avatar ring: x=2-14%, y=68-79% in the bg
+   "YOU" + ❤🩸⛁ inline next to it
+   Gold pill (separate small horizontal pill in bg): x=20-39%, y=75-79% */
 
 .overlay-vitals-player {
   position: absolute;
-  top: 55.6%;
-  left: 2%;
+  top: 73%;
+  left: 14.5%;
   height: 4.5%;
   display: flex;
   align-items: center;
@@ -263,27 +270,17 @@ html, body {
 }
 
 .vitals-avatar {
-  width: 9%;
-  aspect-ratio: 1 / 1;
+  width: 38px; height: 38px;
   border-radius: 50%;
   background: rgba(20, 14, 40, 0.7);
-  border: 2px solid var(--border-bright);
+  border: 1px solid var(--border-bright);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 0 12px rgba(0,0,0,0.7);
   overflow: hidden;
+  display: none; /* The avatar ring is drawn in bg; we only show overlay if real avatar image is provided */
 }
 
-.overlay-vitals-opponent .vitals-avatar,
-.overlay-vitals-player .vitals-avatar {
-  /* Avatar is sized in % of playfield width */
-  width: 56px;
-  height: 56px;
-}
-
-.vitals-avatar-placeholder {
-  font-size: 24px;
-}
+.vitals-avatar-placeholder { font-size: 22px; }
 
 .vitals-label {
   font-family: 'Cinzel', serif;
@@ -292,7 +289,7 @@ html, body {
   font-weight: 700;
   color: var(--text-mid);
   text-transform: uppercase;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  text-shadow: 0 1px 3px rgba(0,0,0,1);
   white-space: nowrap;
 }
 
@@ -315,7 +312,7 @@ html, body {
 
 .vital-num {
   font-family: 'Cinzel Decorative', serif;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--bleed-red);
   text-shadow: 0 1px 3px rgba(0,0,0,1);
@@ -332,51 +329,61 @@ html, body {
 .gold-stat .vital-num { color: var(--gold-bright); }
 .gold-stat.dim { opacity: 0.4; }
 
-/* ─── DECK INDICATOR (top-right, ~6%) ─── */
+/* ─── DECK INDICATOR ─── */
+/* Deck stack drawn in bg at x=80-92%, y=10-21% */
 
 .overlay-deck {
   position: absolute;
-  top: 17.1%;
-  right: 3%;
+  top: 12%;
+  right: 2%;
   display: flex;
   align-items: center;
   gap: 4px;
   z-index: 4;
 }
 .deck-stack {
-  font-size: 26px;
-  filter: drop-shadow(0 0 6px rgba(0,0,0,1));
+  font-size: 24px;
+  filter: drop-shadow(0 0 4px rgba(0,0,0,1));
+  display: none; /* drawn in bg */
 }
 .deck-count {
   font-family: 'Cinzel', serif;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-bright);
   text-shadow: 0 1px 3px rgba(0,0,0,1);
 }
 
-/* ─── BOARD SLOTS OVERLAY ─── */
+/* ─── OPPONENT SLOTS ─── */
+/* Drawn frame edges: y=24-39%, x=14-87% (4 slots within) */
 
-.overlay-slots {
+.overlay-slots-opp {
   position: absolute;
+  top: 23.5%;
+  left: 15.5%;
+  right: 13%;
+  height: 14.5%;
   display: flex;
   justify-content: space-between;
   align-items: stretch;
-  width: 78%;
-  left: 11%;
+  gap: 1.2%;
   z-index: 3;
 }
 
-/* Opponent slots: y=23-33% in new bg image (was 14-27.5% in old) */
-.overlay-slots-opp {
-  top: 23.4%;
-  height: 10%;
-}
+/* ─── PLAYER SLOTS ─── */
+/* Drawn frame edges: y=55-69%, x=14-80% */
 
-/* Player slots: y=44-55% in new bg image (was 43-57% in old) */
 .overlay-slots-pla {
-  top: 44.8%;
-  height: 10.4%;
+  position: absolute;
+  top: 55%;
+  left: 15.5%;
+  right: 13%;
+  height: 14%;
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 1.2%;
+  z-index: 3;
 }
 
 .board-slot {
@@ -385,24 +392,9 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: 0 1%;
 }
 
-.slot-token-orbit {
-  /* Token orbit dots are drawn into the bg above opponent slots,
-     but for player we add a row above (or skip on this side). */
-  display: none;  /* Hidden for now; tokens land in Session G */
-  height: 0;
-}
-.token-mini {
-  width: 16px; height: 16px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px;
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(180, 140, 230, 0.3);
-}
-.token-mini:not(.filled) { opacity: 0; }
+.slot-token-orbit { display: none; height: 0; }
 
 .slot-card-host {
   width: 100%;
@@ -413,26 +405,25 @@ html, body {
 }
 
 /* ─── HAND FAN ─── */
+/* Drawn hand frame: y=80-94%, fan curve. 7 cards visible. */
 
 #hand-fan-overlay {
   position: absolute;
-  /* Hand area in 1170x2340 bg: ~y=80-96% (drawn hand frame) */
-  top: 79%;
+  top: 80%;
   left: 0;
   right: 0;
-  bottom: 4%;
+  bottom: 7%;
   z-index: 6;
   pointer-events: none;
 }
 
 .hand-slot {
   position: absolute;
-  bottom: 2%;
+  bottom: 5%;
   left: 50%;
-  /* Card size as % of playfield — bigger for readability */
   width: 16%;
   aspect-ratio: 5 / 7;
-  margin-left: -8%; /* half of width to center */
+  margin-left: -8%;
   transform-origin: bottom center;
   transition: transform 0.28s cubic-bezier(.3,.1,.3,1.2);
   pointer-events: auto;
@@ -468,11 +459,10 @@ html, body {
   position: absolute;
   inset: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 36px;
+  font-size: 32px;
   background: rgba(40, 20, 80, 0.4);
 }
 
-/* HAND CARD */
 .card-hand {
   width: 100%; height: 100%;
   border: 2px solid var(--border-bright);
@@ -509,9 +499,9 @@ html, body {
   box-shadow: 0 2px 6px rgba(0,0,0,0.85), inset 0 1px 2px rgba(255,255,255,0.4);
 }
 .cost-coin.large {
-  width: 28px; height: 28px;
+  width: 26px; height: 26px;
   border-radius: 50%;
-  font-size: 15px;
+  font-size: 14px;
 }
 .cost-coin.preview {
   width: 36px; height: 36px;
@@ -551,7 +541,7 @@ html, body {
 .card-power-coin {
   position: absolute;
   bottom: 3px; right: 3px;
-  width: 22px; height: 22px;
+  width: 24px; height: 24px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 25%, #fff7c2 0%, #fde047 35%, #b8870a 100%);
   color: #2a1f00;
@@ -573,10 +563,9 @@ html, body {
   animation: damage-pulse 0.8s ease-in-out infinite;
 }
 
-/* BATTLEFIELD CARD — fits the slot frame in the bg */
 .card-battlefield {
-  width: 95%;
-  height: 95%;
+  width: 92%;
+  height: 92%;
   border: 1px solid rgba(180, 140, 230, 0.4);
   border-radius: var(--r-sm);
   align-self: center;
@@ -597,7 +586,7 @@ html, body {
   transform: rotate(-12deg) scale(0.95);
 }
 
-/* PREVIEW CARD (long-press fullscreen) */
+/* PREVIEW CARD */
 #card-preview-overlay {
   position: fixed;
   inset: 0;
@@ -688,21 +677,22 @@ html, body {
   text-align: center;
 }
 
-/* ─── END TURN BUTTON (red hex, bottom-right) ─── */
+/* ─── END TURN HEX ─── */
+/* Drawn red hex: x=82-97%, y=92-99% */
 
 .overlay-end-turn {
   position: absolute;
-  bottom: 2%;
-  right: 3.5%;
-  width: 17%;
-  height: 5%;
-  background: linear-gradient(180deg, #b91c2c 0%, #6e0d18 100%);
+  top: 92.5%;
+  right: 1.5%;
+  width: 16%;
+  height: 6.2%;
+  background: linear-gradient(180deg, rgba(185, 28, 44, 0.8) 0%, rgba(110, 13, 24, 0.9) 100%);
   color: var(--gold-bright);
   font-family: 'Cinzel Decorative', serif;
   font-weight: 700;
   font-size: 12px;
   letter-spacing: 1.5px;
-  border: 2px solid rgba(255, 200, 200, 0.5);
+  border: 1px solid rgba(255, 200, 200, 0.4);
   clip-path: polygon(15% 0%, 85% 0%, 100% 50%, 85% 100%, 15% 100%, 0% 50%);
   cursor: pointer;
   display: flex;
@@ -710,30 +700,25 @@ html, body {
   align-items: center;
   justify-content: center;
   text-shadow: 0 1px 3px rgba(0,0,0,0.9);
-  box-shadow: 0 0 20px rgba(180,30,30,0.6);
   z-index: 7;
-  transition: transform 0.15s, box-shadow 0.2s;
+  transition: transform 0.15s, filter 0.2s;
   line-height: 1.1;
 }
-.overlay-end-turn:hover {
-  box-shadow: 0 0 28px rgba(255,80,80,0.8);
-}
-.overlay-end-turn:active {
-  transform: scale(0.96);
-}
-.overlay-end-turn.disabled {
-  opacity: 0.4;
-  pointer-events: none;
-}
+.overlay-end-turn:hover { filter: brightness(1.2); }
+.overlay-end-turn:active { transform: scale(0.96); }
+.overlay-end-turn.disabled { opacity: 0.4; pointer-events: none; }
 
-/* ─── SIDE DOCK (right edge, mid-height) ─── */
+/* ─── SIDE DOCK ─── */
+/* Drawn dock indents: x=92-99%, y=68-87%
+   3 buttons spaced down */
 
 #side-dock-overlay {
   position: absolute;
-  top: 48%;
-  right: 0;
+  top: 68%;
+  right: 1%;
   display: flex;
   flex-direction: column;
+  gap: 3.5%;
   z-index: 7;
 }
 
@@ -741,12 +726,11 @@ html, body {
   width: 36px;
   height: 36px;
   border: 1px solid var(--border-mid);
-  background: rgba(10, 6, 24, 0.7);
+  background: rgba(10, 6, 24, 0.6);
   color: var(--text-dim);
   font-size: 15px;
   cursor: pointer;
-  margin: 1px 0;
-  border-radius: var(--r-md) 0 0 var(--r-md);
+  border-radius: 50%;
   transition: all 0.15s;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -822,11 +806,12 @@ html, body {
   font-size: 11px;
 }
 
-/* ─── STATUS TEXT (floats over combat zone band) ─── */
+/* ─── STATUS TEXT ─── */
+/* Floats over combat zone band (y=42-54%) */
 
 #status-text {
   position: absolute;
-  top: 38%;
+  top: 47%;
   left: 50%;
   transform: translateX(-50%);
   font-family: 'Cinzel Decorative', serif;
@@ -855,7 +840,7 @@ html, body {
 
 #gold-pulse-layer {
   position: absolute;
-  top: 40%;
+  top: 47%;
   left: 50%;
   width: 0;
   height: 0;
