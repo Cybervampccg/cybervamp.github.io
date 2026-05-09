@@ -1,7 +1,17 @@
 // ─────────────────────────────────────────────────────────────
-// Battle Screen — Hand fan flex row + 2 new rules:
-//   1. Hand cap = 7. If hand > 7 after draw, force a discard.
-//   2. Creature board full: tapping PLAY prompts to sacrifice a slot.
+// Battle Screen — Session D: Combat
+//
+// Adds combat phase with three sub-modes:
+//   1. 'combat-attackers' — player picks which creatures attack
+//   2. 'combat-blockers' — player assigns blockers to AI's attackers
+//                           (only when AI is attacking; player's attackers
+//                            get auto-blocked by AI logic)
+//   3. 'combat-resolve' — animated damage resolution
+//
+// Existing modes still work:
+//   - 'normal' — main phase, play cards
+//   - 'discard' — over hand cap, must discard
+//   - 'sacrifice-pick' — board full, pick which creature to sacrifice
 // ─────────────────────────────────────────────────────────────
 
 import { G } from '../game/state.js';
@@ -9,14 +19,21 @@ import { beginTurn, endTurn, playCardFromHand, canAffordInst } from '../game/flo
 import { runAiTurn } from '../game/ai.js';
 import { createCardElement } from '../game/card-render.js';
 import { sacrificeCreature, isCreatureBoardFull, discardFromHand } from '../game/sacrifice.js';
+import {
+  declareAttacker, undeclareAttacker, getAttackers,
+  assignBlocker, resolveCombat, resolvePostBattle, checkWinCondition,
+  countAvailableAttackers, countAvailableBlockers,
+  aiDeclareAllAttackers, aiAssignBlockers,
+} from '../game/combat.js';
 
 const HAND_CAP = 7;
 
 let _container = null;
 let _aiTurnRunning = false;
 let _previewInst = null;
-let _mode = 'normal'; // 'normal' | 'discard' | 'sacrifice-pick'
-let _pendingPlayInst = null; // creature waiting for a sacrifice slot pick
+let _mode = 'normal';
+let _pendingPlayInst = null;
+let _pendingBlockerForAttackerIdx = null; // when assigning blockers, which attacker we're blocking
 
 export function mountBattleScreen(container, opts = {}) {
   _container = container;
@@ -35,12 +52,13 @@ export function mountBattleScreen(container, opts = {}) {
           ${renderSlotsOverlay('player')}
           ${renderVitalsOverlay('player')}
           ${renderHandFan()}
-          ${renderEndTurnButton()}
+          ${renderActionButtons()}
           ${renderSideDock()}
         </div>
         <div id="status-text"></div>
         <div id="gold-pulse-layer"></div>
         <div id="mode-banner" class="hidden"></div>
+        <div id="combat-fx-layer"></div>
       </div>
       ${renderDockPanel()}
       <div id="card-preview-overlay" class="hidden"></div>
@@ -56,9 +74,25 @@ export function mountBattleScreen(container, opts = {}) {
   if (templateMode) showStatus('TEMPLATE MODE — anchor preview');
 }
 
-// ─── Hand cap enforcement ───
-// If hand > HAND_CAP, enter discard mode. Player must tap a card to send it
-// to discard pile. Block all other actions until hand is at cap.
+// ─── Action buttons ───
+// Now we have TWO buttons: "GO TO COMBAT" (when in main with attackers available)
+// and "END TURN". Both occupy the bottom-right area.
+
+function renderActionButtons() {
+  return `
+    <button id="btn-combat" class="overlay-action-btn overlay-combat-btn hidden">
+      <span>GO TO</span><span>COMBAT</span>
+    </button>
+    <button id="btn-end-turn" class="overlay-action-btn overlay-end-turn">
+      <span>END</span><span>TURN</span>
+    </button>
+    <button id="btn-confirm" class="overlay-action-btn overlay-confirm-btn hidden">
+      <span>CONFIRM</span>
+    </button>
+  `;
+}
+
+// ─── Hand cap enforcement (unchanged from previous) ───
 
 function enforceHandCap() {
   if (G.activePlayer !== 'player') return;
@@ -74,7 +108,7 @@ function enforceHandCap() {
 function showModeBanner(text) {
   const banner = _container.querySelector('#mode-banner');
   if (!banner) return;
-  banner.textContent = text;
+  banner.innerHTML = text;
   banner.classList.remove('hidden');
 }
 
@@ -82,9 +116,10 @@ function hideModeBanner() {
   const banner = _container.querySelector('#mode-banner');
   if (!banner) return;
   banner.classList.add('hidden');
+  banner.innerHTML = '';
 }
 
-// ─── Template (unchanged) ───
+// ─── Template regions (unchanged) ───
 
 function renderTemplateRegions() {
   const regions = [
@@ -172,15 +207,6 @@ function renderHandFan() {
   return `<div id="hand-fan-overlay"></div>`;
 }
 
-function renderEndTurnButton() {
-  return `
-    <button id="btn-end-turn" class="overlay-end-turn">
-      <span>END</span>
-      <span>TURN</span>
-    </button>
-  `;
-}
-
 function renderSideDock() {
   return `
     <aside id="side-dock-overlay">
@@ -208,24 +234,251 @@ function wireEvents() {
     import('./home-screen.js').then(m => m.mountHomeScreen?.(document.getElementById('app')));
   });
   _container.querySelector('#btn-end-turn').addEventListener('click', onEndTurn);
+  _container.querySelector('#btn-combat').addEventListener('click', onGoToCombat);
+  _container.querySelector('#btn-confirm').addEventListener('click', onConfirmAction);
   _container.querySelectorAll('[data-dock]').forEach(btn => {
     btn.addEventListener('click', () => openDock(btn.dataset.dock));
   });
   _container.querySelector('[data-action="close-dock"]')?.addEventListener('click', closeDock);
 }
 
+// ─── Going to combat ───
+
+function onGoToCombat() {
+  if (_mode !== 'normal') return;
+  if (G.activePlayer !== 'player') return;
+  if (G.winner) return;
+
+  if (countAvailableAttackers('player') === 0) {
+    showStatus('No creatures available to attack');
+    return;
+  }
+
+  _mode = 'combat-attackers';
+  G.phase = 'combat';
+  showModeBanner(`<div>⚔ COMBAT — tap your creatures to attack with them</div><div style="font-size:11px; color:#fde047; margin-top:4px">Then tap CONFIRM ATTACK</div>`);
+  updateActionButtons();
+  renderAll();
+}
+
+// ─── Confirm action button (context-sensitive) ───
+
+async function onConfirmAction() {
+  if (_mode === 'combat-attackers') {
+    const attackers = getAttackers('player');
+    if (attackers.length === 0) {
+      // Skip combat — go straight to end of turn flow
+      cancelCombat();
+      return;
+    }
+    // Move to AI block phase
+    await runPlayerCombatResolution();
+  }
+}
+
+function cancelCombat() {
+  // Clear all attacking flags
+  for (const c of G.player.creatures) {
+    if (c) delete c._attacking;
+  }
+  _mode = 'normal';
+  G.phase = 'main';
+  hideModeBanner();
+  updateActionButtons();
+  renderAll();
+}
+
+// ─── Player attacks: AI auto-blocks, then we resolve ───
+
+async function runPlayerCombatResolution() {
+  showModeBanner(`<div>⏳ AI is choosing blockers...</div>`);
+  await delay(600);
+
+  // AI assigns blockers
+  aiAssignBlockers('ai', 'player');
+  renderAll();
+  await delay(400);
+
+  // Resolve damage
+  showModeBanner(`<div>💥 RESOLVING COMBAT</div>`);
+  const events = resolveCombat('player', 'ai');
+  await playCombatEvents(events);
+
+  // Post-battle: bleed pools drain
+  await delay(400);
+  showModeBanner(`<div>🩸 BLEED RESOLVES</div>`);
+  const bleedEvents = resolvePostBattle();
+  await playBleedEvents(bleedEvents);
+  renderAll();
+
+  // Win check
+  checkWinCondition();
+  if (G.winner) {
+    showWinner();
+    hideModeBanner();
+    updateActionButtons();
+    return;
+  }
+
+  // Combat phase done — return to main phase. Player can play more cards
+  // or hit END TURN.
+  _mode = 'normal';
+  G.phase = 'main';
+  hideModeBanner();
+  updateActionButtons();
+  renderAll();
+}
+
+// ─── AI's combat (when it's AI turn) ───
+// AI declares all available attackers, we (player) get to block, then resolve.
+
+async function runAiCombatPhase() {
+  if (countAvailableAttackers('ai') === 0) return;
+
+  G.phase = 'combat';
+  aiDeclareAllAttackers('ai');
+  renderAll();
+  await delay(500);
+
+  const aiAttackers = getAttackers('ai');
+  if (aiAttackers.length === 0) return;
+
+  // For each AI attacker, let player choose blocker (or auto-go to face)
+  const playerHasBlockers = countAvailableBlockers('player') > 0;
+
+  if (!playerHasBlockers) {
+    // Nothing to block with — all attacks go to face
+    for (const a of aiAttackers) a.inst._blockedBy = null;
+    showModeBanner(`<div>⚠ AI ATTACKING — no blockers available</div>`);
+    await delay(900);
+    showModeBanner(`<div>💥 RESOLVING COMBAT</div>`);
+    const events = resolveCombat('ai', 'player');
+    await playCombatEvents(events);
+  } else {
+    // Player chooses blockers one at a time
+    _mode = 'combat-blockers';
+    for (const { slotIdx: aSlotIdx, inst: aInst } of aiAttackers) {
+      _pendingBlockerForAttackerIdx = aSlotIdx;
+      const aPow = aInst.power || 0;
+      showModeBanner(`
+        <div>🛡 BLOCK <strong>${aInst.name}</strong> (${aPow} power)?</div>
+        <div style="font-size:11px; color:#fde047; margin-top:4px">Tap your creature to block, or GO TO FACE</div>
+        <button class="banner-cancel-btn" id="btn-go-face">⬇ GO TO FACE</button>
+      `);
+      _container.querySelector('#btn-go-face')?.addEventListener('click', () => {
+        aInst._blockedBy = null;
+        _pendingBlockerForAttackerIdx = null;
+        _resumeBlockChoice?.();
+      });
+      // Highlight the attacker
+      renderAll();
+      // Wait for player to pick or skip
+      await new Promise(resolve => { _resumeBlockChoice = resolve; });
+      _resumeBlockChoice = null;
+    }
+    _pendingBlockerForAttackerIdx = null;
+
+    showModeBanner(`<div>💥 RESOLVING COMBAT</div>`);
+    const events = resolveCombat('ai', 'player');
+    await playCombatEvents(events);
+  }
+
+  // Post-battle: bleed
+  await delay(400);
+  showModeBanner(`<div>🩸 BLEED RESOLVES</div>`);
+  const bleedEvents = resolvePostBattle();
+  await playBleedEvents(bleedEvents);
+  renderAll();
+
+  checkWinCondition();
+  G.phase = 'main';
+  _mode = 'normal';
+  hideModeBanner();
+}
+
+let _resumeBlockChoice = null;
+
+// ─── Combat event animation ───
+
+async function playCombatEvents(events) {
+  const fx = _container.querySelector('#combat-fx-layer');
+  for (const e of events) {
+    switch (e.type) {
+      case 'face-damage': {
+        showFloatingNumber(fx, `-${e.damage} ❤`, '#f43f5e', e.defenderSide);
+        logEvent(`${e.attackerName} hits ${e.defenderSide === 'player' ? 'you' : 'AI'} for ${e.damage}`);
+        await delay(500);
+        renderAll();
+        break;
+      }
+      case 'combat-attacker-wins': {
+        logEvent(`${e.attackerName} (${e.attackerPower}) destroys ${e.blockerName} (${e.blockerPower})`);
+        await delay(400);
+        renderAll();
+        break;
+      }
+      case 'combat-blocker-wins': {
+        logEvent(`${e.blockerName} (${e.blockerPower}) destroys ${e.attackerName} (${e.attackerPower})`);
+        await delay(400);
+        renderAll();
+        break;
+      }
+      case 'combat-tie': {
+        logEvent(`${e.attackerName} and ${e.blockerName} tie at ${e.power}`);
+        await delay(300);
+        renderAll();
+        break;
+      }
+      case 'selfbleed': {
+        logEvent(`${e.attackerName} selfbleeds ${e.amount}`);
+        renderAll();
+        break;
+      }
+    }
+  }
+}
+
+async function playBleedEvents(events) {
+  const fx = _container.querySelector('#combat-fx-layer');
+  for (const e of events) {
+    showFloatingNumber(fx, `-${e.amount} ❤`, '#f43f5e', e.side);
+    logEvent(`${e.side === 'player' ? 'You' : 'AI'} bleed for ${e.amount}`);
+    await delay(500);
+    renderAll();
+  }
+}
+
+function showFloatingNumber(fx, text, color, side) {
+  const n = document.createElement('div');
+  n.className = 'floating-number';
+  n.textContent = text;
+  n.style.color = color;
+  n.style.top = side === 'player' ? '70%' : '12%';
+  n.style.left = '40%';
+  fx.appendChild(n);
+  // Animate
+  requestAnimationFrame(() => {
+    n.style.transform = 'translateY(-40px) scale(1.2)';
+    n.style.opacity = '0';
+  });
+  setTimeout(() => n.remove(), 900);
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─── End turn ───
+
 async function onEndTurn() {
   if (_aiTurnRunning) return;
   if (G.activePlayer !== 'player') return;
   if (G.winner) { showStatus('Game over.'); return; }
 
-  // Block end-turn if forced into discard mode
   if (_mode === 'discard') {
     showStatus(`Discard ${G.player.hand.length - HAND_CAP} card(s) to continue`);
     return;
   }
-  if (_mode === 'sacrifice-pick') {
-    showStatus('Cancel or pick a slot first');
+  if (_mode === 'sacrifice-pick' || _mode === 'combat-attackers' || _mode === 'combat-blockers') {
+    showStatus('Finish current action first');
     return;
   }
 
@@ -240,19 +493,30 @@ async function onEndTurn() {
     logEvent('— AI turn begins —');
     playGoldPulse('ai', G.ai.gold);
 
+    // AI plays cards in main phase
     await runAiTurn({
       onAction: (a) => {
         if (a.type === 'play') logEvent(`AI plays ${a.card.name}`);
         renderAll();
       },
     });
+    await delay(300);
+
+    // AI combat phase
+    await runAiCombatPhase();
+    await delay(300);
+
+    // AI ends turn
+    if (!G.winner) {
+      endTurn();
+      renderAll();
+    }
 
     _aiTurnRunning = false;
     btn.classList.remove('disabled');
 
-    // After AI turn, it becomes player turn — beginTurn already drew cards.
-    // Enforce hand cap on the freshly-drawn hand.
     enforceHandCap();
+    updateActionButtons();
     renderAll();
 
     if (!G.winner) {
@@ -284,7 +548,6 @@ function attachHandCardEvents(slotEl, inst) {
 
 function onHandCardTap(inst) {
   if (_mode === 'discard') {
-    // Tap a hand card while over the cap discards it
     const result = discardFromHand('player', inst.instId);
     if (result.ok) {
       showStatus(`Discarded ${inst.name}`);
@@ -293,11 +556,68 @@ function onHandCardTap(inst) {
     }
     return;
   }
-  // Normal mode: open preview
+  if (_mode !== 'normal') return; // No card playing during combat
   openPreview(inst);
 }
 
-// ─── Preview overlay ───
+// ─── Slot click handler ───
+// Used for: sacrifice-pick (player picks own slot), combat-attackers (player
+// picks own slot to attack), combat-blockers (player picks own slot to block AI).
+
+function attachSlotEvents(slotEl) {
+  slotEl.addEventListener('click', () => onSlotTap(slotEl));
+}
+
+function onSlotTap(slotEl) {
+  const side = slotEl.dataset.side;
+  const slotIdx = parseInt(slotEl.dataset.slotIdx, 10);
+
+  if (_mode === 'sacrifice-pick' && side === 'player') {
+    onSacrificeSlotPick(slotIdx);
+    return;
+  }
+
+  if (_mode === 'combat-attackers' && side === 'player') {
+    onAttackerSlotPick(slotIdx);
+    return;
+  }
+
+  if (_mode === 'combat-blockers' && side === 'player') {
+    onBlockerSlotPick(slotIdx);
+    return;
+  }
+}
+
+function onAttackerSlotPick(slotIdx) {
+  const inst = G.player.creatures[slotIdx];
+  if (!inst) return;
+  if (inst._attacking) {
+    undeclareAttacker('player', slotIdx);
+  } else {
+    const r = declareAttacker('player', slotIdx);
+    if (!r.ok) {
+      showStatus(r.error);
+      return;
+    }
+  }
+  renderAll();
+}
+
+function onBlockerSlotPick(slotIdx) {
+  if (_pendingBlockerForAttackerIdx === null) return;
+  const aInst = G.ai.creatures[_pendingBlockerForAttackerIdx];
+  if (!aInst) return;
+
+  const r = assignBlocker('player', 'ai', _pendingBlockerForAttackerIdx, slotIdx);
+  if (!r.ok) {
+    showStatus(r.error);
+    return;
+  }
+  _pendingBlockerForAttackerIdx = null;
+  if (_resumeBlockChoice) _resumeBlockChoice();
+}
+
+// ─── Preview overlay (handles play / sacrifice-prompt) ───
 
 function openPreview(inst) {
   _previewInst = inst;
@@ -319,35 +639,22 @@ function openPreview(inst) {
   const boardFull = isCreatureBoardFull('player');
 
   let canPlay = isPlayerTurn && affordable && isCreature;
-  let needsSacrifice = false;
-  if (canPlay && boardFull) {
-    needsSacrifice = true;
-  }
+  let needsSacrifice = canPlay && boardFull;
 
   const closeBtn = document.createElement('button');
   closeBtn.className = 'preview-btn preview-btn-close';
   closeBtn.textContent = '✕ CLOSE';
-  closeBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    closePreview();
-  });
+  closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closePreview(); });
 
   const playBtn = document.createElement('button');
   playBtn.className = 'preview-btn preview-btn-play' + (canPlay ? '' : ' disabled');
   if (!canPlay) {
-    if (!isCreature) {
-      playBtn.textContent = 'SPELLS COMING SOON';
-    } else if (!isPlayerTurn) {
-      playBtn.textContent = 'NOT YOUR TURN';
-    } else if (!affordable) {
-      playBtn.textContent = `NEED ${inst.goldCost}⛁ ${inst.bloodCost > 0 ? '+ ' + inst.bloodCost + '🩸' : ''}`;
-    }
+    if (!isCreature) playBtn.textContent = 'SPELLS COMING SOON';
+    else if (!isPlayerTurn) playBtn.textContent = 'NOT YOUR TURN';
+    else playBtn.textContent = `NEED ${inst.goldCost}⛁ ${inst.bloodCost > 0 ? '+ ' + inst.bloodCost + '🩸' : ''}`;
   } else if (needsSacrifice) {
     playBtn.textContent = '🔁 SACRIFICE & PLAY';
-    playBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      enterSacrificePickMode(inst);
-    });
+    playBtn.addEventListener('click', (e) => { e.stopPropagation(); enterSacrificePickMode(inst); });
   } else {
     playBtn.textContent = `▶ PLAY (${inst.goldCost}⛁${inst.bloodCost > 0 ? ' ' + inst.bloodCost + '🩸' : ''})`;
     playBtn.addEventListener('click', (e) => {
@@ -356,6 +663,7 @@ function openPreview(inst) {
       if (result.ok) {
         logEvent(`You play ${inst.name}`);
         closePreview();
+        updateActionButtons();
         renderAll();
       } else {
         showStatus(result.error);
@@ -368,10 +676,7 @@ function openPreview(inst) {
   wrapper.appendChild(actions);
   overlay.appendChild(wrapper);
 
-  overlay.onclick = (e) => {
-    if (e.target === overlay) closePreview();
-  };
-
+  overlay.onclick = (e) => { if (e.target === overlay) closePreview(); };
   overlay.classList.remove('hidden');
 }
 
@@ -384,53 +689,30 @@ function closePreview() {
 }
 
 // ─── Sacrifice-pick mode ───
-// Enter when player taps "SACRIFICE & PLAY" with full board.
-// Highlights all 4 player slots, tap one to sacrifice that creature
-// then play the new one in its place.
 
 function enterSacrificePickMode(newInst) {
   _mode = 'sacrifice-pick';
   _pendingPlayInst = newInst;
   closePreview();
-  showModeBanner(`Tap a creature to SACRIFICE for ${newInst.name}, or tap CANCEL`);
-
-  // Add cancel button to the banner
-  const banner = _container.querySelector('#mode-banner');
-  if (banner) {
-    banner.innerHTML = `
-      <div>Tap a creature to SACRIFICE for <strong>${newInst.name}</strong></div>
-      <button class="banner-cancel-btn">CANCEL</button>
-    `;
-    banner.querySelector('.banner-cancel-btn')?.addEventListener('click', exitSacrificePickMode);
-  }
-
-  // Wire up player slot taps for sacrifice
-  _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach((slotEl) => {
-    slotEl.classList.add('sacrifice-target');
-    slotEl.addEventListener('click', onSacrificeSlotPick, { once: true });
-  });
+  showModeBanner(`
+    <div>Tap a creature to SACRIFICE for <strong>${newInst.name}</strong></div>
+    <button class="banner-cancel-btn" id="btn-cancel-sac">CANCEL</button>
+  `);
+  _container.querySelector('#btn-cancel-sac')?.addEventListener('click', exitSacrificePickMode);
+  renderAll();
 }
 
 function exitSacrificePickMode() {
   _mode = 'normal';
   _pendingPlayInst = null;
   hideModeBanner();
-  _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach((slotEl) => {
-    slotEl.classList.remove('sacrifice-target');
-    // Clone-and-replace to remove the once-listener if not yet fired
-    const clone = slotEl.cloneNode(true);
-    slotEl.parentNode.replaceChild(clone, slotEl);
-  });
   renderAll();
 }
 
-function onSacrificeSlotPick(e) {
+function onSacrificeSlotPick(slotIdx) {
   if (_mode !== 'sacrifice-pick' || !_pendingPlayInst) return;
-  const slotEl = e.currentTarget;
-  const slotIdx = parseInt(slotEl.dataset.slotIdx, 10);
   const newInst = _pendingPlayInst;
 
-  // Sacrifice old creature
   const sacResult = sacrificeCreature('player', slotIdx);
   if (!sacResult.ok) {
     showStatus(sacResult.error || 'Sacrifice failed');
@@ -438,9 +720,6 @@ function onSacrificeSlotPick(e) {
     return;
   }
 
-  // Now play the new one normally — the slot is empty, playCardFromHand
-  // will pick the first empty slot which should be this one (if no AI
-  // creatures filled in between, which they don't during your turn).
   const playResult = playCardFromHand(newInst);
   if (!playResult.ok) {
     showStatus(playResult.error || 'Play failed');
@@ -486,6 +765,8 @@ function closeDock() {
   _container.querySelector('#dock-panel').classList.add('hidden');
 }
 
+// ─── Render functions ───
+
 function renderAll() {
   if (!_container || !G) return;
   renderTopBar();
@@ -494,6 +775,34 @@ function renderAll() {
   renderBoard('player');
   renderBoard('ai');
   renderHand();
+  updateActionButtons();
+}
+
+function updateActionButtons() {
+  const combatBtn = _container.querySelector('#btn-combat');
+  const endBtn = _container.querySelector('#btn-end-turn');
+  const confirmBtn = _container.querySelector('#btn-confirm');
+  if (!combatBtn || !endBtn || !confirmBtn) return;
+
+  const isMyTurn = G.activePlayer === 'player' && !G.winner;
+  const inMain = isMyTurn && _mode === 'normal' && G.phase === 'main';
+  const inCombatAttackers = _mode === 'combat-attackers';
+  const hasAttackers = countAvailableAttackers('player') > 0;
+
+  // Combat button: visible in main phase if you have available attackers
+  combatBtn.classList.toggle('hidden', !(inMain && hasAttackers));
+
+  // Confirm button: visible in combat-attackers mode
+  confirmBtn.classList.toggle('hidden', !inCombatAttackers);
+  if (inCombatAttackers) {
+    const declared = getAttackers('player').length;
+    confirmBtn.innerHTML = declared > 0
+      ? `<span>CONFIRM</span><span>ATTACK (${declared})</span>`
+      : `<span>SKIP</span><span>COMBAT</span>`;
+  }
+
+  // End turn: hidden during combat
+  endBtn.classList.toggle('hidden', inCombatAttackers || _mode === 'combat-blockers');
 }
 
 function renderTopBar() {
@@ -527,16 +836,69 @@ function renderBoard(side) {
   for (let i = 0; i < 4; i++) {
     const slotEl = _container.querySelector(`.overlay-slots-${sideClass} .board-slot[data-slot-idx="${i}"]`);
     if (!slotEl) continue;
+
+    // Reset state classes
+    slotEl.classList.remove('attacking', 'blocking', 'attack-target', 'block-target', 'sacrifice-target', 'pending-attack-target');
+
     const host = slotEl.querySelector('.slot-card-host');
     host.innerHTML = '';
     const inst = slots[i];
     if (inst) {
       slotEl.classList.remove('empty');
       const cardEl = createCardElement(inst, 'battlefield');
+      // Show exhaustion
+      if (inst.exhausted) cardEl.classList.add('is-exhausted');
+      if (inst.overexhausted) cardEl.classList.add('is-overexhausted');
+      // Show attack flag
+      if (inst._attacking) {
+        slotEl.classList.add('attacking');
+      }
       host.appendChild(cardEl);
     } else {
       slotEl.classList.add('empty');
     }
+  }
+
+  // Add mode-specific class for current selection step
+  if (_mode === 'sacrifice-pick' && side === 'player') {
+    _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach(s => {
+      if (G.player.creatures[parseInt(s.dataset.slotIdx, 10)]) {
+        s.classList.add('sacrifice-target');
+      }
+    });
+  }
+  if (_mode === 'combat-attackers' && side === 'player') {
+    _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach(s => {
+      const idx = parseInt(s.dataset.slotIdx, 10);
+      const c = G.player.creatures[idx];
+      if (c && !c.exhausted && !c.overexhausted && (c.power || 0) > 0) {
+        s.classList.add('attack-target');
+      }
+    });
+  }
+  if (_mode === 'combat-blockers' && side === 'player') {
+    _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach(s => {
+      const idx = parseInt(s.dataset.slotIdx, 10);
+      const c = G.player.creatures[idx];
+      if (c && !c.exhausted && !c.overexhausted) {
+        s.classList.add('block-target');
+      }
+    });
+    // Highlight the AI attacker we're blocking
+    if (_pendingBlockerForAttackerIdx !== null && side === 'ai') {
+      const slotEl = _container.querySelector(`.overlay-slots-opp .board-slot[data-slot-idx="${_pendingBlockerForAttackerIdx}"]`);
+      slotEl?.classList.add('pending-attack-target');
+    }
+  }
+
+  // Wire slot events (always — handler decides what to do based on mode)
+  if (side === 'player') {
+    _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach(s => {
+      // Re-clone to clear old listeners
+      const clone = s.cloneNode(true);
+      s.parentNode.replaceChild(clone, s);
+      attachSlotEvents(clone);
+    });
   }
 }
 
@@ -598,7 +960,7 @@ function logEvent(text) {
 function showWinner() {
   const el = _container.querySelector('#status-text');
   if (!el) return;
-  el.textContent = G.winner === 'player' ? '⚡ VICTORY ⚡' : '💀 DEFEAT 💀';
+  el.textContent = G.winner === 'player' ? '⚡ VICTORY ⚡' : (G.winner === 'ai' ? '💀 DEFEAT 💀' : '⚖ DRAW');
   el.classList.add('visible', 'big');
 }
 
