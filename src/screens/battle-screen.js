@@ -1,9 +1,8 @@
 // ─────────────────────────────────────────────────────────────
-// Battle Screen — Overlay-on-Background structure
+// Battle Screen — Overlay-on-Background structure with Template Mode
 //
-// All UI chrome (frames, side rails, skylines, phase pills, hex
-// END TURN frame) is provided by /public/images/ui/battlefield-bg.jpg.
-// This module just anchors dynamic elements to %-coords on top.
+// Template mode (opts.templateMode = true) replaces the bg image with
+// labeled colored regions to verify anchor positions.
 // ─────────────────────────────────────────────────────────────
 
 import { G } from '../game/state.js';
@@ -20,16 +19,12 @@ let _longPressTimer = null;
 export function mountBattleScreen(container, opts = {}) {
   _container = container;
   const templateMode = opts.templateMode === true;
-
   const playfieldClass = templateMode ? 'battle-playfield template-mode' : 'battle-playfield';
 
   container.innerHTML = `
     <div id="battle-screen">
-      <!-- The playfield locks to bg image's aspect ratio (1170:2340).
-           Letterbox bars (black) appear above/below on tall phones. -->
       <div class="${playfieldClass}">
         ${templateMode ? renderTemplateRegions() : ''}
-        <!-- Dynamic overlays anchored to %-coords of the playfield -->
         <div class="overlay-layer">
           ${renderTopBarOverlay()}
           ${renderVitalsOverlay('opponent')}
@@ -41,15 +36,9 @@ export function mountBattleScreen(container, opts = {}) {
           ${renderEndTurnButton()}
           ${renderSideDock()}
         </div>
-
-        <!-- Status text appears in combat zone band -->
         <div id="status-text"></div>
-
-        <!-- Gold coin animation layer -->
         <div id="gold-pulse-layer"></div>
       </div>
-
-      <!-- Side panel + card preview overlays (top-most layer, screen-fixed) -->
       ${renderDockPanel()}
       <div id="card-preview-overlay" class="hidden"></div>
     </div>
@@ -57,18 +46,17 @@ export function mountBattleScreen(container, opts = {}) {
 
   wireEvents();
   renderAll();
-
-  // Begin first turn
   beginTurn('player');
   renderAll();
   playGoldPulse('player', G.player.gold);
+
+  if (templateMode) {
+    console.log('[Cybervamp] Battle screen mounted in TEMPLATE MODE');
+    showStatus('TEMPLATE MODE — anchor preview');
+  }
 }
 
-// ── Static overlay templates ──
-
 function renderTemplateRegions() {
-  // Visual debug overlay — colored boxes showing where each UI region anchors.
-  // Use template-mode to verify positioning without bg image.
   const regions = [
     ['PHASE PILLS',  '2%',    '12%',   '42%', '3%',    'rgba(255,80,80,.35)'],
     ['TURN PILL',    '2%',    '55%',   '23%', '3%',    'rgba(255,200,0,.35)'],
@@ -93,30 +81,22 @@ function renderTemplateRegions() {
     ['HAND FAN',     '80%',   '2%',    '96%', '13%',   'rgba(150,80,220,.25)'],
     ['END TURN HEX', '92.5%', '82%',   '16%', '6.2%',  'rgba(220,60,60,.55)'],
   ];
-
   return regions.map(([name, top, left, w, h, bg]) => `
-    <div class="template-region" style="top:${top}; left:${left}; width:${w}; height:${h}; background:${bg};">
+    <div class="template-region" style="position:absolute; top:${top}; left:${left}; width:${w}; height:${h}; background:${bg}; border:2px dashed rgba(255,255,255,.4); display:flex; align-items:center; justify-content:center; font-size:10px; color:white; font-family:monospace; text-align:center; text-shadow:0 1px 2px black; z-index:0;">
       <span>${name}</span>
     </div>
   `).join('');
 }
 
-
-  // The phase pills + TURN text + gear icon are baked into the bg.
-  // We only overlay: the active phase highlight + the dynamic turn number.
+function renderTopBarOverlay() {
   return `
-    <div class="overlay-topbar">
-      <div class="overlay-phase-highlight" id="phase-highlight"></div>
-      <div class="overlay-turn-text" id="turn-text">TURN 1</div>
-      <button class="overlay-home-btn" id="btn-back-home" title="Home">⌂</button>
-    </div>
+    <div class="overlay-phase-highlight" id="phase-highlight"></div>
+    <div class="overlay-turn-text" id="turn-text">TURN 1</div>
+    <button class="overlay-home-btn" id="btn-back-home" title="Home">⌂</button>
   `;
 }
 
 function renderVitalsOverlay(side) {
-  // side = 'opponent' (top) or 'player' (bottom)
-  // The avatar ring + "OPPONENT/YOU" label can be in the bg, but we
-  // render the dynamic numbers on top.
   return `
     <div class="overlay-vitals overlay-vitals-${side}">
       <div class="vitals-avatar" data-vitals-avatar="${side}">
@@ -151,7 +131,6 @@ function renderDeckIndicator() {
 }
 
 function renderSlotsOverlay(side) {
-  // 4 creature slots positioned over the bg's drawn slot frames
   const sideClass = side === 'opponent' ? 'opp' : 'pla';
   return `
     <div class="overlay-slots overlay-slots-${sideClass}">
@@ -204,24 +183,15 @@ function renderDockPanel() {
   `;
 }
 
-// ── Event wiring ──
-
 function wireEvents() {
-  // Back to home
   _container.querySelector('#btn-back-home')?.addEventListener('click', () => {
     import('./home-screen.js').then(m => m.mountHomeScreen?.(document.getElementById('app')));
   });
-
-  // End turn
   _container.querySelector('#btn-end-turn').addEventListener('click', onEndTurn);
-
-  // Side dock
   _container.querySelectorAll('[data-dock]').forEach(btn => {
     btn.addEventListener('click', () => openDock(btn.dataset.dock));
   });
   _container.querySelector('[data-action="close-dock"]')?.addEventListener('click', closeDock);
-
-  // Card preview overlay — tap anywhere to dismiss
   const preview = _container.querySelector('#card-preview-overlay');
   preview.addEventListener('click', closePreview);
 }
@@ -239,7 +209,6 @@ async function onEndTurn() {
     _aiTurnRunning = true;
     const btn = _container.querySelector('#btn-end-turn');
     btn.classList.add('disabled');
-
     logEvent('— AI turn begins —');
     playGoldPulse('ai', G.ai.gold);
 
@@ -253,43 +222,26 @@ async function onEndTurn() {
     _aiTurnRunning = false;
     btn.classList.remove('disabled');
     renderAll();
-
     if (!G.winner) {
       playGoldPulse('player', G.player.gold);
       logEvent(`— Your turn (T${G.turn}) —`);
     }
   }
-
   if (G.winner) showWinner();
 }
-
-// ── Hand interactions: tap to select, tap again to play, long-press to preview ──
 
 function attachHandCardEvents(slotEl, inst) {
   let pressed = false;
   let moved = false;
-
-  const startPress = (e) => {
-    pressed = true;
-    moved = false;
+  const startPress = () => {
+    pressed = true; moved = false;
     clearTimeout(_longPressTimer);
     _longPressTimer = setTimeout(() => {
-      if (pressed && !moved) {
-        openPreview(inst);
-      }
+      if (pressed && !moved) openPreview(inst);
     }, 450);
   };
-
-  const cancelPress = () => {
-    pressed = false;
-    clearTimeout(_longPressTimer);
-  };
-
-  const onMove = () => {
-    moved = true;
-    cancelPress();
-  };
-
+  const cancelPress = () => { pressed = false; clearTimeout(_longPressTimer); };
+  const onMove = () => { moved = true; cancelPress(); };
   slotEl.addEventListener('touchstart', startPress, { passive: true });
   slotEl.addEventListener('mousedown', startPress);
   slotEl.addEventListener('touchmove', onMove, { passive: true });
@@ -320,7 +272,6 @@ function onHandCardTap(inst) {
     showStatus(`Need ${inst.goldCost} gold + ${inst.bloodCost} blood`);
     return;
   }
-
   if (_selectedHandInstId === inst.instId) {
     const result = playCardFromHand(inst);
     if (result.ok) {
@@ -337,8 +288,6 @@ function onHandCardTap(inst) {
   }
 }
 
-// ── Preview overlay (long-press) ──
-
 function openPreview(inst) {
   _previewOpen = true;
   const overlay = _container.querySelector('#card-preview-overlay');
@@ -347,15 +296,12 @@ function openPreview(inst) {
   overlay.appendChild(card);
   overlay.classList.remove('hidden');
 }
-
 function closePreview() {
   _previewOpen = false;
   const overlay = _container.querySelector('#card-preview-overlay');
   overlay.classList.add('hidden');
   setTimeout(() => { overlay.innerHTML = ''; }, 250);
 }
-
-// ── Side dock ──
 
 function openDock(which) {
   const panel = _container.querySelector('#dock-panel');
@@ -372,7 +318,7 @@ function openDock(which) {
   } else if (which === 'settings') {
     title.textContent = 'Settings';
     content.innerHTML = `
-      <p>Mute toggle and animation speed coming.</p>
+      <p>Mute and animation speed coming.</p>
       <button class="home-btn home-btn-warn" id="btn-end-game">End Game (return home)</button>
     `;
     setTimeout(() => {
@@ -385,12 +331,9 @@ function openDock(which) {
   }
   panel.classList.remove('hidden');
 }
-
 function closeDock() {
   _container.querySelector('#dock-panel').classList.add('hidden');
 }
-
-// ── Render passes ──
 
 function renderAll() {
   if (!_container || !G) return;
@@ -405,9 +348,6 @@ function renderAll() {
 function renderTopBar() {
   const turnText = _container.querySelector('#turn-text');
   if (turnText) turnText.textContent = `TURN ${G.turn}${G.activePlayer === 'ai' ? ' (AI)' : ''}`;
-
-  // Highlight active phase by positioning highlight overlay over the active pill.
-  // In our overlay model, we use position-percentages over the bg-drawn pills.
   const highlight = _container.querySelector('#phase-highlight');
   if (highlight) highlight.dataset.phase = G.phase;
 }
@@ -417,15 +357,10 @@ function renderVitals() {
     const s = G[side];
     setBoundText(`${side}.blood`, s.blood);
     setBoundText(`${side}.bleedPool`, s.bleedPool);
-    const goldText = (G.activePlayer === side)
-      ? `${s.gold}/${s.maxGoldThisTurn}`
-      : '-/-';
+    const goldText = (G.activePlayer === side) ? `${s.gold}/${s.maxGoldThisTurn}` : '-/-';
     setBoundText(`${side}.gold`, goldText);
-
     const goldStat = _container.querySelector(`.gold-stat[data-side="${side}"]`);
-    if (goldStat) {
-      goldStat.classList.toggle('dim', G.activePlayer !== side);
-    }
+    if (goldStat) goldStat.classList.toggle('dim', G.activePlayer !== side);
   }
 }
 
@@ -448,21 +383,8 @@ function renderBoard(side) {
       slotEl.classList.remove('empty');
       const cardEl = createCardElement(inst, 'battlefield');
       host.appendChild(cardEl);
-      // Render orbiting tokens
-      const orbit = slotEl.querySelector('.slot-token-orbit');
-      const tokenSlots = orbit.querySelectorAll('.token-mini');
-      for (let t = 0; t < 3; t++) {
-        const tokName = inst.tokens?.[t];
-        tokenSlots[t].textContent = tokName ? tokenGlyph(tokName) : '';
-        tokenSlots[t].classList.toggle('filled', !!tokName);
-      }
     } else {
       slotEl.classList.add('empty');
-      // Clear token icons
-      slotEl.querySelectorAll('.token-mini').forEach(t => {
-        t.textContent = '';
-        t.classList.remove('filled');
-      });
     }
   }
 }
@@ -477,12 +399,9 @@ function renderHand() {
   hand.forEach((inst, idx) => {
     const center = (total - 1) / 2;
     const offset = idx - center;
-    // Fan curve: tighter angle for bigger cards
     const angleStep = total > 6 ? 4 : 6;
     const rotation = offset * angleStep;
     const yLift = Math.abs(offset) * 4;
-    // Spacing per card slot — % of #hand-fan-overlay width (= playfield width)
-    // Bigger cards (16% wide) need more spacing so they don't overlap excessively
     const xOffsetPct = offset * 9;
 
     const slot = document.createElement('div');
@@ -493,24 +412,19 @@ function renderHand() {
     slot.dataset.instId = inst.instId;
 
     const card = createCardElement(inst, 'hand');
-
     const affordable = canAffordInst(inst) && G.activePlayer === 'player' && G.phase === 'main' && inst.type !== 'Spell';
     if (!affordable) card.classList.add('unaffordable');
     if (_selectedHandInstId === inst.instId) {
       card.classList.add('selected');
       slot.classList.add('selected');
-      // Selected card centers horizontally, rises above hand zone, scales up
       slot.style.transform = `translateX(0%) translateY(-90%) rotate(0deg) scale(1.4)`;
       slot.style.zIndex = 100;
     }
-
     attachHandCardEvents(slot, inst);
     slot.appendChild(card);
     fan.appendChild(slot);
   });
 }
-
-// ── Helpers ──
 
 function who(side) { return side === 'opponent' ? 'ai' : 'player'; }
 
@@ -540,15 +454,9 @@ function showWinner() {
   el.classList.add('visible', 'big');
 }
 
-function tokenGlyph(name) {
-  return ({ Raven: '🐦', Bat: '🦇', Wolf: '🐺', Zombie: '💀' })[name] || '◇';
-}
-
 function escapeHtml(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
-
-// ── Gold coin animation ──
 
 function playGoldPulse(side, amount) {
   if (!_container || amount <= 0) return;
@@ -563,7 +471,6 @@ function playGoldPulse(side, amount) {
     const coin = document.createElement('div');
     coin.className = 'gold-coin';
     layer.appendChild(coin);
-
     requestAnimationFrame(() => {
       setTimeout(() => {
         const dx = (targetRect.left + targetRect.width/2) - (sourceRect.left + sourceRect.width/2);
@@ -572,7 +479,6 @@ function playGoldPulse(side, amount) {
         coin.style.opacity = '0';
       }, i * 100);
     });
-
     setTimeout(() => coin.remove(), i * 100 + 800);
   }
 }

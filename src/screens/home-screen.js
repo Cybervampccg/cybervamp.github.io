@@ -1,5 +1,9 @@
 // ─────────────────────────────────────────────────────────────
-// Home Screen — Test/Dev Hub with Template Mode toggle
+// Home Screen — Cybervamp v2 · Session C-Final-Fix
+// ─────────────────────────────────────────────────────────────
+// VERSION CHECK: if you see "C-FINAL-FIX" in the home screen,
+// this file IS deployed. If you don't see it, the file did NOT
+// update on disk and you need to recopy.
 // ─────────────────────────────────────────────────────────────
 
 import { CARDS } from '../game/cards.js';
@@ -8,13 +12,15 @@ import { makeInitialState, getEffectivePower } from '../game/state.js';
 import { buildDefaultDeck } from '../game/decks.js';
 import { mountBattleScreen } from './battle-screen.js';
 
+const VERSION_TAG = 'C-FINAL-FIX';
+
 export function mountHomeScreen(container) {
   const meta = loadMeta();
 
   container.innerHTML = `
     <div id="home-screen">
       <div class="home-logo">CYBERVAMP</div>
-      <div class="home-sub">v2.0 · Session C-Final · UI Anchors</div>
+      <div class="home-sub">v2.0 · ${VERSION_TAG} · Anchor Verification</div>
 
       <div class="home-info">
         <div>📇 ${CARDS.length} cards loaded</div>
@@ -24,18 +30,21 @@ export function mountHomeScreen(container) {
       </div>
 
       <div class="home-instructions">
-        <strong>Template Mode</strong> shows colored boxes where each UI region sits — no background image needed. Use this to confirm anchors before generating new bg art.
+        <strong style="color:#fde047">⬇ TEMPLATE MODE ⬇</strong><br>
+        Click the green button to see colored regions where each UI
+        element will sit — no background image. Use this to verify
+        anchors are correct.
       </div>
 
       <div class="home-actions">
+        <button class="home-btn" data-action="template-mode" style="background:linear-gradient(180deg, #16a34a 0%, #14532d 100%); border-color: #4ade80; color: #ecfdf5; font-size: 16px;">
+          📐 OPEN TEMPLATE MODE
+        </button>
         <button class="home-btn home-btn-primary" data-action="battle-red-black">
           ⚔ Battle: Red vs Black
         </button>
         <button class="home-btn home-btn-primary" data-action="battle-purple-white">
           ⚔ Battle: Purple vs White
-        </button>
-        <button class="home-btn home-btn-secondary" data-action="template-mode">
-          📐 Template Mode (anchor preview)
         </button>
         <button class="home-btn home-btn-secondary" data-action="inspect-state">
           🔍 Inspect current G state
@@ -52,6 +61,9 @@ export function mountHomeScreen(container) {
   container.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', () => handleAction(btn.dataset.action, container));
   });
+
+  // Console version log so user can verify in DevTools
+  console.log(`[Cybervamp] Home screen mounted — version ${VERSION_TAG}`);
 }
 
 function handleAction(action, container) {
@@ -65,7 +77,7 @@ function handleAction(action, container) {
       startBattle('Purple', 'White', container, false);
       break;
     case 'template-mode':
-      // Init a Red vs Black battle but render in template mode
+      console.log('[Cybervamp] Template mode requested');
       startBattle('Red', 'Black', container, true);
       break;
     case 'inspect-state': {
