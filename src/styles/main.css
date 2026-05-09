@@ -1,9 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   Cybervamp v2 — FINAL anchors (Patched 2)
-   Fixes:
-     1. Hand cards now sit INSIDE the drawn hand fan frame
-     2. Gold pill aligned with vitals row (not stacked below)
-     3. Template overlays are more transparent so bg art is visible behind them
+   Cybervamp v2 — Hand fan fix + preview overlay with PLAY button
    ═══════════════════════════════════════════════════════════ */
 
 :root {
@@ -228,8 +224,6 @@ html, body {
 }
 
 /* ─── PLAYER VITALS ─── */
-/* Adjusted layout: vitals row contains label + HP/Bleed only.
-   Gold pill is laid out INSIDE this same flex row so it sits beside the others. */
 
 .overlay-vitals-player {
   position: absolute;
@@ -242,19 +236,6 @@ html, body {
   gap: var(--sp-3);
   z-index: 4;
 }
-
-.vitals-avatar {
-  width: 38px; height: 38px;
-  border-radius: 50%;
-  background: rgba(20, 14, 40, 0.7);
-  border: 1px solid var(--border-bright);
-  align-items: center; justify-content: center;
-  flex-shrink: 0;
-  overflow: hidden;
-  display: none; /* drawn in bg */
-}
-
-.vitals-avatar-placeholder { font-size: 22px; }
 
 .vitals-label {
   font-family: 'Cinzel', serif;
@@ -314,20 +295,15 @@ html, body {
   gap: 4px;
   z-index: 4;
 }
-.deck-stack {
-  font-size: 24px;
-  filter: drop-shadow(0 0 4px rgba(0,0,0,1));
-  display: none; /* drawn in bg */
-}
 .deck-count {
   font-family: 'Cinzel', serif;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-bright);
   text-shadow: 0 1px 3px rgba(0,0,0,1);
 }
 
-/* ─── OPPONENT SLOTS ─── */
+/* ─── SLOTS ─── */
 
 .overlay-slots-opp {
   position: absolute;
@@ -341,8 +317,6 @@ html, body {
   gap: 1.2%;
   z-index: 3;
 }
-
-/* ─── PLAYER SLOTS ─── */
 
 .overlay-slots-pla {
   position: absolute;
@@ -365,8 +339,6 @@ html, body {
   align-items: center;
 }
 
-.slot-token-orbit { display: none; height: 0; }
-
 .slot-card-host {
   width: 100%;
   height: 100%;
@@ -376,26 +348,22 @@ html, body {
 }
 
 /* ─── HAND FAN ─── */
-/* The fan area where cards live. Cards anchor by bottom + center,
-   so positioning uses 'bottom: X%' on .hand-slot to control how far
-   cards sit ABOVE the bottom of the fan area.
-   Hand frame in bg roughly y=80-92%. */
+/* FIXED: zone tightened to drawn frame (78-92%), cards anchored higher
+   so they sit fully inside the visible frame, not below it. */
 
 #hand-fan-overlay {
   position: absolute;
-  top: 79%;
+  top: 78%;
   left: 0;
   right: 0;
-  height: 19%;        /* Extends to ~98% to give room for selected lift */
+  height: 14%;        /* ends at 92% — matches drawn hand frame bottom */
   z-index: 6;
   pointer-events: none;
 }
 
 .hand-slot {
   position: absolute;
-  /* Cards anchor at the BOTTOM of fan area, then we use translateY 
-     in JS to push them up into the curved frame area */
-  bottom: 25%;        /* sits about 25% up from fan area bottom */
+  bottom: 8%;          /* sits inside the fan zone */
   left: 50%;
   width: 17%;
   aspect-ratio: 5 / 7;
@@ -404,10 +372,6 @@ html, body {
   transition: transform 0.28s cubic-bezier(.3,.1,.3,1.2);
   pointer-events: auto;
   cursor: pointer;
-}
-
-.hand-slot.selected {
-  transition: transform 0.32s cubic-bezier(.3,.1,.3,1.4);
 }
 
 /* ─── CARD STYLES ─── */
@@ -447,13 +411,7 @@ html, body {
     0 0 0 1px rgba(192, 132, 252, 0.3);
 }
 .card-hand.unaffordable {
-  filter: brightness(0.4) saturate(0.4);
-}
-.card-hand.selected {
-  border-color: var(--gold-bright);
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.9),
-    0 0 28px rgba(234, 179, 8, 0.55);
+  filter: brightness(0.45) saturate(0.5);
 }
 
 .card-cost-stack {
@@ -480,9 +438,9 @@ html, body {
   font-size: 14px;
 }
 .cost-coin.preview {
-  width: 36px; height: 36px;
+  width: 38px; height: 38px;
   border-radius: 50%;
-  font-size: 18px;
+  font-size: 19px;
   margin: 0 4px;
 }
 .cost-coin.gold {
@@ -533,11 +491,6 @@ html, body {
   font-size: 12px;
   bottom: 3px; right: 3px;
 }
-.card-power-coin.bf.damaged {
-  background: radial-gradient(circle at 35% 25%, #ffb8c8 0%, #f43f5e 35%, #831827 100%);
-  color: #fff;
-  animation: damage-pulse 0.8s ease-in-out infinite;
-}
 
 .card-battlefield {
   width: 92%;
@@ -546,48 +499,42 @@ html, body {
   border-radius: var(--r-sm);
   align-self: center;
 }
-.card-battlefield.is-newly-turned::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: radial-gradient(circle at center, transparent 40%, rgba(234, 179, 8, 0.18) 80%);
-  pointer-events: none;
-  border-radius: var(--r-sm);
-}
-.card-battlefield.is-exhausted {
-  filter: brightness(0.7);
-  transform: rotate(8deg);
-}
-.card-battlefield.is-overexhausted {
-  filter: brightness(0.55);
-  transform: rotate(-12deg) scale(0.95);
-}
 
-/* PREVIEW CARD */
+/* ─── PREVIEW OVERLAY (with PLAY/CLOSE buttons) ─── */
+
 #card-preview-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.88);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.90);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   z-index: 9000;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--sp-5);
+  padding: var(--sp-4);
   opacity: 1;
   transition: opacity 0.25s;
-  cursor: pointer;
 }
 #card-preview-overlay.hidden {
   opacity: 0;
   pointer-events: none;
 }
 
+.preview-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 380px;
+  max-height: 90vh;
+  align-items: stretch;
+  gap: var(--sp-3);
+}
+
 .card-preview {
   display: flex;
   flex-direction: column;
-  width: min(72vw, 320px);
-  max-height: 90vh;
+  width: 100%;
   background: linear-gradient(180deg, rgba(30,20,60,0.95) 0%, rgba(8,4,20,0.98) 100%);
   border: 2px solid var(--gold-bright);
   border-radius: var(--r-lg);
@@ -599,12 +546,15 @@ html, body {
   width: 100%;
   aspect-ratio: 5/7;
   flex-shrink: 0;
+  max-height: 50vh;
+  object-fit: contain;
 }
 .preview-info {
   padding: var(--sp-3) var(--sp-4);
   font-size: 13px;
   color: var(--text-mid);
   line-height: 1.5;
+  overflow-y: auto;
 }
 .preview-name {
   font-family: 'Cinzel Decorative', serif;
@@ -652,6 +602,55 @@ html, body {
   font-size: 11px;
   text-align: center;
 }
+
+/* Action buttons below the preview card */
+.preview-actions {
+  display: flex;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-2);
+}
+
+.preview-btn {
+  flex: 1;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  font-size: 14px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 2px solid;
+  transition: transform 0.12s, box-shadow 0.2s, filter 0.2s;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  min-height: 50px;
+}
+
+.preview-btn-play {
+  background: linear-gradient(180deg, #15803d 0%, #14532d 100%);
+  border-color: #4ade80;
+  color: #f0fdf4;
+  box-shadow: 0 4px 14px rgba(74, 222, 128, 0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.preview-btn-play:hover { filter: brightness(1.15); transform: translateY(-1px); }
+.preview-btn-play:active { transform: scale(0.97); }
+.preview-btn-play.disabled {
+  background: rgba(60, 60, 60, 0.5);
+  border-color: rgba(120, 120, 120, 0.4);
+  color: var(--text-dim);
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+.preview-btn-close {
+  background: rgba(20, 16, 36, 0.85);
+  border-color: var(--border-bright);
+  color: var(--text-mid);
+  flex: 0 0 35%;
+}
+.preview-btn-close:hover { color: var(--bleed-red); border-color: var(--bleed-red); }
+.preview-btn-close:active { transform: scale(0.97); }
 
 /* ─── END TURN HEX ─── */
 
@@ -834,18 +833,12 @@ html, body {
   transition: transform 0.6s cubic-bezier(.3,.1,.3,1), opacity 0.6s;
 }
 
-/* ─── KEYFRAMES ─── */
-
 @keyframes logo-glow {
   0%, 100% { text-shadow: 0 0 16px rgba(234, 179, 8, 0.4); }
   50%      { text-shadow: 0 0 32px rgba(234, 179, 8, 0.7); }
 }
-@keyframes damage-pulse {
-  0%, 100% { box-shadow: 0 1px 4px rgba(0,0,0,0.7), 0 0 8px rgba(244, 63, 94, 0.6); }
-  50%      { box-shadow: 0 1px 4px rgba(0,0,0,0.7), 0 0 14px rgba(244, 63, 94, 0.9); }
-}
 
-/* ─── TEMPLATE MODE — semi-transparent for visibility ─── */
+/* template region opacity for visibility */
 .template-mode .template-region {
   opacity: 0.7;
 }

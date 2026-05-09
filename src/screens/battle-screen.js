@@ -1,8 +1,11 @@
 // ─────────────────────────────────────────────────────────────
-// Battle Screen — Overlay-on-Background structure with Template Mode
+// Battle Screen — Hand fan fix + tap-to-preview interaction
 //
-// Template mode (opts.templateMode = true) replaces the bg image with
-// labeled colored regions to verify anchor positions.
+// Interaction change:
+//   - Single tap on hand card → opens fullscreen preview with PLAY button
+//   - Tap PLAY button → plays the card, closes preview
+//   - Tap CLOSE / outside / X → closes preview without playing
+//   - Long-press → also opens preview (alternate)
 // ─────────────────────────────────────────────────────────────
 
 import { G } from '../game/state.js';
@@ -11,10 +14,8 @@ import { runAiTurn } from '../game/ai.js';
 import { createCardElement } from '../game/card-render.js';
 
 let _container = null;
-let _selectedHandInstId = null;
 let _aiTurnRunning = false;
-let _previewOpen = false;
-let _longPressTimer = null;
+let _previewInst = null;
 
 export function mountBattleScreen(container, opts = {}) {
   _container = container;
@@ -75,10 +76,9 @@ function renderTemplateRegions() {
     ['PLA SLOT 3',   '55%',   '51.5%', '16%', '14%',   'rgba(150,80,220,.25)'],
     ['PLA SLOT 4',   '55%',   '69.5%', '16%', '14%',   'rgba(150,80,220,.25)'],
     ['PLA AVATAR',   '69%',   '2%',    '12%', '10%',   'rgba(150,80,200,.4)'],
-    ['PLA VITALS',   '73%',   '14.5%', '30%', '4.5%',  'rgba(220,60,60,.3)'],
-    ['GOLD PILL',    '75%',   '22%',   '18%', '4%',    'rgba(255,200,0,.4)'],
+    ['PLA VITALS',   '73%',   '14.5%', '60%', '4.5%',  'rgba(220,60,60,.3)'],
     ['SIDE DOCK',    '68%',   '88%',   '10%', '19%',   'rgba(120,180,200,.35)'],
-    ['HAND FAN',     '80%',   '2%',    '96%', '13%',   'rgba(150,80,220,.25)'],
+    ['HAND FAN',     '78%',   '2%',    '96%', '14%',   'rgba(150,80,220,.25)'],
     ['END TURN HEX', '92.5%', '82%',   '16%', '6.2%',  'rgba(220,60,60,.55)'],
   ];
   return regions.map(([name, top, left, w, h, bg]) => `
@@ -99,9 +99,6 @@ function renderTopBarOverlay() {
 function renderVitalsOverlay(side) {
   return `
     <div class="overlay-vitals overlay-vitals-${side}">
-      <div class="vitals-avatar" data-vitals-avatar="${side}">
-        <div class="vitals-avatar-placeholder">${side === 'player' ? '🧛' : '👤'}</div>
-      </div>
       <div class="vitals-label">${side === 'player' ? 'YOU' : 'OPPONENT'}</div>
       <div class="vitals-stats">
         <span class="vital-stat">
@@ -124,7 +121,6 @@ function renderVitalsOverlay(side) {
 function renderDeckIndicator() {
   return `
     <div class="overlay-deck">
-      <span class="deck-stack">📚</span>
       <span class="deck-count" data-bind="opponent.deck.length">x35</span>
     </div>
   `;
@@ -136,11 +132,6 @@ function renderSlotsOverlay(side) {
     <div class="overlay-slots overlay-slots-${sideClass}">
       ${[0, 1, 2, 3].map(i => `
         <div class="board-slot" data-side="${who(side)}" data-slot-idx="${i}">
-          <div class="slot-token-orbit">
-            <div class="token-mini" data-token-idx="0"></div>
-            <div class="token-mini" data-token-idx="1"></div>
-            <div class="token-mini" data-token-idx="2"></div>
-          </div>
           <div class="slot-card-host"></div>
         </div>
       `).join('')}
@@ -192,8 +183,6 @@ function wireEvents() {
     btn.addEventListener('click', () => openDock(btn.dataset.dock));
   });
   _container.querySelector('[data-action="close-dock"]')?.addEventListener('click', closeDock);
-  const preview = _container.querySelector('#card-preview-overlay');
-  preview.addEventListener('click', closePreview);
 }
 
 async function onEndTurn() {
@@ -201,7 +190,7 @@ async function onEndTurn() {
   if (G.activePlayer !== 'player') return;
   if (G.winner) { showStatus('Game over.'); return; }
 
-  _selectedHandInstId = null;
+  closePreview();
   endTurn();
   renderAll();
 
@@ -230,77 +219,106 @@ async function onEndTurn() {
   if (G.winner) showWinner();
 }
 
+// ─── Hand card interaction ──
+// Single tap → open preview. Long-press → also open preview.
+
 function attachHandCardEvents(slotEl, inst) {
-  let pressed = false;
-  let moved = false;
-  const startPress = () => {
-    pressed = true; moved = false;
-    clearTimeout(_longPressTimer);
-    _longPressTimer = setTimeout(() => {
-      if (pressed && !moved) openPreview(inst);
-    }, 450);
+  let touchStartTime = 0;
+  let touchMoved = false;
+
+  const onPointerDown = () => { touchStartTime = Date.now(); touchMoved = false; };
+  const onPointerMove = () => { touchMoved = true; };
+  const onPointerUp = (e) => {
+    if (touchMoved) return;
+    const elapsed = Date.now() - touchStartTime;
+    e.preventDefault?.();
+    e.stopPropagation?.();
+    openPreview(inst);
   };
-  const cancelPress = () => { pressed = false; clearTimeout(_longPressTimer); };
-  const onMove = () => { moved = true; cancelPress(); };
-  slotEl.addEventListener('touchstart', startPress, { passive: true });
-  slotEl.addEventListener('mousedown', startPress);
-  slotEl.addEventListener('touchmove', onMove, { passive: true });
-  slotEl.addEventListener('touchend', (e) => {
-    cancelPress();
-    if (!moved && !_previewOpen) {
-      e.preventDefault();
-      onHandCardTap(inst);
-    }
-  }, { passive: false });
-  slotEl.addEventListener('mouseup', () => {
-    cancelPress();
-    if (!moved && !_previewOpen) onHandCardTap(inst);
-  });
-  slotEl.addEventListener('mouseleave', cancelPress);
+
+  slotEl.addEventListener('touchstart', onPointerDown, { passive: true });
+  slotEl.addEventListener('touchmove', onPointerMove, { passive: true });
+  slotEl.addEventListener('touchend', onPointerUp, { passive: false });
+  slotEl.addEventListener('mousedown', onPointerDown);
+  slotEl.addEventListener('mouseup', onPointerUp);
 }
 
-function onHandCardTap(inst) {
-  if (G.activePlayer !== 'player' || G.phase !== 'main') {
-    showStatus('Not your turn.');
-    return;
-  }
-  if (inst.type === 'Spell') {
-    showStatus('Spells coming in a future session.');
-    return;
-  }
-  if (!canAffordInst(inst)) {
-    showStatus(`Need ${inst.goldCost} gold + ${inst.bloodCost} blood`);
-    return;
-  }
-  if (_selectedHandInstId === inst.instId) {
-    const result = playCardFromHand(inst);
-    if (result.ok) {
-      logEvent(`You play ${inst.name}`);
-      _selectedHandInstId = null;
-      renderAll();
-    } else {
-      showStatus(result.error);
-    }
-  } else {
-    _selectedHandInstId = inst.instId;
-    showStatus(`Tap again to play ${inst.name}`);
-    renderHand();
-  }
-}
+// ─── Preview overlay with PLAY/CLOSE buttons ──
 
 function openPreview(inst) {
-  _previewOpen = true;
+  _previewInst = inst;
   const overlay = _container.querySelector('#card-preview-overlay');
   overlay.innerHTML = '';
+
+  // Build the preview content
+  const wrapper = document.createElement('div');
+  wrapper.className = 'preview-wrapper';
+
   const card = createCardElement(inst, 'preview');
-  overlay.appendChild(card);
+  wrapper.appendChild(card);
+
+  // Action buttons
+  const actions = document.createElement('div');
+  actions.className = 'preview-actions';
+
+  const canPlay = canAffordInst(inst)
+    && G.activePlayer === 'player'
+    && G.phase === 'main'
+    && inst.type !== 'Spell';
+
+  const playBtn = document.createElement('button');
+  playBtn.className = 'preview-btn preview-btn-play' + (canPlay ? '' : ' disabled');
+  if (!canPlay) {
+    if (inst.type === 'Spell') {
+      playBtn.textContent = 'SPELLS COMING SOON';
+    } else if (G.activePlayer !== 'player' || G.phase !== 'main') {
+      playBtn.textContent = "NOT YOUR TURN";
+    } else {
+      playBtn.textContent = `NEED ${inst.goldCost}⛁ ${inst.bloodCost > 0 ? '+ ' + inst.bloodCost + '🩸' : ''}`;
+    }
+  } else {
+    playBtn.textContent = `▶ PLAY (${inst.goldCost}⛁${inst.bloodCost > 0 ? ' ' + inst.bloodCost + '🩸' : ''})`;
+    playBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const result = playCardFromHand(inst);
+      if (result.ok) {
+        logEvent(`You play ${inst.name}`);
+        closePreview();
+        renderAll();
+      } else {
+        showStatus(result.error);
+      }
+    });
+  }
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'preview-btn preview-btn-close';
+  closeBtn.textContent = '✕ CLOSE';
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closePreview();
+  });
+
+  actions.appendChild(closeBtn);
+  actions.appendChild(playBtn);
+  wrapper.appendChild(actions);
+
+  overlay.appendChild(wrapper);
+
+  // Tap on overlay backdrop (not wrapper) closes
+  overlay.onclick = (e) => {
+    if (e.target === overlay) closePreview();
+  };
+
   overlay.classList.remove('hidden');
 }
+
 function closePreview() {
-  _previewOpen = false;
+  _previewInst = null;
   const overlay = _container.querySelector('#card-preview-overlay');
+  if (!overlay) return;
   overlay.classList.add('hidden');
-  setTimeout(() => { overlay.innerHTML = ''; }, 250);
+  setTimeout(() => { if (overlay.classList.contains('hidden')) overlay.innerHTML = ''; }, 300);
 }
 
 function openDock(which) {
@@ -414,12 +432,7 @@ function renderHand() {
     const card = createCardElement(inst, 'hand');
     const affordable = canAffordInst(inst) && G.activePlayer === 'player' && G.phase === 'main' && inst.type !== 'Spell';
     if (!affordable) card.classList.add('unaffordable');
-    if (_selectedHandInstId === inst.instId) {
-      card.classList.add('selected');
-      slot.classList.add('selected');
-      slot.style.transform = `translateX(0%) translateY(-90%) rotate(0deg) scale(1.4)`;
-      slot.style.zIndex = 100;
-    }
+
     attachHandCardEvents(slot, inst);
     slot.appendChild(card);
     fan.appendChild(slot);
