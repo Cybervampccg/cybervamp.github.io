@@ -1,16 +1,22 @@
 // ─────────────────────────────────────────────────────────────
-// Battle Screen — Hand fan as flex row (full width spread)
-// Cards distribute via flexbox; per-card rotation set inline as CSS var.
+// Battle Screen — Hand fan flex row + 2 new rules:
+//   1. Hand cap = 7. If hand > 7 after draw, force a discard.
+//   2. Creature board full: tapping PLAY prompts to sacrifice a slot.
 // ─────────────────────────────────────────────────────────────
 
 import { G } from '../game/state.js';
 import { beginTurn, endTurn, playCardFromHand, canAffordInst } from '../game/flow.js';
 import { runAiTurn } from '../game/ai.js';
 import { createCardElement } from '../game/card-render.js';
+import { sacrificeCreature, isCreatureBoardFull, discardFromHand } from '../game/sacrifice.js';
+
+const HAND_CAP = 7;
 
 let _container = null;
 let _aiTurnRunning = false;
 let _previewInst = null;
+let _mode = 'normal'; // 'normal' | 'discard' | 'sacrifice-pick'
+let _pendingPlayInst = null; // creature waiting for a sacrifice slot pick
 
 export function mountBattleScreen(container, opts = {}) {
   _container = container;
@@ -34,6 +40,7 @@ export function mountBattleScreen(container, opts = {}) {
         </div>
         <div id="status-text"></div>
         <div id="gold-pulse-layer"></div>
+        <div id="mode-banner" class="hidden"></div>
       </div>
       ${renderDockPanel()}
       <div id="card-preview-overlay" class="hidden"></div>
@@ -41,13 +48,43 @@ export function mountBattleScreen(container, opts = {}) {
   `;
 
   wireEvents();
-  renderAll();
   beginTurn('player');
+  enforceHandCap();
   renderAll();
   playGoldPulse('player', G.player.gold);
 
   if (templateMode) showStatus('TEMPLATE MODE — anchor preview');
 }
+
+// ─── Hand cap enforcement ───
+// If hand > HAND_CAP, enter discard mode. Player must tap a card to send it
+// to discard pile. Block all other actions until hand is at cap.
+
+function enforceHandCap() {
+  if (G.activePlayer !== 'player') return;
+  if ((G.player.hand?.length || 0) > HAND_CAP) {
+    _mode = 'discard';
+    showModeBanner(`HAND OVER LIMIT — tap a card to discard (${G.player.hand.length}/${HAND_CAP})`);
+  } else if (_mode === 'discard') {
+    _mode = 'normal';
+    hideModeBanner();
+  }
+}
+
+function showModeBanner(text) {
+  const banner = _container.querySelector('#mode-banner');
+  if (!banner) return;
+  banner.textContent = text;
+  banner.classList.remove('hidden');
+}
+
+function hideModeBanner() {
+  const banner = _container.querySelector('#mode-banner');
+  if (!banner) return;
+  banner.classList.add('hidden');
+}
+
+// ─── Template (unchanged) ───
 
 function renderTemplateRegions() {
   const regions = [
@@ -182,6 +219,16 @@ async function onEndTurn() {
   if (G.activePlayer !== 'player') return;
   if (G.winner) { showStatus('Game over.'); return; }
 
+  // Block end-turn if forced into discard mode
+  if (_mode === 'discard') {
+    showStatus(`Discard ${G.player.hand.length - HAND_CAP} card(s) to continue`);
+    return;
+  }
+  if (_mode === 'sacrifice-pick') {
+    showStatus('Cancel or pick a slot first');
+    return;
+  }
+
   closePreview();
   endTurn();
   renderAll();
@@ -202,7 +249,12 @@ async function onEndTurn() {
 
     _aiTurnRunning = false;
     btn.classList.remove('disabled');
+
+    // After AI turn, it becomes player turn — beginTurn already drew cards.
+    // Enforce hand cap on the freshly-drawn hand.
+    enforceHandCap();
     renderAll();
+
     if (!G.winner) {
       playGoldPulse('player', G.player.gold);
       logEvent(`— Your turn (T${G.turn}) —`);
@@ -211,26 +263,41 @@ async function onEndTurn() {
   if (G.winner) showWinner();
 }
 
-// ─── Hand card interaction ─── single tap → preview
+// ─── Hand card tap ───
 
 function attachHandCardEvents(slotEl, inst) {
   let touchMoved = false;
-
   const onPointerDown = () => { touchMoved = false; };
   const onPointerMove = () => { touchMoved = true; };
   const onPointerUp = (e) => {
     if (touchMoved) return;
     e.preventDefault?.();
     e.stopPropagation?.();
-    openPreview(inst);
+    onHandCardTap(inst);
   };
-
   slotEl.addEventListener('touchstart', onPointerDown, { passive: true });
   slotEl.addEventListener('touchmove', onPointerMove, { passive: true });
   slotEl.addEventListener('touchend', onPointerUp, { passive: false });
   slotEl.addEventListener('mousedown', onPointerDown);
   slotEl.addEventListener('mouseup', onPointerUp);
 }
+
+function onHandCardTap(inst) {
+  if (_mode === 'discard') {
+    // Tap a hand card while over the cap discards it
+    const result = discardFromHand('player', inst.instId);
+    if (result.ok) {
+      showStatus(`Discarded ${inst.name}`);
+      enforceHandCap();
+      renderAll();
+    }
+    return;
+  }
+  // Normal mode: open preview
+  openPreview(inst);
+}
+
+// ─── Preview overlay ───
 
 function openPreview(inst) {
   _previewInst = inst;
@@ -246,10 +313,16 @@ function openPreview(inst) {
   const actions = document.createElement('div');
   actions.className = 'preview-actions';
 
-  const canPlay = canAffordInst(inst)
-    && G.activePlayer === 'player'
-    && G.phase === 'main'
-    && inst.type !== 'Spell';
+  const isPlayerTurn = G.activePlayer === 'player' && G.phase === 'main';
+  const affordable = canAffordInst(inst);
+  const isCreature = inst.type !== 'Spell';
+  const boardFull = isCreatureBoardFull('player');
+
+  let canPlay = isPlayerTurn && affordable && isCreature;
+  let needsSacrifice = false;
+  if (canPlay && boardFull) {
+    needsSacrifice = true;
+  }
 
   const closeBtn = document.createElement('button');
   closeBtn.className = 'preview-btn preview-btn-close';
@@ -262,13 +335,19 @@ function openPreview(inst) {
   const playBtn = document.createElement('button');
   playBtn.className = 'preview-btn preview-btn-play' + (canPlay ? '' : ' disabled');
   if (!canPlay) {
-    if (inst.type === 'Spell') {
+    if (!isCreature) {
       playBtn.textContent = 'SPELLS COMING SOON';
-    } else if (G.activePlayer !== 'player' || G.phase !== 'main') {
-      playBtn.textContent = "NOT YOUR TURN";
-    } else {
+    } else if (!isPlayerTurn) {
+      playBtn.textContent = 'NOT YOUR TURN';
+    } else if (!affordable) {
       playBtn.textContent = `NEED ${inst.goldCost}⛁ ${inst.bloodCost > 0 ? '+ ' + inst.bloodCost + '🩸' : ''}`;
     }
+  } else if (needsSacrifice) {
+    playBtn.textContent = '🔁 SACRIFICE & PLAY';
+    playBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      enterSacrificePickMode(inst);
+    });
   } else {
     playBtn.textContent = `▶ PLAY (${inst.goldCost}⛁${inst.bloodCost > 0 ? ' ' + inst.bloodCost + '🩸' : ''})`;
     playBtn.addEventListener('click', (e) => {
@@ -303,6 +382,77 @@ function closePreview() {
   overlay.classList.add('hidden');
   setTimeout(() => { if (overlay.classList.contains('hidden')) overlay.innerHTML = ''; }, 300);
 }
+
+// ─── Sacrifice-pick mode ───
+// Enter when player taps "SACRIFICE & PLAY" with full board.
+// Highlights all 4 player slots, tap one to sacrifice that creature
+// then play the new one in its place.
+
+function enterSacrificePickMode(newInst) {
+  _mode = 'sacrifice-pick';
+  _pendingPlayInst = newInst;
+  closePreview();
+  showModeBanner(`Tap a creature to SACRIFICE for ${newInst.name}, or tap CANCEL`);
+
+  // Add cancel button to the banner
+  const banner = _container.querySelector('#mode-banner');
+  if (banner) {
+    banner.innerHTML = `
+      <div>Tap a creature to SACRIFICE for <strong>${newInst.name}</strong></div>
+      <button class="banner-cancel-btn">CANCEL</button>
+    `;
+    banner.querySelector('.banner-cancel-btn')?.addEventListener('click', exitSacrificePickMode);
+  }
+
+  // Wire up player slot taps for sacrifice
+  _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach((slotEl) => {
+    slotEl.classList.add('sacrifice-target');
+    slotEl.addEventListener('click', onSacrificeSlotPick, { once: true });
+  });
+}
+
+function exitSacrificePickMode() {
+  _mode = 'normal';
+  _pendingPlayInst = null;
+  hideModeBanner();
+  _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach((slotEl) => {
+    slotEl.classList.remove('sacrifice-target');
+    // Clone-and-replace to remove the once-listener if not yet fired
+    const clone = slotEl.cloneNode(true);
+    slotEl.parentNode.replaceChild(clone, slotEl);
+  });
+  renderAll();
+}
+
+function onSacrificeSlotPick(e) {
+  if (_mode !== 'sacrifice-pick' || !_pendingPlayInst) return;
+  const slotEl = e.currentTarget;
+  const slotIdx = parseInt(slotEl.dataset.slotIdx, 10);
+  const newInst = _pendingPlayInst;
+
+  // Sacrifice old creature
+  const sacResult = sacrificeCreature('player', slotIdx);
+  if (!sacResult.ok) {
+    showStatus(sacResult.error || 'Sacrifice failed');
+    exitSacrificePickMode();
+    return;
+  }
+
+  // Now play the new one normally — the slot is empty, playCardFromHand
+  // will pick the first empty slot which should be this one (if no AI
+  // creatures filled in between, which they don't during your turn).
+  const playResult = playCardFromHand(newInst);
+  if (!playResult.ok) {
+    showStatus(playResult.error || 'Play failed');
+    exitSacrificePickMode();
+    return;
+  }
+
+  logEvent(`You sacrificed ${sacResult.sacrificed.name} for ${newInst.name}`);
+  exitSacrificePickMode();
+}
+
+// ─── Dock ───
 
 function openDock(which) {
   const panel = _container.querySelector('#dock-panel');
@@ -390,8 +540,6 @@ function renderBoard(side) {
   }
 }
 
-// ─── HAND FAN — flex-row spread, per-card rotation via CSS var ──
-
 function renderHand() {
   const fan = _container.querySelector('#hand-fan-overlay');
   if (!fan) return;
@@ -403,14 +551,13 @@ function renderHand() {
   hand.forEach((inst, idx) => {
     const center = (total - 1) / 2;
     const offset = idx - center;
-    // Slight rotation per card for fan curve look
     const angleStep = total > 6 ? 4 : 6;
     const rotation = offset * angleStep;
-    // Cards near edges of fan lift slightly down (fan curve)
     const lift = Math.abs(offset) * 0.5;
 
     const slot = document.createElement('div');
     slot.className = 'hand-slot';
+    if (_mode === 'discard') slot.classList.add('discard-target');
     slot.dataset.fanRot = '1';
     slot.style.setProperty('--fan-rot', `${rotation}deg`);
     slot.style.setProperty('--fan-lift', `${lift}px`);
@@ -419,7 +566,7 @@ function renderHand() {
 
     const card = createCardElement(inst, 'hand');
     const affordable = canAffordInst(inst) && G.activePlayer === 'player' && G.phase === 'main' && inst.type !== 'Spell';
-    if (!affordable) card.classList.add('unaffordable');
+    if (!affordable && _mode !== 'discard') card.classList.add('unaffordable');
 
     attachHandCardEvents(slot, inst);
     slot.appendChild(card);
