@@ -1,5 +1,6 @@
 /* ═══════════════════════════════════════════════════════════
-   Cybervamp v2 — Hand fan fix + preview overlay with PLAY button
+   Cybervamp v2 — Hand fan: flex row spread (full width usage)
+   Only changes are in the HAND FAN section. Everything else identical.
    ═══════════════════════════════════════════════════════════ */
 
 :root {
@@ -49,7 +50,6 @@ html, body {
     radial-gradient(ellipse 100% 80% at 50% 0%,   rgba(80,40,140,0.14), transparent 60%),
     radial-gradient(ellipse 100% 80% at 50% 100%, rgba(180,40,80,0.08), transparent 60%);
 }
-
 .home-logo {
   font-family: 'Cinzel Decorative', 'Georgia', serif;
   font-size: 48px; font-weight: 700; letter-spacing: 8px;
@@ -176,8 +176,6 @@ html, body {
 .overlay-phase-highlight[data-phase="combat"]  { left: 32.5%; }
 .overlay-phase-highlight[data-phase="end"]     { left: 42.5%; }
 
-/* ─── TURN TEXT ─── */
-
 .overlay-turn-text {
   position: absolute;
   top: 2.6%;
@@ -210,7 +208,7 @@ html, body {
   z-index: 5;
 }
 
-/* ─── OPPONENT VITALS ─── */
+/* ─── VITALS ─── */
 
 .overlay-vitals-opponent {
   position: absolute;
@@ -222,8 +220,6 @@ html, body {
   gap: var(--sp-2);
   z-index: 4;
 }
-
-/* ─── PLAYER VITALS ─── */
 
 .overlay-vitals-player {
   position: absolute;
@@ -283,8 +279,6 @@ html, body {
 }
 .gold-stat .vital-num { color: var(--gold-bright); }
 .gold-stat.dim { opacity: 0.4; }
-
-/* ─── DECK INDICATOR ─── */
 
 .overlay-deck {
   position: absolute;
@@ -347,31 +341,45 @@ html, body {
   justify-content: center;
 }
 
-/* ─── HAND FAN ─── */
-/* FIXED: zone tightened to drawn frame (78-92%), cards anchored higher
-   so they sit fully inside the visible frame, not below it. */
+/* ═══════════════════════════════════════════════════════════
+   HAND FAN — flex row spread (replaces position:absolute geometry)
+   Cards distribute evenly across the full width with slight overlap
+   and per-card rotation for the fan curve look.
+   ═══════════════════════════════════════════════════════════ */
 
 #hand-fan-overlay {
   position: absolute;
-  top: 78%;
+  /* Wide bottom strip — uses the full bottom playfield width */
   left: 0;
   right: 0;
-  height: 14%;        /* ends at 92% — matches drawn hand frame bottom */
+  top: 78%;
+  height: 14%;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-end;
+  padding: 0 2% 1%;
   z-index: 6;
   pointer-events: none;
 }
 
 .hand-slot {
-  position: absolute;
-  bottom: 8%;          /* sits inside the fan zone */
-  left: 50%;
-  width: 17%;
+  /* Each card takes a fixed % of the fan area width */
+  flex: 0 0 18%;
+  /* Aspect-ratio determines height from width */
   aspect-ratio: 5 / 7;
-  margin-left: -8.5%;
+  /* Negative margin pulls cards to overlap slightly, creating fan look */
+  margin: 0 -3%;
+  position: relative;
   transform-origin: bottom center;
-  transition: transform 0.28s cubic-bezier(.3,.1,.3,1.2);
+  transition: transform 0.25s cubic-bezier(.3,.1,.3,1.2);
   pointer-events: auto;
   cursor: pointer;
+}
+
+/* Fan rotation per index — set inline via JS data attribute */
+.hand-slot[data-fan-rot] {
+  transform: rotate(var(--fan-rot, 0deg)) translateY(var(--fan-lift, 0));
 }
 
 /* ─── CARD STYLES ─── */
@@ -500,7 +508,7 @@ html, body {
   align-self: center;
 }
 
-/* ─── PREVIEW OVERLAY (with PLAY/CLOSE buttons) ─── */
+/* ─── PREVIEW OVERLAY ─── */
 
 #card-preview-overlay {
   position: fixed;
@@ -603,7 +611,6 @@ html, body {
   text-align: center;
 }
 
-/* Action buttons below the preview card */
 .preview-actions {
   display: flex;
   gap: var(--sp-2);
@@ -712,8 +719,6 @@ html, body {
   color: var(--gold-bright);
 }
 
-/* ─── DOCK PANEL ─── */
-
 #dock-panel {
   position: fixed;
   top: 0;
@@ -778,8 +783,6 @@ html, body {
   font-size: 11px;
 }
 
-/* ─── STATUS TEXT ─── */
-
 #status-text {
   position: absolute;
   top: 47%;
@@ -806,8 +809,6 @@ html, body {
   letter-spacing: 4px;
   padding: 14px 28px;
 }
-
-/* ─── GOLD COIN ANIMATION ─── */
 
 #gold-pulse-layer {
   position: absolute;
@@ -838,7 +839,6 @@ html, body {
   50%      { text-shadow: 0 0 32px rgba(234, 179, 8, 0.7); }
 }
 
-/* template region opacity for visibility */
 .template-mode .template-region {
   opacity: 0.7;
 }

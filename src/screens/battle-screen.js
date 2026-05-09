@@ -1,11 +1,6 @@
 // ─────────────────────────────────────────────────────────────
-// Battle Screen — Hand fan fix + tap-to-preview interaction
-//
-// Interaction change:
-//   - Single tap on hand card → opens fullscreen preview with PLAY button
-//   - Tap PLAY button → plays the card, closes preview
-//   - Tap CLOSE / outside / X → closes preview without playing
-//   - Long-press → also opens preview (alternate)
+// Battle Screen — Hand fan as flex row (full width spread)
+// Cards distribute via flexbox; per-card rotation set inline as CSS var.
 // ─────────────────────────────────────────────────────────────
 
 import { G } from '../game/state.js';
@@ -51,10 +46,7 @@ export function mountBattleScreen(container, opts = {}) {
   renderAll();
   playGoldPulse('player', G.player.gold);
 
-  if (templateMode) {
-    console.log('[Cybervamp] Battle screen mounted in TEMPLATE MODE');
-    showStatus('TEMPLATE MODE — anchor preview');
-  }
+  if (templateMode) showStatus('TEMPLATE MODE — anchor preview');
 }
 
 function renderTemplateRegions() {
@@ -219,18 +211,15 @@ async function onEndTurn() {
   if (G.winner) showWinner();
 }
 
-// ─── Hand card interaction ──
-// Single tap → open preview. Long-press → also open preview.
+// ─── Hand card interaction ─── single tap → preview
 
 function attachHandCardEvents(slotEl, inst) {
-  let touchStartTime = 0;
   let touchMoved = false;
 
-  const onPointerDown = () => { touchStartTime = Date.now(); touchMoved = false; };
+  const onPointerDown = () => { touchMoved = false; };
   const onPointerMove = () => { touchMoved = true; };
   const onPointerUp = (e) => {
     if (touchMoved) return;
-    const elapsed = Date.now() - touchStartTime;
     e.preventDefault?.();
     e.stopPropagation?.();
     openPreview(inst);
@@ -243,21 +232,17 @@ function attachHandCardEvents(slotEl, inst) {
   slotEl.addEventListener('mouseup', onPointerUp);
 }
 
-// ─── Preview overlay with PLAY/CLOSE buttons ──
-
 function openPreview(inst) {
   _previewInst = inst;
   const overlay = _container.querySelector('#card-preview-overlay');
   overlay.innerHTML = '';
 
-  // Build the preview content
   const wrapper = document.createElement('div');
   wrapper.className = 'preview-wrapper';
 
   const card = createCardElement(inst, 'preview');
   wrapper.appendChild(card);
 
-  // Action buttons
   const actions = document.createElement('div');
   actions.className = 'preview-actions';
 
@@ -265,6 +250,14 @@ function openPreview(inst) {
     && G.activePlayer === 'player'
     && G.phase === 'main'
     && inst.type !== 'Spell';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'preview-btn preview-btn-close';
+  closeBtn.textContent = '✕ CLOSE';
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closePreview();
+  });
 
   const playBtn = document.createElement('button');
   playBtn.className = 'preview-btn preview-btn-play' + (canPlay ? '' : ' disabled');
@@ -291,21 +284,11 @@ function openPreview(inst) {
     });
   }
 
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'preview-btn preview-btn-close';
-  closeBtn.textContent = '✕ CLOSE';
-  closeBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    closePreview();
-  });
-
   actions.appendChild(closeBtn);
   actions.appendChild(playBtn);
   wrapper.appendChild(actions);
-
   overlay.appendChild(wrapper);
 
-  // Tap on overlay backdrop (not wrapper) closes
   overlay.onclick = (e) => {
     if (e.target === overlay) closePreview();
   };
@@ -407,8 +390,11 @@ function renderBoard(side) {
   }
 }
 
+// ─── HAND FAN — flex-row spread, per-card rotation via CSS var ──
+
 function renderHand() {
   const fan = _container.querySelector('#hand-fan-overlay');
+  if (!fan) return;
   fan.innerHTML = '';
   const hand = G.player.hand;
   const total = hand.length;
@@ -417,15 +403,17 @@ function renderHand() {
   hand.forEach((inst, idx) => {
     const center = (total - 1) / 2;
     const offset = idx - center;
+    // Slight rotation per card for fan curve look
     const angleStep = total > 6 ? 4 : 6;
     const rotation = offset * angleStep;
-    const yLift = Math.abs(offset) * 4;
-    const xOffsetPct = offset * 9;
+    // Cards near edges of fan lift slightly down (fan curve)
+    const lift = Math.abs(offset) * 0.5;
 
     const slot = document.createElement('div');
     slot.className = 'hand-slot';
-    slot.style.transform = `translateX(${xOffsetPct}%) translateY(${yLift}px) rotate(${rotation}deg)`;
-    slot.style.zIndex = 10 - Math.abs(offset);
+    slot.dataset.fanRot = '1';
+    slot.style.setProperty('--fan-rot', `${rotation}deg`);
+    slot.style.setProperty('--fan-lift', `${lift}px`);
     slot.dataset.handIdx = idx;
     slot.dataset.instId = inst.instId;
 
