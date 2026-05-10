@@ -1,11 +1,12 @@
 // ─────────────────────────────────────────────────────────────
-// Battle Screen — four-fixes
+// Battle Screen — combat-tap-fix
 // Fixes:
-//   1. Drag-to-play works from ANY hand-card touch (not gated by long-press)
-//   2. Relics align RIGHT in their row (justify-content: flex-end)
-//   3. GO TO COMBAT button positioned side-by-side with END TURN
-//      (combat at right=18%, end-turn at right=1.5%) — no more overlap
-//   4. Combat button has aggressive show logic + console diagnostics
+//   1. Disabled double-tap detection during combat sub-modes
+//      → single tap fires INSTANTLY when declaring attackers/blockers
+//   2. Inline visual feedback on declared attackers (red glow + ⚔ icon)
+//      → no longer depends on CSS classes that may not exist
+//   3. Inline outlines on eligible attack/block targets
+//   4. Console logging of every tap during combat
 // ─────────────────────────────────────────────────────────────
 
 import { G } from '../game/state.js';
@@ -30,8 +31,6 @@ const PLAYABLE_AS_CREATURE = ['Creature', 'creature'];
 const SPELLS = ['Spell', 'spell'];
 const RELICS_TYPES = ['Relic', 'relic', 'Permanent', 'permanent'];
 
-// FIX 3: Side-by-side action buttons
-// Combat button at right=18% (away from edge), End Turn at right=1.5% (corner)
 const ACTION_BTN_BASE_STYLE = `
   position: absolute;
   top: 92.5%;
@@ -101,13 +100,9 @@ export function mountBattleScreen(container, opts = {}) {
   enforceHandCap();
   renderAll();
   playGoldPulse('player', G.player.gold);
-
-  console.log('[battle] mounted. activePlayer=', G.activePlayer, 'phase=', G.phase, 'mode=', _mode);
 }
 
-// FIX 3: Side-by-side button layout
 function renderActionButtons() {
-  // Combat button: right=18% (left of end turn), End Turn: right=1.5% (corner)
   const endTurnStyle = ACTION_BTN_BASE_STYLE +
     `right: 1.5%; background: linear-gradient(180deg, rgba(185, 28, 44, 0.8) 0%, rgba(110, 13, 24, 0.9) 100%); color: #fde047;`;
   const combatStyle = ACTION_BTN_BASE_STYLE +
@@ -128,8 +123,6 @@ function renderActionButtons() {
   `;
 }
 
-// FIX 2: Relics align to RIGHT (justify-content: flex-end + reverse render order)
-// Slot 0 will appear at the RIGHTMOST position visually
 function renderRelicsOverlay(side) {
   const sideClass = side === 'opponent' ? 'opp' : 'pla';
   const top = side === 'opponent' ? '12%' : '71.5%';
@@ -266,19 +259,6 @@ function onGoToCombat() {
   if (_mode !== 'normal') { showStatus('Finish current action first'); return; }
 
   if (countAvailableAttackers('player') === 0) {
-    const reasons = [];
-    G.player.creatures.forEach((c, i) => {
-      if (!c) reasons.push(`slot ${i}: empty`);
-      else {
-        const issues = [];
-        if (c.exhausted) issues.push('exhausted');
-        if (c.overexhausted) issues.push('overexhausted');
-        if ((c.power || 0) <= 0) issues.push(`power=${c.power || 0}`);
-        if (issues.length === 0) issues.push('OK');
-        reasons.push(`slot ${i}: ${c.name} - ${issues.join(', ')}`);
-      }
-    });
-    console.log('[combat] no attackers because:', reasons);
     showStatus('No creatures ready to attack');
     return;
   }
@@ -489,7 +469,6 @@ async function onEndTurn() {
     btn.style.opacity = '';
     btn.style.pointerEvents = '';
     enforceHandCap();
-    console.log('[turn] back to player. activePlayer=', G.activePlayer, 'phase=', G.phase, 'mode=', _mode);
     renderAll();
     if (!G.winner) { playGoldPulse('player', G.player.gold); logEvent(`— Your turn (T${G.turn}) —`); }
   }
@@ -497,20 +476,18 @@ async function onEndTurn() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// FIX 1: HAND CARD GESTURES — drag works from any touch
+// HAND CARD GESTURES
 // ═══════════════════════════════════════════════════════════
 
 function attachHandCardGestures(slotEl, inst) {
   attachCardGestures(slotEl, {
     onTap: () => {
-      console.log('[gesture] hand TAP', inst.name);
       if (_mode === 'discard') {
         const result = discardFromHand('player', inst.instId);
         if (result.ok) { showStatus(`Discarded ${inst.name}`); enforceHandCap(); renderAll(); }
         return;
       }
       if (_mode !== 'normal') return;
-
       if (_selectedHandInstId === inst.instId) {
         attemptPlayCard(inst);
       } else {
@@ -519,20 +496,12 @@ function attachHandCardGestures(slotEl, inst) {
       }
     },
     onLongPress: () => {
-      console.log('[gesture] hand LONG PRESS', inst.name);
       if (_mode === 'discard' || _mode === 'sacrifice-pick') return;
       openPreview(inst, 'hand');
     },
     onDragStart: () => {
-      console.log('[gesture] hand DRAG START', inst.name);
-      if (_mode !== 'normal') {
-        console.log('[gesture] drag blocked: mode=', _mode);
-        return;
-      }
-      if (G.activePlayer !== 'player') {
-        console.log('[gesture] drag blocked: not your turn');
-        return;
-      }
+      if (_mode !== 'normal') return;
+      if (G.activePlayer !== 'player') return;
       closePreview();
       _draggedHandInstId = inst.instId;
 
@@ -559,33 +528,20 @@ function attachHandCardGestures(slotEl, inst) {
       _draggedClone.style.top = (y - rect.height / 2) + 'px';
     },
     onDragEnd: (x, y) => {
-      console.log('[gesture] hand DRAG END at', x, y);
       if (_draggedClone) { _draggedClone.remove(); _draggedClone = null; }
       slotEl.style.opacity = '';
-
       const playfield = _container.querySelector('.battle-playfield');
       if (!playfield) { _draggedHandInstId = null; return; }
       const pfRect = playfield.getBoundingClientRect();
       const relY = (y - pfRect.top) / pfRect.height;
-      console.log('[gesture] drop relY=', relY.toFixed(2));
-
-      if (relY < 0.85) {
-        attemptPlayCard(inst);
-      } else {
-        console.log('[gesture] drop in hand area, no play');
-      }
+      if (relY < 0.85) attemptPlayCard(inst);
       _draggedHandInstId = null;
     },
   });
 }
 
 function attemptPlayCard(inst) {
-  console.log('[play] attempt', inst.name, 'type=', inst.type);
-  if (G.activePlayer !== 'player') {
-    console.log('[play] FAIL: not your turn');
-    showStatus('Not your turn');
-    return;
-  }
+  if (G.activePlayer !== 'player') { showStatus('Not your turn'); return; }
   const cardType = inst.type || 'Unknown';
   const isCreature = PLAYABLE_AS_CREATURE.includes(cardType);
   const isSpell = SPELLS.includes(cardType);
@@ -599,19 +555,12 @@ function attemptPlayCard(inst) {
     const bloodCost = inst.bloodCost || 0;
     if ((G.player.gold || 0) < goldCost) { showStatus(`Need ${goldCost} gold`); return; }
     if ((G.player.blood || 0) <= bloodCost) { showStatus(`Cannot pay ${bloodCost} blood`); return; }
-    if (isRelicBoardFull('player')) {
-      enterSacrificePickMode(inst, 'relic');
-      return;
-    }
+    if (isRelicBoardFull('player')) { enterSacrificePickMode(inst, 'relic'); return; }
     const result = playRelicFromHand('player', inst.instId);
     if (result.ok) {
       logEvent(`You play relic ${inst.name}`);
-      _selectedHandInstId = null;
-      closePreview();
-      renderAll();
-    } else {
-      showStatus(result.error);
-    }
+      _selectedHandInstId = null; closePreview(); renderAll();
+    } else showStatus(result.error);
     return;
   }
 
@@ -619,27 +568,31 @@ function attemptPlayCard(inst) {
     showStatus(`Need ${inst.goldCost}⛁ ${inst.bloodCost > 0 ? '+ ' + inst.bloodCost + '🩸' : ''}`);
     return;
   }
-  if (isCreatureBoardFull('player')) {
-    enterSacrificePickMode(inst, 'creature');
-    return;
-  }
+  if (isCreatureBoardFull('player')) { enterSacrificePickMode(inst, 'creature'); return; }
   const result = playCardFromHand(inst);
   if (result.ok) {
     logEvent(`You play ${inst.name}`);
-    _selectedHandInstId = null;
-    closePreview();
-    renderAll();
-  } else {
-    showStatus(result.error);
-  }
+    _selectedHandInstId = null; closePreview(); renderAll();
+  } else showStatus(result.error);
 }
 
+// ═══════════════════════════════════════════════════════════
+// BATTLEFIELD GESTURES
+// FIX: double-tap detection only enabled in normal mode
+// → during combat, single tap fires INSTANTLY
+// ═══════════════════════════════════════════════════════════
+
 function attachBattlefieldGestures(slotEl, inst, kind) {
+  // Only enable double-tap in normal mode where ability activation matters
+  const useDoubleTap = (_mode === 'normal');
+
   attachCardGestures(slotEl, {
-    enableDoubleTap: true,
+    enableDoubleTap: useDoubleTap,
     onTap: () => {
       const side = slotEl.dataset.side;
       const slotIdx = parseInt(slotEl.dataset.slotIdx ?? slotEl.dataset.relicIdx, 10);
+      console.log('[gesture] battlefield TAP', inst.name, 'side=', side, 'slotIdx=', slotIdx, 'mode=', _mode);
+
       if (_mode === 'sacrifice-pick' && side === 'player') {
         if (kind === 'creature' && _sacrificeTargetType === 'creature') onSacrificeSlotPick(slotIdx);
         else if (kind === 'relic' && _sacrificeTargetType === 'relic') onSacrificeRelicPick(slotIdx);
@@ -670,16 +623,22 @@ function attachBattlefieldGestures(slotEl, inst, kind) {
 function activateAbility(inst, kind, slotIdx) {
   showStatus(`${inst.name}'s ability — coming soon`);
   logEvent(`Tried to activate ${inst.name}'s ability`);
-  console.log('[ability] activate:', inst.name, 'kind=', kind, 'slot=', slotIdx);
 }
 
 function onAttackerSlotPick(slotIdx) {
   const inst = G.player.creatures[slotIdx];
-  if (!inst) return;
+  if (!inst) {
+    console.log('[combat] no creature at slot', slotIdx);
+    return;
+  }
+  console.log('[combat] attacker pick: slot', slotIdx, 'inst=', inst.name, '_attacking=', inst._attacking);
+
   if (inst._attacking) {
     undeclareAttacker('player', slotIdx);
+    console.log('[combat] undeclared attacker', inst.name);
   } else {
     const r = declareAttacker('player', slotIdx);
+    console.log('[combat] declareAttacker result:', r);
     if (!r.ok) { showStatus(r.error); return; }
   }
   renderAll();
@@ -829,7 +788,6 @@ function renderAll() {
   updateActionButtons();
 }
 
-// FIX 4: Combat button visibility with detailed logging
 function updateActionButtons() {
   const combatBtn = _container.querySelector('#btn-combat');
   const endBtn = _container.querySelector('#btn-end-turn');
@@ -841,18 +799,7 @@ function updateActionButtons() {
   const hasAnyCreature = G.player.creatures.some(c => c !== null);
   const isNormal = _mode === 'normal';
 
-  const showCombat = isMyTurn && isNormal && hasAnyCreature;
-
-  // Diagnostic
-  if (isMyTurn && isNormal) {
-    console.log('[ui] combat btn check:',
-      'isMyTurn=', isMyTurn,
-      'isNormal=', isNormal,
-      'hasAnyCreature=', hasAnyCreature,
-      '→ show=', showCombat);
-  }
-
-  combatBtn.style.display = showCombat ? 'flex' : 'none';
+  combatBtn.style.display = (isMyTurn && isNormal && hasAnyCreature) ? 'flex' : 'none';
   confirmBtn.style.display = inCombatAttackers ? 'flex' : 'none';
   if (inCombatAttackers) {
     const declared = getAttackers('player').length;
@@ -860,7 +807,6 @@ function updateActionButtons() {
       ? `<span>CONFIRM</span><span>ATTACK (${declared})</span>`
       : `<span>SKIP</span><span>COMBAT</span>`;
   }
-  // END TURN visible in normal mode + sacrifice-pick + discard, hidden during combat sub-modes
   endBtn.style.display = (inCombatAttackers || _mode === 'combat-blockers') ? 'none' : 'flex';
 }
 
@@ -889,13 +835,114 @@ function renderDeck() {
   if (el) el.textContent = `x${oppDeck}`;
 }
 
+// ═══════════════════════════════════════════════════════════
+// FIX: Inline visual feedback for combat states (no CSS reliance)
+// ═══════════════════════════════════════════════════════════
+
+function applyCombatVisuals(slotEl, inst, isPlayerSide) {
+  // Clear any previous combat visuals
+  slotEl.style.outline = '';
+  slotEl.style.outlineOffset = '';
+  slotEl.style.boxShadow = '';
+  // Remove any existing attack-icon child
+  const existingIcon = slotEl.querySelector('.combat-attack-icon');
+  if (existingIcon) existingIcon.remove();
+
+  if (!inst) return;
+
+  // Declared attacker — red glow + ⚔ icon
+  if (inst._attacking) {
+    slotEl.style.outline = '3px solid #f43f5e';
+    slotEl.style.outlineOffset = '2px';
+    slotEl.style.boxShadow = '0 0 24px rgba(244, 63, 94, 0.85), inset 0 0 12px rgba(244, 63, 94, 0.4)';
+    slotEl.style.borderRadius = '8px';
+    const icon = document.createElement('div');
+    icon.className = 'combat-attack-icon';
+    icon.textContent = '⚔';
+    icon.style.cssText = `
+      position: absolute;
+      top: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 28px;
+      color: #f43f5e;
+      text-shadow: 0 0 12px #f43f5e, 0 0 4px #fff, 0 2px 4px rgba(0,0,0,0.95);
+      z-index: 50;
+      pointer-events: none;
+      animation: attack-bounce 1s ease-in-out infinite;
+    `;
+    slotEl.appendChild(icon);
+    return;
+  }
+
+  // Eligible attacker target — red dashed outline
+  if (_mode === 'combat-attackers' && isPlayerSide && !inst.exhausted && !inst.overexhausted && (inst.power || 0) > 0) {
+    slotEl.style.outline = '2px dashed rgba(244, 63, 94, 0.7)';
+    slotEl.style.outlineOffset = '4px';
+    slotEl.style.boxShadow = '0 0 16px rgba(244, 63, 94, 0.4)';
+    slotEl.style.borderRadius = '8px';
+    return;
+  }
+
+  // Eligible blocker — blue dashed outline
+  if (_mode === 'combat-blockers' && isPlayerSide && !inst.exhausted && !inst.overexhausted) {
+    slotEl.style.outline = '2px dashed rgba(96, 165, 250, 0.8)';
+    slotEl.style.outlineOffset = '4px';
+    slotEl.style.boxShadow = '0 0 16px rgba(96, 165, 250, 0.5)';
+    slotEl.style.borderRadius = '8px';
+    return;
+  }
+
+  // Pending AI attacker (being blocked) — gold glow
+  if (_mode === 'combat-blockers' && !isPlayerSide) {
+    const slotIdx = parseInt(slotEl.dataset.slotIdx, 10);
+    if (slotIdx === _pendingBlockerForAttackerIdx) {
+      slotEl.style.outline = '3px solid #fde047';
+      slotEl.style.outlineOffset = '2px';
+      slotEl.style.boxShadow = '0 0 24px rgba(253, 224, 71, 0.85)';
+      slotEl.style.borderRadius = '8px';
+      const icon = document.createElement('div');
+      icon.className = 'combat-attack-icon';
+      icon.textContent = '⚔';
+      icon.style.cssText = `
+        position: absolute;
+        bottom: -22px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 28px;
+        color: #fde047;
+        text-shadow: 0 0 12px #fde047, 0 2px 4px rgba(0,0,0,0.95);
+        z-index: 50;
+        pointer-events: none;
+      `;
+      slotEl.appendChild(icon);
+    }
+  }
+}
+
+// Inject the bounce keyframe once
+function ensureCombatAnimations() {
+  if (document.getElementById('combat-anim-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'combat-anim-styles';
+  style.textContent = `
+    @keyframes attack-bounce {
+      0%, 100% { transform: translateX(-50%) scale(1); }
+      50% { transform: translateX(-50%) scale(1.2); }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 function renderBoard(side) {
+  ensureCombatAnimations();
   const slots = G[side].creatures;
   const sideClass = side === 'ai' ? 'opp' : 'pla';
+  const isPlayerSide = side === 'player';
+
   for (let i = 0; i < 4; i++) {
     const slotEl = _container.querySelector(`.overlay-slots-${sideClass} .board-slot[data-slot-idx="${i}"]`);
     if (!slotEl) continue;
-    slotEl.classList.remove('attacking', 'attack-target', 'block-target', 'sacrifice-target', 'pending-attack-target');
     const host = slotEl.querySelector('.slot-card-host');
     host.innerHTML = '';
     const inst = slots[i];
@@ -904,39 +951,24 @@ function renderBoard(side) {
       const cardEl = createCardElement(inst, 'battlefield');
       if (inst.exhausted) cardEl.classList.add('is-exhausted');
       if (inst.overexhausted) cardEl.classList.add('is-overexhausted');
-      if (inst._attacking) slotEl.classList.add('attacking');
       host.appendChild(cardEl);
     } else {
       slotEl.classList.add('empty');
     }
-  }
 
-  if (_mode === 'sacrifice-pick' && side === 'player' && _sacrificeTargetType === 'creature') {
-    _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach(s => {
-      if (G.player.creatures[parseInt(s.dataset.slotIdx, 10)]) s.classList.add('sacrifice-target');
-    });
-  }
-  if (_mode === 'combat-attackers' && side === 'player') {
-    _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach(s => {
-      const idx = parseInt(s.dataset.slotIdx, 10);
-      const c = G.player.creatures[idx];
-      if (c && !c.exhausted && !c.overexhausted && (c.power || 0) > 0) s.classList.add('attack-target');
-    });
-  }
-  if (_mode === 'combat-blockers') {
-    if (side === 'player') {
-      _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach(s => {
-        const idx = parseInt(s.dataset.slotIdx, 10);
-        const c = G.player.creatures[idx];
-        if (c && !c.exhausted && !c.overexhausted) s.classList.add('block-target');
-      });
-    }
-    if (side === 'ai' && _pendingBlockerForAttackerIdx !== null) {
-      const slotEl = _container.querySelector(`.overlay-slots-opp .board-slot[data-slot-idx="${_pendingBlockerForAttackerIdx}"]`);
-      slotEl?.classList.add('pending-attack-target');
+    // Apply inline combat visuals
+    applyCombatVisuals(slotEl, inst, isPlayerSide);
+
+    // Sacrifice target visual
+    if (_mode === 'sacrifice-pick' && isPlayerSide && _sacrificeTargetType === 'creature' && inst) {
+      slotEl.style.outline = '3px solid #fb923c';
+      slotEl.style.outlineOffset = '2px';
+      slotEl.style.boxShadow = '0 0 24px rgba(251, 146, 60, 0.7)';
+      slotEl.style.borderRadius = '8px';
     }
   }
 
+  // Re-clone slots to clear old gesture listeners, attach new ones
   _container.querySelectorAll(`.overlay-slots-${sideClass} .board-slot`).forEach(s => {
     const clone = s.cloneNode(true);
     s.parentNode.replaceChild(clone, s);
@@ -953,7 +985,8 @@ function renderRelics(side) {
   for (let i = 0; i < 4; i++) {
     const slotEl = _container.querySelector(`.overlay-relics-${sideClass} .relic-slot[data-relic-idx="${i}"]`);
     if (!slotEl) continue;
-    slotEl.classList.remove('sacrifice-target');
+    slotEl.style.outline = '';
+    slotEl.style.boxShadow = '';
     const host = slotEl.querySelector('.relic-slot-host');
     host.innerHTML = '';
     const inst = relics[i];
@@ -966,12 +999,13 @@ function renderRelics(side) {
     } else {
       slotEl.classList.add('empty');
     }
-  }
 
-  if (_mode === 'sacrifice-pick' && side === 'player' && _sacrificeTargetType === 'relic') {
-    _container.querySelectorAll('.overlay-relics-pla .relic-slot').forEach(s => {
-      if (G.player.relics[parseInt(s.dataset.relicIdx, 10)]) s.classList.add('sacrifice-target');
-    });
+    if (_mode === 'sacrifice-pick' && side === 'player' && _sacrificeTargetType === 'relic' && inst) {
+      slotEl.style.outline = '3px solid #fb923c';
+      slotEl.style.outlineOffset = '2px';
+      slotEl.style.boxShadow = '0 0 24px rgba(251, 146, 60, 0.7)';
+      slotEl.style.borderRadius = '8px';
+    }
   }
 
   _container.querySelectorAll(`.overlay-relics-${sideClass} .relic-slot`).forEach(s => {
