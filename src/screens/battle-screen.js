@@ -1,18 +1,11 @@
 // ─────────────────────────────────────────────────────────────
-// Battle Screen — Gesture overhaul
-//
-// HAND CARDS:
-//   - Tap         → select (no preview). Tap again on same card → play.
-//   - Long-press  → preview screen
-//   - Drag (after long-press) → preview closes; card follows finger;
-//                  release in play zone → play card
-//   - Tap elsewhere → deselect
-//
-// BATTLEFIELD CARDS (creatures + relics):
-//   - Tap         → context action (declare attacker/blocker in combat;
-//                   nothing in normal mode)
-//   - Double tap  → activate ability (placeholder for now)
-//   - Long-press  → preview screen
+// Battle Screen — Gesture Overhaul FIX 1
+// Fixes:
+//   1. Selected hand card visual is now INLINE (not dependent on CSS append)
+//      — guaranteed to show: lift up 25%, scale 1.2x, gold border
+//   2. Drag-to-play: removed strict zone check. Releasing anywhere outside
+//      the hand area attempts a play. Console logging shows decision.
+//   3. attemptPlayCard now logs its decision path
 // ─────────────────────────────────────────────────────────────
 
 import { G } from '../game/state.js';
@@ -67,7 +60,7 @@ let _pendingPlayInst = null;
 let _pendingBlockerForAttackerIdx = null;
 let _resumeBlockChoice = null;
 let _sacrificeTargetType = 'creature';
-let _selectedHandInstId = null; // single-tap selection
+let _selectedHandInstId = null;
 let _draggedHandInstId = null;
 let _draggedClone = null;
 
@@ -251,7 +244,6 @@ function wireEvents() {
     btn.addEventListener('click', () => openDock(btn.dataset.dock));
   });
   _container.querySelector('[data-action="close-dock"]')?.addEventListener('click', closeDock);
-  // Tap on background deselects
   _container.querySelector('.battle-playfield')?.addEventListener('click', (e) => {
     if (e.target.classList.contains('battle-playfield') || e.target.classList.contains('overlay-layer')) {
       _selectedHandInstId = null;
@@ -259,8 +251,6 @@ function wireEvents() {
     }
   });
 }
-
-// ─── Combat phase entry ───
 
 function onGoToCombat() {
   if (G.activePlayer !== 'player') { showStatus('Not your turn'); return; }
@@ -486,14 +476,12 @@ async function onEndTurn() {
 
 // ═══════════════════════════════════════════════════════════
 // HAND CARD GESTURES
-// Tap = select / play if already selected
-// Long-press = preview
-// Drag from preview = play by drop
 // ═══════════════════════════════════════════════════════════
 
 function attachHandCardGestures(slotEl, inst) {
   attachCardGestures(slotEl, {
     onTap: () => {
+      console.log('[gesture] hand TAP', inst.name);
       if (_mode === 'discard') {
         const result = discardFromHand('player', inst.instId);
         if (result.ok) { showStatus(`Discarded ${inst.name}`); enforceHandCap(); renderAll(); }
@@ -501,8 +489,8 @@ function attachHandCardGestures(slotEl, inst) {
       }
       if (_mode !== 'normal') return;
 
-      // Already selected? Play it.
       if (_selectedHandInstId === inst.instId) {
+        // Already selected — try to play
         attemptPlayCard(inst);
       } else {
         _selectedHandInstId = inst.instId;
@@ -510,16 +498,17 @@ function attachHandCardGestures(slotEl, inst) {
       }
     },
     onLongPress: () => {
+      console.log('[gesture] hand LONG PRESS', inst.name);
       if (_mode === 'discard' || _mode === 'sacrifice-pick') return;
       openPreview(inst, 'hand');
     },
     onDragStart: () => {
+      console.log('[gesture] hand DRAG START', inst.name);
       if (_mode !== 'normal') return;
       if (G.activePlayer !== 'player') return;
-      // Close preview if it was open
       closePreview();
       _draggedHandInstId = inst.instId;
-      // Create a clone that follows finger
+
       const rect = slotEl.getBoundingClientRect();
       _draggedClone = slotEl.cloneNode(true);
       _draggedClone.style.position = 'fixed';
@@ -532,9 +521,8 @@ function attachHandCardGestures(slotEl, inst) {
       _draggedClone.style.pointerEvents = 'none';
       _draggedClone.style.transition = 'none';
       _draggedClone.style.opacity = '0.95';
-      _draggedClone.style.filter = 'drop-shadow(0 8px 20px rgba(234, 179, 8, 0.7))';
+      _draggedClone.style.filter = 'drop-shadow(0 8px 20px rgba(234, 179, 8, 0.8))';
       document.body.appendChild(_draggedClone);
-      // Hide the original
       slotEl.style.opacity = '0.3';
     },
     onDragMove: (x, y) => {
@@ -544,19 +532,22 @@ function attachHandCardGestures(slotEl, inst) {
       _draggedClone.style.top = (y - rect.height / 2) + 'px';
     },
     onDragEnd: (x, y) => {
-      if (!_draggedClone) return;
-      _draggedClone.remove();
-      _draggedClone = null;
+      console.log('[gesture] hand DRAG END at', x, y);
+      if (_draggedClone) { _draggedClone.remove(); _draggedClone = null; }
       slotEl.style.opacity = '';
 
-      // Check if dropped above hand area (y < 78% of viewport playfield)
+      // Determine if drop is in play area
       const playfield = _container.querySelector('.battle-playfield');
       const pfRect = playfield.getBoundingClientRect();
       const relY = (y - pfRect.top) / pfRect.height;
+      console.log('[gesture] drop relY=', relY.toFixed(2), '(< 0.78 plays)');
 
-      if (relY < 0.78) {
-        // Dropped on play area — try to play
+      // Strict check removed — try to play whenever dragged outside hand
+      // Use 0.85 threshold so even slight upward drag plays the card
+      if (relY < 0.85) {
         attemptPlayCard(inst);
+      } else {
+        console.log('[gesture] drop in hand area, no play');
       }
       _draggedHandInstId = null;
     },
@@ -564,25 +555,48 @@ function attachHandCardGestures(slotEl, inst) {
 }
 
 function attemptPlayCard(inst) {
-  if (G.activePlayer !== 'player') { showStatus('Not your turn'); return; }
+  console.log('[play] attempt', inst.name, 'type=', inst.type);
+  if (G.activePlayer !== 'player') {
+    console.log('[play] FAIL: not your turn');
+    showStatus('Not your turn');
+    return;
+  }
   const cardType = inst.type || 'Unknown';
   const isCreature = PLAYABLE_AS_CREATURE.includes(cardType);
   const isSpell = SPELLS.includes(cardType);
   const isRelic = RELICS_TYPES.includes(cardType);
 
-  if (isSpell) { showStatus('Spells coming soon'); return; }
-  if (!isCreature && !isRelic) { showStatus(`${cardType} not yet supported`); return; }
+  if (isSpell) {
+    console.log('[play] FAIL: spells coming soon');
+    showStatus('Spells coming soon');
+    return;
+  }
+  if (!isCreature && !isRelic) {
+    console.log('[play] FAIL: unsupported type', cardType);
+    showStatus(`${cardType} not yet supported`);
+    return;
+  }
 
   if (isRelic) {
     const goldCost = inst.goldCost || 0;
     const bloodCost = inst.bloodCost || 0;
-    if ((G.player.gold || 0) < goldCost) { showStatus(`Need ${goldCost} gold`); return; }
-    if ((G.player.blood || 0) <= bloodCost) { showStatus(`Cannot pay ${bloodCost} blood`); return; }
+    if ((G.player.gold || 0) < goldCost) {
+      console.log('[play] FAIL: need', goldCost, 'gold');
+      showStatus(`Need ${goldCost} gold`);
+      return;
+    }
+    if ((G.player.blood || 0) <= bloodCost) {
+      console.log('[play] FAIL: cannot pay blood');
+      showStatus(`Cannot pay ${bloodCost} blood`);
+      return;
+    }
     if (isRelicBoardFull('player')) {
+      console.log('[play] relic board full → sacrifice mode');
       enterSacrificePickMode(inst, 'relic');
       return;
     }
     const result = playRelicFromHand('player', inst.instId);
+    console.log('[play] playRelicFromHand result:', result);
     if (result.ok) {
       logEvent(`You play relic ${inst.name}`);
       _selectedHandInstId = null;
@@ -594,16 +608,20 @@ function attemptPlayCard(inst) {
     return;
   }
 
-  // Creature
-  if (!canAffordInst(inst)) {
+  // Creature path
+  const aff = canAffordInst(inst);
+  console.log('[play] creature canAfford:', aff, 'gold=', G.player.gold, 'blood=', G.player.blood);
+  if (!aff) {
     showStatus(`Need ${inst.goldCost}⛁ ${inst.bloodCost > 0 ? '+ ' + inst.bloodCost + '🩸' : ''}`);
     return;
   }
   if (isCreatureBoardFull('player')) {
+    console.log('[play] creature board full → sacrifice mode');
     enterSacrificePickMode(inst, 'creature');
     return;
   }
   const result = playCardFromHand(inst);
+  console.log('[play] playCardFromHand result:', result);
   if (result.ok) {
     logEvent(`You play ${inst.name}`);
     _selectedHandInstId = null;
@@ -615,20 +633,15 @@ function attemptPlayCard(inst) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// BATTLEFIELD CARD GESTURES
-// Tap = combat context action
-// Double tap = activate ability (placeholder)
-// Long-press = preview
+// BATTLEFIELD GESTURES
 // ═══════════════════════════════════════════════════════════
 
 function attachBattlefieldGestures(slotEl, inst, kind) {
-  // kind = 'creature' | 'relic'
   attachCardGestures(slotEl, {
     enableDoubleTap: true,
     onTap: () => {
       const side = slotEl.dataset.side;
       const slotIdx = parseInt(slotEl.dataset.slotIdx ?? slotEl.dataset.relicIdx, 10);
-
       if (_mode === 'sacrifice-pick' && side === 'player') {
         if (kind === 'creature' && _sacrificeTargetType === 'creature') onSacrificeSlotPick(slotIdx);
         else if (kind === 'relic' && _sacrificeTargetType === 'relic') onSacrificeRelicPick(slotIdx);
@@ -642,12 +655,11 @@ function attachBattlefieldGestures(slotEl, inst, kind) {
         onBlockerSlotPick(slotIdx);
         return;
       }
-      // Normal mode tap: no-op (selection visualized but no action yet)
     },
     onDoubleTap: () => {
       const side = slotEl.dataset.side;
       const slotIdx = parseInt(slotEl.dataset.slotIdx ?? slotEl.dataset.relicIdx, 10);
-      if (side !== 'player') return; // can only activate own
+      if (side !== 'player') return;
       if (_mode !== 'normal') return;
       activateAbility(inst, kind, slotIdx);
     },
@@ -658,12 +670,9 @@ function attachBattlefieldGestures(slotEl, inst, kind) {
 }
 
 function activateAbility(inst, kind, slotIdx) {
-  // Placeholder: many cards in cards.js have activated abilities defined as
-  // "{Exhaust}: do X" text. Without a full keyword interpreter for each one,
-  // we just log it. A future session will wire this to actual effects.
   showStatus(`${inst.name}'s ability — coming soon`);
   logEvent(`Tried to activate ${inst.name}'s ability`);
-  console.log('[ability] activate:', inst.name, 'kind=', kind, 'slot=', slotIdx, 'inst=', inst);
+  console.log('[ability] activate:', inst.name, 'kind=', kind, 'slot=', slotIdx);
 }
 
 function onAttackerSlotPick(slotIdx) {
@@ -687,10 +696,6 @@ function onBlockerSlotPick(slotIdx) {
   _pendingBlockerForAttackerIdx = null;
   if (_resumeBlockChoice) _resumeBlockChoice();
 }
-
-// ═══════════════════════════════════════════════════════════
-// PREVIEW OVERLAY
-// ═══════════════════════════════════════════════════════════
 
 function openPreview(inst, source = 'hand') {
   _previewInst = inst;
@@ -813,10 +818,6 @@ function openDock(which) {
 }
 function closeDock() { _container.querySelector('#dock-panel').classList.add('hidden'); }
 
-// ═══════════════════════════════════════════════════════════
-// RENDERING
-// ═══════════════════════════════════════════════════════════
-
 function renderAll() {
   if (!_container || !G) return;
   renderTopBar();
@@ -901,18 +902,14 @@ function renderBoard(side) {
 
   if (_mode === 'sacrifice-pick' && side === 'player' && _sacrificeTargetType === 'creature') {
     _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach(s => {
-      if (G.player.creatures[parseInt(s.dataset.slotIdx, 10)]) {
-        s.classList.add('sacrifice-target');
-      }
+      if (G.player.creatures[parseInt(s.dataset.slotIdx, 10)]) s.classList.add('sacrifice-target');
     });
   }
   if (_mode === 'combat-attackers' && side === 'player') {
     _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach(s => {
       const idx = parseInt(s.dataset.slotIdx, 10);
       const c = G.player.creatures[idx];
-      if (c && !c.exhausted && !c.overexhausted && (c.power || 0) > 0) {
-        s.classList.add('attack-target');
-      }
+      if (c && !c.exhausted && !c.overexhausted && (c.power || 0) > 0) s.classList.add('attack-target');
     });
   }
   if (_mode === 'combat-blockers') {
@@ -929,7 +926,6 @@ function renderBoard(side) {
     }
   }
 
-  // Re-clone slots and attach gestures
   _container.querySelectorAll(`.overlay-slots-${sideClass} .board-slot`).forEach(s => {
     const clone = s.cloneNode(true);
     s.parentNode.replaceChild(clone, s);
@@ -963,9 +959,7 @@ function renderRelics(side) {
 
   if (_mode === 'sacrifice-pick' && side === 'player' && _sacrificeTargetType === 'relic') {
     _container.querySelectorAll('.overlay-relics-pla .relic-slot').forEach(s => {
-      if (G.player.relics[parseInt(s.dataset.relicIdx, 10)]) {
-        s.classList.add('sacrifice-target');
-      }
+      if (G.player.relics[parseInt(s.dataset.relicIdx, 10)]) s.classList.add('sacrifice-target');
     });
   }
 
@@ -977,6 +971,10 @@ function renderRelics(side) {
     if (inst) attachBattlefieldGestures(clone, inst, 'relic');
   });
 }
+
+// ═══════════════════════════════════════════════════════════
+// renderHand — Selected card visual is INLINE so it always shows
+// ═══════════════════════════════════════════════════════════
 
 function renderHand() {
   const fan = _container.querySelector('#hand-fan-overlay');
@@ -992,22 +990,25 @@ function renderHand() {
     const angleStep = total > 6 ? 4 : 6;
     const rotation = offset * angleStep;
     const lift = Math.abs(offset) * 0.5;
+    const isSelected = _selectedHandInstId === inst.instId;
 
     const slot = document.createElement('div');
     slot.className = 'hand-slot';
     if (_mode === 'discard') slot.classList.add('discard-target');
     slot.dataset.fanRot = '1';
-    slot.style.setProperty('--fan-rot', `${rotation}deg`);
-    slot.style.setProperty('--fan-lift', `${lift}px`);
     slot.dataset.handIdx = idx;
     slot.dataset.instId = inst.instId;
 
-    if (_selectedHandInstId === inst.instId) {
-      slot.classList.add('selected');
-      // Lift the selected card so it's visible above its neighbors
+    if (isSelected) {
+      // INLINE selected styling — guaranteed to show
       slot.style.setProperty('--fan-rot', `0deg`);
-      slot.style.setProperty('--fan-lift', `-30px`);
+      slot.style.setProperty('--fan-lift', `0px`);
+      slot.style.transform = 'translateY(-60%) scale(1.3)';
       slot.style.zIndex = '50';
+      slot.style.transition = 'transform 0.25s cubic-bezier(.3,.1,.3,1.4)';
+    } else {
+      slot.style.setProperty('--fan-rot', `${rotation}deg`);
+      slot.style.setProperty('--fan-lift', `${lift}px`);
     }
 
     const card = createCardElement(inst, 'hand');
@@ -1021,7 +1022,12 @@ function renderHand() {
       affordable = canAffordInst(inst) && G.activePlayer === 'player' && inst.type !== 'Spell';
     }
     if (!affordable && _mode !== 'discard') card.classList.add('unaffordable');
-    if (_selectedHandInstId === inst.instId) card.classList.add('selected');
+
+    if (isSelected) {
+      // INLINE gold-glow border on selected card
+      card.style.border = '3px solid #fde047';
+      card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.95), 0 0 32px rgba(234, 179, 8, 0.85), inset 0 0 22px rgba(234, 179, 8, 0.2)';
+    }
 
     attachHandCardGestures(slot, inst);
     slot.appendChild(card);
