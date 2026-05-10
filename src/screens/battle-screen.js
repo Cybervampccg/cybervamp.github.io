@@ -1,9 +1,10 @@
 // ─────────────────────────────────────────────────────────────
-// Battle Screen — Session D-FIX
-// Bug fixes:
-//   1. Don't call endTurn() after runAiTurn — runAiTurn handles it internally
-//   2. Inline-style action buttons so they're guaranteed positioned correctly
-//   3. Defensive try/catch around AI combat
+// Battle Screen — Session D-FIX-2
+// Targeted fixes for "can't attack on my turn":
+//   1. GO TO COMBAT button visibility expanded — shows during YOUR turn
+//      whenever you have any creature on your side, even if phase != 'main'
+//   2. Console diagnostic logs to show why button is/isn't visible
+//   3. Lenient phase check — combat works in 'main' OR 'renew' phase
 // ─────────────────────────────────────────────────────────────
 
 import { G } from '../game/state.js';
@@ -20,7 +21,6 @@ import {
 
 const HAND_CAP = 7;
 
-// Inline-style positioning for action buttons (bypasses any CSS conflicts)
 const ACTION_BTN_BASE_STYLE = `
   position: absolute;
   top: 92.5%;
@@ -87,10 +87,9 @@ export function mountBattleScreen(container, opts = {}) {
   renderAll();
   playGoldPulse('player', G.player.gold);
 
+  console.log('[battle] mounted. G.phase=', G.phase, 'G.activePlayer=', G.activePlayer);
   if (templateMode) showStatus('TEMPLATE MODE — anchor preview');
 }
-
-// ─── Action buttons with inline-style positioning ───
 
 function renderActionButtons() {
   const endTurnStyle = ACTION_BTN_BASE_STYLE +
@@ -112,8 +111,6 @@ function renderActionButtons() {
     </button>
   `;
 }
-
-// ─── Hand cap ───
 
 function enforceHandCap() {
   if (G.activePlayer !== 'player') return;
@@ -139,8 +136,6 @@ function hideModeBanner() {
   banner.classList.add('hidden');
   banner.innerHTML = '';
 }
-
-// ─── Template regions ───
 
 function renderTemplateRegions() {
   const regions = [
@@ -263,14 +258,41 @@ function wireEvents() {
   _container.querySelector('[data-action="close-dock"]')?.addEventListener('click', closeDock);
 }
 
-// ─── Combat phase entry ───
+// ─── COMBAT ENTRY ───
+// Loosened: triggers when it's your turn and you have any creature
+// Diagnostic logging shows why button is/isn't visible
 
 function onGoToCombat() {
-  if (_mode !== 'normal') return;
-  if (G.activePlayer !== 'player') return;
-  if (G.winner) return;
+  console.log('[combat] GO TO COMBAT tapped. mode=', _mode, 'phase=', G.phase, 'active=', G.activePlayer);
 
-  if (countAvailableAttackers('player') === 0) {
+  if (G.activePlayer !== 'player') {
+    showStatus('Not your turn');
+    return;
+  }
+  if (G.winner) return;
+  if (_mode !== 'normal') {
+    showStatus('Finish current action first');
+    return;
+  }
+
+  const attackerCount = countAvailableAttackers('player');
+  console.log('[combat] available attackers:', attackerCount);
+
+  if (attackerCount === 0) {
+    // Diagnostic: enumerate creatures and reasons
+    const reasons = [];
+    G.player.creatures.forEach((c, i) => {
+      if (!c) reasons.push(`slot ${i}: empty`);
+      else {
+        const issues = [];
+        if (c.exhausted) issues.push('exhausted');
+        if (c.overexhausted) issues.push('overexhausted');
+        if ((c.power || 0) <= 0) issues.push(`power=${c.power || 0}`);
+        if (issues.length === 0) issues.push('OK (should attack)');
+        reasons.push(`slot ${i}: ${c.name} - ${issues.join(', ')}`);
+      }
+    });
+    console.log('[combat] no attackers because:', reasons);
     showStatus('No creatures available to attack');
     return;
   }
@@ -306,7 +328,6 @@ async function runPlayerCombatResolution() {
   try {
     showModeBanner(`<div>⏳ AI is choosing blockers...</div>`);
     await delay(600);
-
     aiAssignBlockers('ai', 'player');
     renderAll();
     await delay(400);
@@ -342,8 +363,6 @@ async function runPlayerCombatResolution() {
   }
 }
 
-// ─── AI's combat phase ───
-
 async function runAiCombatPhase() {
   try {
     if (G.winner) return;
@@ -358,15 +377,11 @@ async function runAiCombatPhase() {
     await delay(500);
 
     const aiAttackers = getAttackers('ai');
-    if (aiAttackers.length === 0) {
-      console.log('[combat] AI declared 0 attackers somehow, skipping');
-      return;
-    }
+    if (aiAttackers.length === 0) return;
 
     const playerHasBlockers = countAvailableBlockers('player') > 0;
 
     if (!playerHasBlockers) {
-      // No blockers — all attacks go to face
       for (const a of aiAttackers) a.inst._blockedBy = null;
       showModeBanner(`<div>⚠ AI ATTACKING — no blockers available</div>`);
       await delay(900);
@@ -374,7 +389,6 @@ async function runAiCombatPhase() {
       const events = resolveCombat('ai', 'player');
       await playCombatEvents(events);
     } else {
-      // Player chooses blockers one at a time
       _mode = 'combat-blockers';
       for (const { slotIdx: aSlotIdx, inst: aInst } of aiAttackers) {
         if (G.winner) break;
@@ -423,42 +437,32 @@ async function runAiCombatPhase() {
   }
 }
 
-// ─── Combat event animation ───
-
 async function playCombatEvents(events) {
   const fx = _container.querySelector('#combat-fx-layer');
   for (const e of events) {
     switch (e.type) {
-      case 'face-damage': {
+      case 'face-damage':
         showFloatingNumber(fx, `-${e.damage} ❤`, '#f43f5e', e.defenderSide);
         logEvent(`${e.attackerName} hits ${e.defenderSide === 'player' ? 'you' : 'AI'} for ${e.damage}`);
         await delay(500);
         renderAll();
         break;
-      }
-      case 'combat-attacker-wins': {
+      case 'combat-attacker-wins':
         logEvent(`${e.attackerName} (${e.attackerPower}) destroys ${e.blockerName} (${e.blockerPower})`);
-        await delay(400);
-        renderAll();
+        await delay(400); renderAll();
         break;
-      }
-      case 'combat-blocker-wins': {
+      case 'combat-blocker-wins':
         logEvent(`${e.blockerName} (${e.blockerPower}) destroys ${e.attackerName} (${e.attackerPower})`);
-        await delay(400);
-        renderAll();
+        await delay(400); renderAll();
         break;
-      }
-      case 'combat-tie': {
+      case 'combat-tie':
         logEvent(`${e.attackerName} and ${e.blockerName} tie at ${e.power}`);
-        await delay(300);
-        renderAll();
+        await delay(300); renderAll();
         break;
-      }
-      case 'selfbleed': {
+      case 'selfbleed':
         logEvent(`${e.attackerName} selfbleeds ${e.amount}`);
         renderAll();
         break;
-      }
     }
   }
 }
@@ -499,8 +503,6 @@ function showFloatingNumber(fx, text, color, side) {
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// ─── End turn handler — FIXED: does NOT call endTurn after AI ───
-
 async function onEndTurn() {
   if (_aiTurnRunning) return;
   if (G.activePlayer !== 'player') return;
@@ -516,8 +518,6 @@ async function onEndTurn() {
   }
 
   closePreview();
-
-  // Player ends their turn — endTurn() switches to AI
   endTurn();
   renderAll();
 
@@ -530,7 +530,6 @@ async function onEndTurn() {
     playGoldPulse('ai', G.ai.gold);
 
     try {
-      // AI plays cards in main phase
       await runAiTurn({
         onAction: (a) => {
           if (a.type === 'play') logEvent(`AI plays ${a.card.name}`);
@@ -538,27 +537,16 @@ async function onEndTurn() {
         },
       });
       await delay(300);
-
-      // AI combat phase (if AI has attackers)
       if (!G.winner) {
         await runAiCombatPhase();
         await delay(300);
       }
-
-      // NOTE: We do NOT call endTurn() here.
-      // runAiTurn() already handles ending the AI turn and transitioning back
-      // to the player turn. If your flow.js doesn't do this automatically,
-      // uncomment the next line:
-      // if (!G.winner && G.activePlayer === 'ai') endTurn();
-
-      // Defensive: if we're still on AI turn after runAiTurn, force the switch
       if (!G.winner && G.activePlayer === 'ai') {
         console.log('[turn] forcing endTurn — AI still active after runAiTurn');
         endTurn();
       }
     } catch (err) {
       console.error('[turn] AI turn error', err);
-      // Try to recover — force switch back to player
       if (G.activePlayer === 'ai') {
         try { endTurn(); } catch (e) {}
       }
@@ -569,6 +557,7 @@ async function onEndTurn() {
     btn.style.pointerEvents = '';
 
     enforceHandCap();
+    console.log('[turn] back to player. G.phase=', G.phase, 'G.activePlayer=', G.activePlayer);
     renderAll();
 
     if (!G.winner) {
@@ -578,8 +567,6 @@ async function onEndTurn() {
   }
   if (G.winner) showWinner();
 }
-
-// ─── Hand card tap ───
 
 function attachHandCardEvents(slotEl, inst) {
   let touchMoved = false;
@@ -612,8 +599,6 @@ function onHandCardTap(inst) {
   openPreview(inst);
 }
 
-// ─── Slot click handler ───
-
 function attachSlotEvents(slotEl) {
   slotEl.addEventListener('click', () => onSlotTap(slotEl));
 }
@@ -644,6 +629,7 @@ function onAttackerSlotPick(slotIdx) {
   } else {
     const r = declareAttacker('player', slotIdx);
     if (!r.ok) {
+      console.log('[combat] declareAttacker failed:', r.error, 'inst=', inst);
       showStatus(r.error);
       return;
     }
@@ -664,23 +650,19 @@ function onBlockerSlotPick(slotIdx) {
   if (_resumeBlockChoice) _resumeBlockChoice();
 }
 
-// ─── Preview overlay ───
-
 function openPreview(inst) {
   _previewInst = inst;
   const overlay = _container.querySelector('#card-preview-overlay');
   overlay.innerHTML = '';
-
   const wrapper = document.createElement('div');
   wrapper.className = 'preview-wrapper';
-
   const card = createCardElement(inst, 'preview');
   wrapper.appendChild(card);
 
   const actions = document.createElement('div');
   actions.className = 'preview-actions';
 
-  const isPlayerTurn = G.activePlayer === 'player' && G.phase === 'main';
+  const isPlayerTurn = G.activePlayer === 'player' && (G.phase === 'main' || G.phase === 'renew');
   const affordable = canAffordInst(inst);
   const isCreature = inst.type !== 'Spell';
   const boardFull = isCreatureBoardFull('player');
@@ -734,8 +716,6 @@ function closePreview() {
   setTimeout(() => { if (overlay.classList.contains('hidden')) overlay.innerHTML = ''; }, 300);
 }
 
-// ─── Sacrifice-pick ───
-
 function enterSacrificePickMode(newInst) {
   _mode = 'sacrifice-pick';
   _pendingPlayInst = newInst;
@@ -758,26 +738,21 @@ function exitSacrificePickMode() {
 function onSacrificeSlotPick(slotIdx) {
   if (_mode !== 'sacrifice-pick' || !_pendingPlayInst) return;
   const newInst = _pendingPlayInst;
-
   const sacResult = sacrificeCreature('player', slotIdx);
   if (!sacResult.ok) {
     showStatus(sacResult.error || 'Sacrifice failed');
     exitSacrificePickMode();
     return;
   }
-
   const playResult = playCardFromHand(newInst);
   if (!playResult.ok) {
     showStatus(playResult.error || 'Play failed');
     exitSacrificePickMode();
     return;
   }
-
   logEvent(`You sacrificed ${sacResult.sacrificed.name} for ${newInst.name}`);
   exitSacrificePickMode();
 }
-
-// ─── Dock ───
 
 function openDock(which) {
   const panel = _container.querySelector('#dock-panel');
@@ -807,11 +782,7 @@ function openDock(which) {
   }
   panel.classList.remove('hidden');
 }
-function closeDock() {
-  _container.querySelector('#dock-panel').classList.add('hidden');
-}
-
-// ─── Renders ───
+function closeDock() { _container.querySelector('#dock-panel').classList.add('hidden'); }
 
 function renderAll() {
   if (!_container || !G) return;
@@ -831,14 +802,14 @@ function updateActionButtons() {
   if (!combatBtn || !endBtn || !confirmBtn) return;
 
   const isMyTurn = G.activePlayer === 'player' && !G.winner;
-  const inMain = isMyTurn && _mode === 'normal' && G.phase === 'main';
+  // LOOSENED: combat button shows during ANY phase that isn't combat-locked
+  const inMain = isMyTurn && _mode === 'normal' && (G.phase === 'main' || G.phase === 'renew' || G.phase === undefined);
   const inCombatAttackers = _mode === 'combat-attackers';
-  const hasAttackers = countAvailableAttackers('player') > 0;
+  const hasAnyCreature = G.player.creatures.some(c => c !== null);
 
-  // Show GO TO COMBAT in main with attackers, hide otherwise
-  combatBtn.style.display = (inMain && hasAttackers) ? 'flex' : 'none';
+  // Show GO TO COMBAT during your turn whenever you have any creature
+  combatBtn.style.display = (inMain && hasAnyCreature) ? 'flex' : 'none';
 
-  // Show CONFIRM in combat-attackers
   confirmBtn.style.display = inCombatAttackers ? 'flex' : 'none';
   if (inCombatAttackers) {
     const declared = getAttackers('player').length;
@@ -847,7 +818,6 @@ function updateActionButtons() {
       : `<span>SKIP</span><span>COMBAT</span>`;
   }
 
-  // Hide END TURN during combat sub-modes
   endBtn.style.display = (inCombatAttackers || _mode === 'combat-blockers') ? 'none' : 'flex';
 }
 
@@ -882,9 +852,7 @@ function renderBoard(side) {
   for (let i = 0; i < 4; i++) {
     const slotEl = _container.querySelector(`.overlay-slots-${sideClass} .board-slot[data-slot-idx="${i}"]`);
     if (!slotEl) continue;
-
     slotEl.classList.remove('attacking', 'attack-target', 'block-target', 'sacrifice-target', 'pending-attack-target');
-
     const host = slotEl.querySelector('.slot-card-host');
     host.innerHTML = '';
     const inst = slots[i];
@@ -900,7 +868,6 @@ function renderBoard(side) {
     }
   }
 
-  // Mode-specific highlighting
   if (_mode === 'sacrifice-pick' && side === 'player') {
     _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach(s => {
       if (G.player.creatures[parseInt(s.dataset.slotIdx, 10)]) {
@@ -933,7 +900,6 @@ function renderBoard(side) {
     }
   }
 
-  // Re-attach slot events on player side
   if (side === 'player') {
     _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach(s => {
       const clone = s.cloneNode(true);
@@ -968,7 +934,7 @@ function renderHand() {
     slot.dataset.instId = inst.instId;
 
     const card = createCardElement(inst, 'hand');
-    const affordable = canAffordInst(inst) && G.activePlayer === 'player' && G.phase === 'main' && inst.type !== 'Spell';
+    const affordable = canAffordInst(inst) && G.activePlayer === 'player' && (G.phase === 'main' || G.phase === 'renew') && inst.type !== 'Spell';
     if (!affordable && _mode !== 'discard') card.classList.add('unaffordable');
 
     attachHandCardEvents(slot, inst);
