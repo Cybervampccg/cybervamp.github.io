@@ -951,6 +951,21 @@ function renderBoard(side) {
       const cardEl = createCardElement(inst, 'battlefield');
       if (inst.exhausted) cardEl.classList.add('is-exhausted');
       if (inst.overexhausted) cardEl.classList.add('is-overexhausted');
+
+      // Inline exhaust rotation — guaranteed to work regardless of CSS state
+      // Exhausted: 90° sideways. Overexhausted: 180° upside-down.
+      cardEl.style.transition = 'transform 0.35s cubic-bezier(.3,.1,.3,1.2), filter 0.35s';
+      if (inst.overexhausted) {
+        cardEl.style.transform = 'rotate(180deg) scale(0.88)';
+        cardEl.style.filter = 'brightness(0.5) saturate(0.5)';
+      } else if (inst.exhausted) {
+        cardEl.style.transform = 'rotate(90deg) scale(0.92)';
+        cardEl.style.filter = 'brightness(0.7) saturate(0.75)';
+      } else {
+        cardEl.style.transform = '';
+        cardEl.style.filter = '';
+      }
+
       host.appendChild(cardEl);
     } else {
       slotEl.classList.add('empty');
@@ -995,6 +1010,17 @@ function renderRelics(side) {
       const cardEl = createCardElement(inst, 'battlefield');
       cardEl.style.width = '100%';
       cardEl.style.height = '100%';
+
+      // Inline exhaust rotation for relics too
+      cardEl.style.transition = 'transform 0.35s cubic-bezier(.3,.1,.3,1.2), filter 0.35s';
+      if (inst.overexhausted) {
+        cardEl.style.transform = 'rotate(180deg) scale(0.88)';
+        cardEl.style.filter = 'brightness(0.5) saturate(0.5)';
+      } else if (inst.exhausted) {
+        cardEl.style.transform = 'rotate(90deg) scale(0.92)';
+        cardEl.style.filter = 'brightness(0.7) saturate(0.75)';
+      }
+
       host.appendChild(cardEl);
     } else {
       slotEl.classList.add('empty');
