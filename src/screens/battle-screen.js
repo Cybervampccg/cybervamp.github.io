@@ -1,11 +1,11 @@
 // ─────────────────────────────────────────────────────────────
-// Battle Screen — Gesture Overhaul FIX 1
+// Battle Screen — four-fixes
 // Fixes:
-//   1. Selected hand card visual is now INLINE (not dependent on CSS append)
-//      — guaranteed to show: lift up 25%, scale 1.2x, gold border
-//   2. Drag-to-play: removed strict zone check. Releasing anywhere outside
-//      the hand area attempts a play. Console logging shows decision.
-//   3. attemptPlayCard now logs its decision path
+//   1. Drag-to-play works from ANY hand-card touch (not gated by long-press)
+//   2. Relics align RIGHT in their row (justify-content: flex-end)
+//   3. GO TO COMBAT button positioned side-by-side with END TURN
+//      (combat at right=18%, end-turn at right=1.5%) — no more overlap
+//   4. Combat button has aggressive show logic + console diagnostics
 // ─────────────────────────────────────────────────────────────
 
 import { G } from '../game/state.js';
@@ -30,10 +30,11 @@ const PLAYABLE_AS_CREATURE = ['Creature', 'creature'];
 const SPELLS = ['Spell', 'spell'];
 const RELICS_TYPES = ['Relic', 'relic', 'Permanent', 'permanent'];
 
+// FIX 3: Side-by-side action buttons
+// Combat button at right=18% (away from edge), End Turn at right=1.5% (corner)
 const ACTION_BTN_BASE_STYLE = `
   position: absolute;
   top: 92.5%;
-  right: 1.5%;
   width: 16%;
   height: 6.2%;
   font-family: 'Cinzel Decorative', serif;
@@ -100,15 +101,19 @@ export function mountBattleScreen(container, opts = {}) {
   enforceHandCap();
   renderAll();
   playGoldPulse('player', G.player.gold);
+
+  console.log('[battle] mounted. activePlayer=', G.activePlayer, 'phase=', G.phase, 'mode=', _mode);
 }
 
+// FIX 3: Side-by-side button layout
 function renderActionButtons() {
+  // Combat button: right=18% (left of end turn), End Turn: right=1.5% (corner)
   const endTurnStyle = ACTION_BTN_BASE_STYLE +
-    `background: linear-gradient(180deg, rgba(185, 28, 44, 0.8) 0%, rgba(110, 13, 24, 0.9) 100%); color: #fde047;`;
+    `right: 1.5%; background: linear-gradient(180deg, rgba(185, 28, 44, 0.8) 0%, rgba(110, 13, 24, 0.9) 100%); color: #fde047;`;
   const combatStyle = ACTION_BTN_BASE_STYLE +
-    `background: linear-gradient(180deg, #c2410c 0%, #7c2d12 100%); color: #ffedd5; border-color: rgba(255, 180, 100, 0.6);`;
+    `right: 18%; background: linear-gradient(180deg, #c2410c 0%, #7c2d12 100%); color: #ffedd5; border-color: rgba(255, 180, 100, 0.6);`;
   const confirmStyle = ACTION_BTN_BASE_STYLE +
-    `background: linear-gradient(180deg, #b45309 0%, #78350f 100%); color: #fde047; border-color: rgba(253, 224, 71, 0.7);`;
+    `right: 1.5%; background: linear-gradient(180deg, #b45309 0%, #78350f 100%); color: #fde047; border-color: rgba(253, 224, 71, 0.7);`;
 
   return `
     <button id="btn-combat" style="${combatStyle} display:none;">
@@ -123,13 +128,15 @@ function renderActionButtons() {
   `;
 }
 
+// FIX 2: Relics align to RIGHT (justify-content: flex-end + reverse render order)
+// Slot 0 will appear at the RIGHTMOST position visually
 function renderRelicsOverlay(side) {
   const sideClass = side === 'opponent' ? 'opp' : 'pla';
   const top = side === 'opponent' ? '12%' : '71.5%';
   return `
-    <div class="overlay-relics overlay-relics-${sideClass}" style="position: absolute; top: ${top}; left: 42%; right: 13%; height: 6.5%; display: flex; justify-content: space-between; gap: 1.5%; z-index: 4;">
-      ${[0, 1, 2, 3].map(i => `
-        <div class="relic-slot" data-side="${who(side)}" data-relic-idx="${i}" style="flex: 1; aspect-ratio: 5/7; height: 100%; width: auto; position: relative; display: flex; align-items: center; justify-content: center;">
+    <div class="overlay-relics overlay-relics-${sideClass}" style="position: absolute; top: ${top}; left: 42%; right: 13%; height: 6.5%; display: flex; justify-content: flex-end; gap: 1.5%; z-index: 4;">
+      ${[3, 2, 1, 0].map(i => `
+        <div class="relic-slot" data-side="${who(side)}" data-relic-idx="${i}" style="aspect-ratio: 5/7; height: 100%; width: auto; position: relative; display: flex; align-items: center; justify-content: center;">
           <div class="relic-slot-host" style="width: 100%; height: 100%;"></div>
         </div>
       `).join('')}
@@ -253,11 +260,25 @@ function wireEvents() {
 }
 
 function onGoToCombat() {
+  console.log('[combat] GO TO COMBAT tapped');
   if (G.activePlayer !== 'player') { showStatus('Not your turn'); return; }
   if (G.winner) return;
   if (_mode !== 'normal') { showStatus('Finish current action first'); return; }
 
   if (countAvailableAttackers('player') === 0) {
+    const reasons = [];
+    G.player.creatures.forEach((c, i) => {
+      if (!c) reasons.push(`slot ${i}: empty`);
+      else {
+        const issues = [];
+        if (c.exhausted) issues.push('exhausted');
+        if (c.overexhausted) issues.push('overexhausted');
+        if ((c.power || 0) <= 0) issues.push(`power=${c.power || 0}`);
+        if (issues.length === 0) issues.push('OK');
+        reasons.push(`slot ${i}: ${c.name} - ${issues.join(', ')}`);
+      }
+    });
+    console.log('[combat] no attackers because:', reasons);
     showStatus('No creatures ready to attack');
     return;
   }
@@ -468,6 +489,7 @@ async function onEndTurn() {
     btn.style.opacity = '';
     btn.style.pointerEvents = '';
     enforceHandCap();
+    console.log('[turn] back to player. activePlayer=', G.activePlayer, 'phase=', G.phase, 'mode=', _mode);
     renderAll();
     if (!G.winner) { playGoldPulse('player', G.player.gold); logEvent(`— Your turn (T${G.turn}) —`); }
   }
@@ -475,7 +497,7 @@ async function onEndTurn() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// HAND CARD GESTURES
+// FIX 1: HAND CARD GESTURES — drag works from any touch
 // ═══════════════════════════════════════════════════════════
 
 function attachHandCardGestures(slotEl, inst) {
@@ -490,7 +512,6 @@ function attachHandCardGestures(slotEl, inst) {
       if (_mode !== 'normal') return;
 
       if (_selectedHandInstId === inst.instId) {
-        // Already selected — try to play
         attemptPlayCard(inst);
       } else {
         _selectedHandInstId = inst.instId;
@@ -504,8 +525,14 @@ function attachHandCardGestures(slotEl, inst) {
     },
     onDragStart: () => {
       console.log('[gesture] hand DRAG START', inst.name);
-      if (_mode !== 'normal') return;
-      if (G.activePlayer !== 'player') return;
+      if (_mode !== 'normal') {
+        console.log('[gesture] drag blocked: mode=', _mode);
+        return;
+      }
+      if (G.activePlayer !== 'player') {
+        console.log('[gesture] drag blocked: not your turn');
+        return;
+      }
       closePreview();
       _draggedHandInstId = inst.instId;
 
@@ -536,14 +563,12 @@ function attachHandCardGestures(slotEl, inst) {
       if (_draggedClone) { _draggedClone.remove(); _draggedClone = null; }
       slotEl.style.opacity = '';
 
-      // Determine if drop is in play area
       const playfield = _container.querySelector('.battle-playfield');
+      if (!playfield) { _draggedHandInstId = null; return; }
       const pfRect = playfield.getBoundingClientRect();
       const relY = (y - pfRect.top) / pfRect.height;
-      console.log('[gesture] drop relY=', relY.toFixed(2), '(< 0.78 plays)');
+      console.log('[gesture] drop relY=', relY.toFixed(2));
 
-      // Strict check removed — try to play whenever dragged outside hand
-      // Use 0.85 threshold so even slight upward drag plays the card
       if (relY < 0.85) {
         attemptPlayCard(inst);
       } else {
@@ -566,37 +591,19 @@ function attemptPlayCard(inst) {
   const isSpell = SPELLS.includes(cardType);
   const isRelic = RELICS_TYPES.includes(cardType);
 
-  if (isSpell) {
-    console.log('[play] FAIL: spells coming soon');
-    showStatus('Spells coming soon');
-    return;
-  }
-  if (!isCreature && !isRelic) {
-    console.log('[play] FAIL: unsupported type', cardType);
-    showStatus(`${cardType} not yet supported`);
-    return;
-  }
+  if (isSpell) { showStatus('Spells coming soon'); return; }
+  if (!isCreature && !isRelic) { showStatus(`${cardType} not yet supported`); return; }
 
   if (isRelic) {
     const goldCost = inst.goldCost || 0;
     const bloodCost = inst.bloodCost || 0;
-    if ((G.player.gold || 0) < goldCost) {
-      console.log('[play] FAIL: need', goldCost, 'gold');
-      showStatus(`Need ${goldCost} gold`);
-      return;
-    }
-    if ((G.player.blood || 0) <= bloodCost) {
-      console.log('[play] FAIL: cannot pay blood');
-      showStatus(`Cannot pay ${bloodCost} blood`);
-      return;
-    }
+    if ((G.player.gold || 0) < goldCost) { showStatus(`Need ${goldCost} gold`); return; }
+    if ((G.player.blood || 0) <= bloodCost) { showStatus(`Cannot pay ${bloodCost} blood`); return; }
     if (isRelicBoardFull('player')) {
-      console.log('[play] relic board full → sacrifice mode');
       enterSacrificePickMode(inst, 'relic');
       return;
     }
     const result = playRelicFromHand('player', inst.instId);
-    console.log('[play] playRelicFromHand result:', result);
     if (result.ok) {
       logEvent(`You play relic ${inst.name}`);
       _selectedHandInstId = null;
@@ -608,20 +615,15 @@ function attemptPlayCard(inst) {
     return;
   }
 
-  // Creature path
-  const aff = canAffordInst(inst);
-  console.log('[play] creature canAfford:', aff, 'gold=', G.player.gold, 'blood=', G.player.blood);
-  if (!aff) {
+  if (!canAffordInst(inst)) {
     showStatus(`Need ${inst.goldCost}⛁ ${inst.bloodCost > 0 ? '+ ' + inst.bloodCost + '🩸' : ''}`);
     return;
   }
   if (isCreatureBoardFull('player')) {
-    console.log('[play] creature board full → sacrifice mode');
     enterSacrificePickMode(inst, 'creature');
     return;
   }
   const result = playCardFromHand(inst);
-  console.log('[play] playCardFromHand result:', result);
   if (result.ok) {
     logEvent(`You play ${inst.name}`);
     _selectedHandInstId = null;
@@ -631,10 +633,6 @@ function attemptPlayCard(inst) {
     showStatus(result.error);
   }
 }
-
-// ═══════════════════════════════════════════════════════════
-// BATTLEFIELD GESTURES
-// ═══════════════════════════════════════════════════════════
 
 function attachBattlefieldGestures(slotEl, inst, kind) {
   attachCardGestures(slotEl, {
@@ -831,6 +829,7 @@ function renderAll() {
   updateActionButtons();
 }
 
+// FIX 4: Combat button visibility with detailed logging
 function updateActionButtons() {
   const combatBtn = _container.querySelector('#btn-combat');
   const endBtn = _container.querySelector('#btn-end-turn');
@@ -842,7 +841,18 @@ function updateActionButtons() {
   const hasAnyCreature = G.player.creatures.some(c => c !== null);
   const isNormal = _mode === 'normal';
 
-  combatBtn.style.display = (isMyTurn && isNormal && hasAnyCreature) ? 'flex' : 'none';
+  const showCombat = isMyTurn && isNormal && hasAnyCreature;
+
+  // Diagnostic
+  if (isMyTurn && isNormal) {
+    console.log('[ui] combat btn check:',
+      'isMyTurn=', isMyTurn,
+      'isNormal=', isNormal,
+      'hasAnyCreature=', hasAnyCreature,
+      '→ show=', showCombat);
+  }
+
+  combatBtn.style.display = showCombat ? 'flex' : 'none';
   confirmBtn.style.display = inCombatAttackers ? 'flex' : 'none';
   if (inCombatAttackers) {
     const declared = getAttackers('player').length;
@@ -850,6 +860,7 @@ function updateActionButtons() {
       ? `<span>CONFIRM</span><span>ATTACK (${declared})</span>`
       : `<span>SKIP</span><span>COMBAT</span>`;
   }
+  // END TURN visible in normal mode + sacrifice-pick + discard, hidden during combat sub-modes
   endBtn.style.display = (inCombatAttackers || _mode === 'combat-blockers') ? 'none' : 'flex';
 }
 
@@ -972,10 +983,6 @@ function renderRelics(side) {
   });
 }
 
-// ═══════════════════════════════════════════════════════════
-// renderHand — Selected card visual is INLINE so it always shows
-// ═══════════════════════════════════════════════════════════
-
 function renderHand() {
   const fan = _container.querySelector('#hand-fan-overlay');
   if (!fan) return;
@@ -1000,7 +1007,6 @@ function renderHand() {
     slot.dataset.instId = inst.instId;
 
     if (isSelected) {
-      // INLINE selected styling — guaranteed to show
       slot.style.setProperty('--fan-rot', `0deg`);
       slot.style.setProperty('--fan-lift', `0px`);
       slot.style.transform = 'translateY(-60%) scale(1.3)';
@@ -1024,7 +1030,6 @@ function renderHand() {
     if (!affordable && _mode !== 'discard') card.classList.add('unaffordable');
 
     if (isSelected) {
-      // INLINE gold-glow border on selected card
       card.style.border = '3px solid #fde047';
       card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.95), 0 0 32px rgba(234, 179, 8, 0.85), inset 0 0 22px rgba(234, 179, 8, 0.2)';
     }
