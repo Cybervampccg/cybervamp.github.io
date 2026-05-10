@@ -1,11 +1,11 @@
 // ─────────────────────────────────────────────────────────────
-// Battle Screen — Session D-FIX-3
-// Fixes:
-//   1. Attack button shows whenever it's your turn + you have a creature
-//      (no phase check — phase logic was the bug)
-//   2. Tap battlefield card to see preview (read-only, no PLAY button)
-//   3. Defensive handling of unknown card types (relic, etc.) — refuse to play
-//      until we know what they should do, instead of silently vanishing
+// Battle Screen — Session D-FIX-4 + Relics
+// Adds:
+//   - Relic slot rows (player below creatures, AI above creatures)
+//   - PLAY button on relic preview routes to playRelicFromHand
+//   - AI tries to play relics after main phase plays
+//   - Battlefield preview works on relic slots too
+//   - Sacrifice mode also handles relic slots when relic board is full
 // ─────────────────────────────────────────────────────────────
 
 import { G } from '../game/state.js';
@@ -19,13 +19,15 @@ import {
   countAvailableAttackers, countAvailableBlockers,
   aiDeclareAllAttackers, aiAssignBlockers,
 } from '../game/combat.js';
+import {
+  ensureRelicSlots, isRelicBoardFull, playRelicFromHand,
+  sacrificeRelic, isRelicCard, aiTryPlayRelic,
+} from '../game/relics.js';
 
 const HAND_CAP = 7;
-
-// Known playable card types
 const PLAYABLE_AS_CREATURE = ['Creature', 'creature'];
 const SPELLS = ['Spell', 'spell'];
-// Anything else: refuse to play, show diagnostic message
+const RELICS = ['Relic', 'relic', 'Permanent', 'permanent'];
 
 const ACTION_BTN_BASE_STYLE = `
   position: absolute;
@@ -52,27 +54,33 @@ const ACTION_BTN_BASE_STYLE = `
 let _container = null;
 let _aiTurnRunning = false;
 let _previewInst = null;
-let _previewSource = null; // 'hand' or 'battlefield'
+let _previewSource = null;
 let _mode = 'normal';
 let _pendingPlayInst = null;
 let _pendingBlockerForAttackerIdx = null;
 let _resumeBlockChoice = null;
+let _sacrificeTargetType = 'creature'; // 'creature' or 'relic'
 
 export function mountBattleScreen(container, opts = {}) {
   _container = container;
   const templateMode = opts.templateMode === true;
   const playfieldClass = templateMode ? 'battle-playfield template-mode' : 'battle-playfield';
 
+  // Ensure relic slots exist on both sides
+  ensureRelicSlots('player');
+  ensureRelicSlots('ai');
+
   container.innerHTML = `
     <div id="battle-screen">
       <div class="${playfieldClass}">
-        ${templateMode ? renderTemplateRegions() : ''}
         <div class="overlay-layer">
           ${renderTopBarOverlay()}
           ${renderVitalsOverlay('opponent')}
           ${renderDeckIndicator()}
+          ${renderRelicsOverlay('opponent')}
           ${renderSlotsOverlay('opponent')}
           ${renderSlotsOverlay('player')}
+          ${renderRelicsOverlay('player')}
           ${renderVitalsOverlay('player')}
           ${renderHandFan()}
           ${renderActionButtons()}
@@ -94,8 +102,7 @@ export function mountBattleScreen(container, opts = {}) {
   renderAll();
   playGoldPulse('player', G.player.gold);
 
-  console.log('[battle] mounted. G.phase=', G.phase, 'G.activePlayer=', G.activePlayer);
-  if (templateMode) showStatus('TEMPLATE MODE — anchor preview');
+  console.log('[battle] mounted with relics. phase=', G.phase, 'active=', G.activePlayer);
 }
 
 function renderActionButtons() {
@@ -116,6 +123,43 @@ function renderActionButtons() {
     <button id="btn-end-turn" style="${endTurnStyle}">
       <span>END</span><span>TURN</span>
     </button>
+  `;
+}
+
+// ─── RELIC ROW ───
+// Player relics: small slot row at y=72-78%, x=42-87% (right of gold pill)
+// AI relics: y=12-18%, x=42-87% (right of opp gold pill)
+
+function renderRelicsOverlay(side) {
+  const sideClass = side === 'opponent' ? 'opp' : 'pla';
+  const top = side === 'opponent' ? '12%' : '71.5%';
+  return `
+    <div class="overlay-relics overlay-relics-${sideClass}" style="
+      position: absolute;
+      top: ${top};
+      left: 42%;
+      right: 13%;
+      height: 6.5%;
+      display: flex;
+      justify-content: space-between;
+      gap: 1.5%;
+      z-index: 4;
+    ">
+      ${[0, 1, 2, 3].map(i => `
+        <div class="relic-slot" data-side="${who(side)}" data-relic-idx="${i}" style="
+          flex: 1;
+          aspect-ratio: 5/7;
+          height: 100%;
+          width: auto;
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <div class="relic-slot-host" style="width: 100%; height: 100%;"></div>
+        </div>
+      `).join('')}
+    </div>
   `;
 }
 
@@ -143,8 +187,6 @@ function hideModeBanner() {
   banner.classList.add('hidden');
   banner.innerHTML = '';
 }
-
-function renderTemplateRegions() { return ''; } // skipped to save space — same as before
 
 function renderTopBarOverlay() {
   return `
@@ -231,26 +273,11 @@ function wireEvents() {
 }
 
 function onGoToCombat() {
-  console.log('[combat] GO TO COMBAT tapped. mode=', _mode, 'phase=', G.phase, 'active=', G.activePlayer);
   if (G.activePlayer !== 'player') { showStatus('Not your turn'); return; }
   if (G.winner) return;
   if (_mode !== 'normal') { showStatus('Finish current action first'); return; }
 
-  const attackerCount = countAvailableAttackers('player');
-  if (attackerCount === 0) {
-    const reasons = [];
-    G.player.creatures.forEach((c, i) => {
-      if (!c) reasons.push(`slot ${i}: empty`);
-      else {
-        const issues = [];
-        if (c.exhausted) issues.push('exhausted');
-        if (c.overexhausted) issues.push('overexhausted');
-        if ((c.power || 0) <= 0) issues.push(`power=${c.power || 0}`);
-        if (issues.length === 0) issues.push('OK');
-        reasons.push(`slot ${i}: ${c.name} - ${issues.join(', ')}`);
-      }
-    });
-    console.log('[combat] no attackers because:', reasons);
+  if (countAvailableAttackers('player') === 0) {
     showStatus('No creatures ready to attack');
     return;
   }
@@ -271,10 +298,7 @@ async function onConfirmAction() {
 
 function cancelCombat() {
   for (const c of G.player.creatures) { if (c) delete c._attacking; }
-  _mode = 'normal';
-  G.phase = 'main';
-  hideModeBanner();
-  renderAll();
+  _mode = 'normal'; G.phase = 'main'; hideModeBanner(); renderAll();
 }
 
 async function runPlayerCombatResolution() {
@@ -294,23 +318,18 @@ async function runPlayerCombatResolution() {
     renderAll();
     checkWinCondition();
     if (G.winner) { showWinner(); hideModeBanner(); return; }
-    _mode = 'normal';
-    G.phase = 'main';
-    hideModeBanner();
-    renderAll();
+    _mode = 'normal'; G.phase = 'main'; hideModeBanner(); renderAll();
   } catch (err) {
     console.error('[combat] player combat error', err);
     _mode = 'normal'; G.phase = 'main'; hideModeBanner();
-    showStatus('Combat error — see console'); renderAll();
+    showStatus('Combat error'); renderAll();
   }
 }
 
 async function runAiCombatPhase() {
   try {
     if (G.winner) return;
-    if (countAvailableAttackers('ai') === 0) {
-      console.log('[combat] AI has no attackers'); return;
-    }
+    if (countAvailableAttackers('ai') === 0) return;
     G.phase = 'combat';
     aiDeclareAllAttackers('ai');
     renderAll();
@@ -322,7 +341,7 @@ async function runAiCombatPhase() {
 
     if (!playerHasBlockers) {
       for (const a of aiAttackers) a.inst._blockedBy = null;
-      showModeBanner(`<div>⚠ AI ATTACKING — no blockers available</div>`);
+      showModeBanner(`<div>⚠ AI ATTACKING — no blockers</div>`);
       await delay(900);
       showModeBanner(`<div>💥 RESOLVING COMBAT</div>`);
       const events = resolveCombat('ai', 'player');
@@ -362,9 +381,7 @@ async function runAiCombatPhase() {
     await playBleedEvents(bleedEvents);
     renderAll();
     checkWinCondition();
-    G.phase = 'main';
-    _mode = 'normal';
-    hideModeBanner();
+    G.phase = 'main'; _mode = 'normal'; hideModeBanner();
   } catch (err) {
     console.error('[combat] AI combat error', err);
     _mode = 'normal'; G.phase = 'main'; hideModeBanner(); renderAll();
@@ -389,8 +406,7 @@ async function playCombatEvents(events) {
         logEvent(`${e.attackerName} and ${e.blockerName} tie at ${e.power}`);
         await delay(300); renderAll(); break;
       case 'selfbleed':
-        logEvent(`${e.attackerName} selfbleeds ${e.amount}`);
-        renderAll(); break;
+        logEvent(`${e.attackerName} selfbleeds ${e.amount}`); renderAll(); break;
     }
   }
 }
@@ -443,20 +459,33 @@ async function onEndTurn() {
     playGoldPulse('ai', G.ai.gold);
 
     try {
+      // AI plays creatures via flow.js
       await runAiTurn({
         onAction: (a) => {
           if (a.type === 'play') logEvent(`AI plays ${a.card.name}`);
           renderAll();
         },
       });
+
+      // AI tries to play any relics in hand
+      let relicAttempts = 0;
+      while (relicAttempts < 4) {
+        const r = aiTryPlayRelic('ai');
+        if (!r.ok) break;
+        logEvent(`AI plays relic ${r.played.name}`);
+        renderAll();
+        await delay(300);
+        relicAttempts++;
+      }
+
       await delay(300);
       if (!G.winner) { await runAiCombatPhase(); await delay(300); }
+
       if (!G.winner && G.activePlayer === 'ai') {
-        console.log('[turn] forcing endTurn — AI still active');
         endTurn();
       }
     } catch (err) {
-      console.error('[turn] AI turn error', err);
+      console.error('[turn] AI error', err);
       if (G.activePlayer === 'ai') { try { endTurn(); } catch (e) {} }
     }
 
@@ -464,7 +493,6 @@ async function onEndTurn() {
     btn.style.opacity = '';
     btn.style.pointerEvents = '';
     enforceHandCap();
-    console.log('[turn] back to player. G.phase=', G.phase);
     renderAll();
     if (!G.winner) { playGoldPulse('player', G.player.gold); logEvent(`— Your turn (T${G.turn}) —`); }
   }
@@ -505,13 +533,28 @@ function onSlotTap(slotEl) {
   if (_mode === 'sacrifice-pick' && side === 'player') { onSacrificeSlotPick(slotIdx); return; }
   if (_mode === 'combat-attackers' && side === 'player') { onAttackerSlotPick(slotIdx); return; }
   if (_mode === 'combat-blockers' && side === 'player') { onBlockerSlotPick(slotIdx); return; }
-
-  // FIX 2: tap battlefield card in normal mode → preview
   if (_mode === 'normal') {
     const inst = G[side === 'player' ? 'player' : 'ai'].creatures[slotIdx];
-    if (inst) {
-      openPreview(inst, 'battlefield');
-    }
+    if (inst) openPreview(inst, 'battlefield');
+  }
+}
+
+function attachRelicSlotEvents(slotEl) {
+  slotEl.addEventListener('click', () => onRelicSlotTap(slotEl));
+}
+
+function onRelicSlotTap(slotEl) {
+  const side = slotEl.dataset.side;
+  const relicIdx = parseInt(slotEl.dataset.relicIdx, 10);
+
+  if (_mode === 'sacrifice-pick' && side === 'player' && _sacrificeTargetType === 'relic') {
+    onSacrificeRelicPick(relicIdx);
+    return;
+  }
+  if (_mode === 'normal') {
+    ensureRelicSlots(side);
+    const inst = G[side].relics[relicIdx];
+    if (inst) openPreview(inst, 'battlefield');
   }
 }
 
@@ -522,10 +565,7 @@ function onAttackerSlotPick(slotIdx) {
     undeclareAttacker('player', slotIdx);
   } else {
     const r = declareAttacker('player', slotIdx);
-    if (!r.ok) {
-      console.log('[combat] declareAttacker failed:', r.error, 'inst=', inst);
-      showStatus(r.error); return;
-    }
+    if (!r.ok) { showStatus(r.error); return; }
   }
   renderAll();
 }
@@ -540,7 +580,7 @@ function onBlockerSlotPick(slotIdx) {
   if (_resumeBlockChoice) _resumeBlockChoice();
 }
 
-// ─── Preview overlay (now takes source: 'hand' or 'battlefield') ───
+// ─── Preview overlay ───
 
 function openPreview(inst, source = 'hand') {
   _previewInst = inst;
@@ -561,49 +601,88 @@ function openPreview(inst, source = 'hand') {
   closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closePreview(); });
 
   if (source === 'hand') {
-    // Hand preview: includes PLAY button
     const isPlayerTurn = G.activePlayer === 'player';
-    const affordable = canAffordInst(inst);
     const cardType = inst.type || 'Unknown';
     const isCreature = PLAYABLE_AS_CREATURE.includes(cardType);
     const isSpell = SPELLS.includes(cardType);
-    const isUnknownType = !isCreature && !isSpell;
-    const boardFull = isCreatureBoardFull('player');
-
-    let canPlay = isPlayerTurn && affordable && isCreature;
-    let needsSacrifice = canPlay && boardFull;
+    const isRelic = RELICS.includes(cardType);
 
     const playBtn = document.createElement('button');
-    playBtn.className = 'preview-btn preview-btn-play' + (canPlay ? '' : ' disabled');
+    playBtn.className = 'preview-btn preview-btn-play';
 
-    if (isUnknownType) {
-      // FIX 3: don't silently play unknown types. Show a clear message.
-      playBtn.textContent = `${cardType.toUpperCase()} — NOT YET SUPPORTED`;
-      playBtn.classList.add('disabled');
-    } else if (isSpell) {
+    if (isSpell) {
       playBtn.textContent = 'SPELLS COMING SOON';
+      playBtn.classList.add('disabled');
+    } else if (!isCreature && !isRelic) {
+      playBtn.textContent = `${cardType.toUpperCase()} — UNSUPPORTED`;
       playBtn.classList.add('disabled');
     } else if (!isPlayerTurn) {
       playBtn.textContent = 'NOT YOUR TURN';
-    } else if (!affordable) {
-      playBtn.textContent = `NEED ${inst.goldCost}⛁ ${inst.bloodCost > 0 ? '+ ' + inst.bloodCost + '🩸' : ''}`;
-    } else if (needsSacrifice) {
-      playBtn.textContent = '🔁 SACRIFICE & PLAY';
-      playBtn.addEventListener('click', (e) => { e.stopPropagation(); enterSacrificePickMode(inst); });
+      playBtn.classList.add('disabled');
+    } else if (isRelic) {
+      // Relic flow
+      const goldCost = inst.goldCost || 0;
+      const bloodCost = inst.bloodCost || 0;
+      const canAffordRelic = (G.player.gold || 0) >= goldCost && (G.player.blood || 0) > bloodCost;
+      const relicBoardFull = isRelicBoardFull('player');
+
+      if (!canAffordRelic) {
+        playBtn.textContent = `NEED ${goldCost}⛁ ${bloodCost > 0 ? '+ ' + bloodCost + '🩸' : ''}`;
+        playBtn.classList.add('disabled');
+      } else if (relicBoardFull) {
+        playBtn.textContent = '🔁 SACRIFICE & PLAY';
+        playBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          enterSacrificePickMode(inst, 'relic');
+        });
+      } else {
+        playBtn.textContent = `▶ PLAY RELIC (${goldCost}⛁${bloodCost > 0 ? ' ' + bloodCost + '🩸' : ''})`;
+        playBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const result = playRelicFromHand('player', inst.instId);
+          if (result.ok) {
+            logEvent(`You play relic ${inst.name}`);
+            closePreview();
+            renderAll();
+          } else {
+            showStatus(result.error);
+          }
+        });
+      }
     } else {
-      playBtn.textContent = `▶ PLAY (${inst.goldCost}⛁${inst.bloodCost > 0 ? ' ' + inst.bloodCost + '🩸' : ''})`;
-      playBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const result = playCardFromHand(inst);
-        if (result.ok) { logEvent(`You play ${inst.name}`); closePreview(); renderAll(); }
-        else { showStatus(result.error); }
-      });
+      // Creature flow
+      const affordable = canAffordInst(inst);
+      const boardFull = isCreatureBoardFull('player');
+
+      if (!affordable) {
+        playBtn.textContent = `NEED ${inst.goldCost}⛁ ${inst.bloodCost > 0 ? '+ ' + inst.bloodCost + '🩸' : ''}`;
+        playBtn.classList.add('disabled');
+      } else if (boardFull) {
+        playBtn.textContent = '🔁 SACRIFICE & PLAY';
+        playBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          enterSacrificePickMode(inst, 'creature');
+        });
+      } else {
+        playBtn.textContent = `▶ PLAY (${inst.goldCost}⛁${inst.bloodCost > 0 ? ' ' + inst.bloodCost + '🩸' : ''})`;
+        playBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const result = playCardFromHand(inst);
+          if (result.ok) {
+            logEvent(`You play ${inst.name}`);
+            closePreview();
+            renderAll();
+          } else {
+            showStatus(result.error);
+          }
+        });
+      }
     }
 
     actions.appendChild(closeBtn);
     actions.appendChild(playBtn);
   } else {
-    // Battlefield preview: only CLOSE button (read-only)
+    // Battlefield: read-only
     actions.appendChild(closeBtn);
   }
 
@@ -622,12 +701,14 @@ function closePreview() {
   setTimeout(() => { if (overlay.classList.contains('hidden')) overlay.innerHTML = ''; }, 300);
 }
 
-function enterSacrificePickMode(newInst) {
+function enterSacrificePickMode(newInst, targetType) {
   _mode = 'sacrifice-pick';
   _pendingPlayInst = newInst;
+  _sacrificeTargetType = targetType;
   closePreview();
+  const what = targetType === 'relic' ? 'relic' : 'creature';
   showModeBanner(`
-    <div>Tap a creature to SACRIFICE for <strong>${newInst.name}</strong></div>
+    <div>Tap a ${what} to SACRIFICE for <strong>${newInst.name}</strong></div>
     <button class="banner-cancel-btn" id="btn-cancel-sac">CANCEL</button>
   `);
   _container.querySelector('#btn-cancel-sac')?.addEventListener('click', exitSacrificePickMode);
@@ -635,18 +716,34 @@ function enterSacrificePickMode(newInst) {
 }
 
 function exitSacrificePickMode() {
-  _mode = 'normal'; _pendingPlayInst = null;
-  hideModeBanner(); renderAll();
+  _mode = 'normal';
+  _pendingPlayInst = null;
+  _sacrificeTargetType = 'creature';
+  hideModeBanner();
+  renderAll();
 }
 
 function onSacrificeSlotPick(slotIdx) {
   if (_mode !== 'sacrifice-pick' || !_pendingPlayInst) return;
+  if (_sacrificeTargetType !== 'creature') return;
   const newInst = _pendingPlayInst;
   const sacResult = sacrificeCreature('player', slotIdx);
-  if (!sacResult.ok) { showStatus(sacResult.error || 'Sacrifice failed'); exitSacrificePickMode(); return; }
+  if (!sacResult.ok) { showStatus(sacResult.error); exitSacrificePickMode(); return; }
   const playResult = playCardFromHand(newInst);
-  if (!playResult.ok) { showStatus(playResult.error || 'Play failed'); exitSacrificePickMode(); return; }
+  if (!playResult.ok) { showStatus(playResult.error); exitSacrificePickMode(); return; }
   logEvent(`You sacrificed ${sacResult.sacrificed.name} for ${newInst.name}`);
+  exitSacrificePickMode();
+}
+
+function onSacrificeRelicPick(relicIdx) {
+  if (_mode !== 'sacrifice-pick' || !_pendingPlayInst) return;
+  if (_sacrificeTargetType !== 'relic') return;
+  const newInst = _pendingPlayInst;
+  const sacResult = sacrificeRelic('player', relicIdx);
+  if (!sacResult.ok) { showStatus(sacResult.error); exitSacrificePickMode(); return; }
+  const playResult = playRelicFromHand('player', newInst.instId);
+  if (!playResult.ok) { showStatus(playResult.error); exitSacrificePickMode(); return; }
+  logEvent(`You sacrificed relic ${sacResult.sacrificed.name} for ${newInst.name}`);
   exitSacrificePickMode();
 }
 
@@ -682,13 +779,17 @@ function closeDock() { _container.querySelector('#dock-panel').classList.add('hi
 
 function renderAll() {
   if (!_container || !G) return;
-  renderTopBar(); renderVitals(); renderDeck();
-  renderBoard('player'); renderBoard('ai');
-  renderHand(); updateActionButtons();
+  renderTopBar();
+  renderVitals();
+  renderDeck();
+  renderBoard('player');
+  renderBoard('ai');
+  renderRelics('player');
+  renderRelics('ai');
+  renderHand();
+  updateActionButtons();
 }
 
-// FIX 1: Combat button shows ANY time it's your turn and you have any creature.
-// No phase checks — flow.js's phase logic was the blocker.
 function updateActionButtons() {
   const combatBtn = _container.querySelector('#btn-combat');
   const endBtn = _container.querySelector('#btn-end-turn');
@@ -700,9 +801,7 @@ function updateActionButtons() {
   const hasAnyCreature = G.player.creatures.some(c => c !== null);
   const isNormal = _mode === 'normal';
 
-  // Combat button: any time it's my turn, normal mode, with any creature
   combatBtn.style.display = (isMyTurn && isNormal && hasAnyCreature) ? 'flex' : 'none';
-
   confirmBtn.style.display = inCombatAttackers ? 'flex' : 'none';
   if (inCombatAttackers) {
     const declared = getAttackers('player').length;
@@ -710,7 +809,6 @@ function updateActionButtons() {
       ? `<span>CONFIRM</span><span>ATTACK (${declared})</span>`
       : `<span>SKIP</span><span>COMBAT</span>`;
   }
-
   endBtn.style.display = (inCombatAttackers || _mode === 'combat-blockers') ? 'none' : 'flex';
 }
 
@@ -761,7 +859,7 @@ function renderBoard(side) {
     }
   }
 
-  if (_mode === 'sacrifice-pick' && side === 'player') {
+  if (_mode === 'sacrifice-pick' && side === 'player' && _sacrificeTargetType === 'creature') {
     _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach(s => {
       if (G.player.creatures[parseInt(s.dataset.slotIdx, 10)]) {
         s.classList.add('sacrifice-target');
@@ -793,11 +891,49 @@ function renderBoard(side) {
     }
   }
 
-  // Wire slot events on BOTH sides (so battlefield preview works for opp creatures too)
   _container.querySelectorAll(`.overlay-slots-${sideClass} .board-slot`).forEach(s => {
     const clone = s.cloneNode(true);
     s.parentNode.replaceChild(clone, s);
     attachSlotEvents(clone);
+  });
+}
+
+function renderRelics(side) {
+  ensureRelicSlots(side);
+  const sideClass = side === 'ai' ? 'opp' : 'pla';
+  const relics = G[side].relics;
+  for (let i = 0; i < 4; i++) {
+    const slotEl = _container.querySelector(`.overlay-relics-${sideClass} .relic-slot[data-relic-idx="${i}"]`);
+    if (!slotEl) continue;
+    slotEl.classList.remove('sacrifice-target');
+    const host = slotEl.querySelector('.relic-slot-host');
+    host.innerHTML = '';
+    const inst = relics[i];
+    if (inst) {
+      slotEl.classList.remove('empty');
+      // Smaller card render for relic slot
+      const cardEl = createCardElement(inst, 'battlefield');
+      cardEl.style.width = '100%';
+      cardEl.style.height = '100%';
+      host.appendChild(cardEl);
+    } else {
+      slotEl.classList.add('empty');
+    }
+  }
+
+  if (_mode === 'sacrifice-pick' && side === 'player' && _sacrificeTargetType === 'relic') {
+    _container.querySelectorAll('.overlay-relics-pla .relic-slot').forEach(s => {
+      if (G.player.relics[parseInt(s.dataset.relicIdx, 10)]) {
+        s.classList.add('sacrifice-target');
+      }
+    });
+  }
+
+  // Re-attach relic slot events
+  _container.querySelectorAll(`.overlay-relics-${sideClass} .relic-slot`).forEach(s => {
+    const clone = s.cloneNode(true);
+    s.parentNode.replaceChild(clone, s);
+    attachRelicSlotEvents(clone);
   });
 }
 
@@ -826,7 +962,16 @@ function renderHand() {
     slot.dataset.instId = inst.instId;
 
     const card = createCardElement(inst, 'hand');
-    const affordable = canAffordInst(inst) && G.activePlayer === 'player' && inst.type !== 'Spell';
+    // Affordability check varies by type
+    const isRelic = isRelicCard(inst);
+    let affordable;
+    if (isRelic) {
+      affordable = (G.player.gold || 0) >= (inst.goldCost || 0)
+        && (G.player.blood || 0) > (inst.bloodCost || 0)
+        && G.activePlayer === 'player';
+    } else {
+      affordable = canAffordInst(inst) && G.activePlayer === 'player' && inst.type !== 'Spell';
+    }
     if (!affordable && _mode !== 'discard') card.classList.add('unaffordable');
 
     attachHandCardEvents(slot, inst);
