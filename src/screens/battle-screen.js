@@ -1,11 +1,18 @@
 // ─────────────────────────────────────────────────────────────
-// Battle Screen — Session D-FIX-4 + Relics
-// Adds:
-//   - Relic slot rows (player below creatures, AI above creatures)
-//   - PLAY button on relic preview routes to playRelicFromHand
-//   - AI tries to play relics after main phase plays
-//   - Battlefield preview works on relic slots too
-//   - Sacrifice mode also handles relic slots when relic board is full
+// Battle Screen — Gesture overhaul
+//
+// HAND CARDS:
+//   - Tap         → select (no preview). Tap again on same card → play.
+//   - Long-press  → preview screen
+//   - Drag (after long-press) → preview closes; card follows finger;
+//                  release in play zone → play card
+//   - Tap elsewhere → deselect
+//
+// BATTLEFIELD CARDS (creatures + relics):
+//   - Tap         → context action (declare attacker/blocker in combat;
+//                   nothing in normal mode)
+//   - Double tap  → activate ability (placeholder for now)
+//   - Long-press  → preview screen
 // ─────────────────────────────────────────────────────────────
 
 import { G } from '../game/state.js';
@@ -23,11 +30,12 @@ import {
   ensureRelicSlots, isRelicBoardFull, playRelicFromHand,
   sacrificeRelic, isRelicCard, aiTryPlayRelic,
 } from '../game/relics.js';
+import { attachCardGestures } from './card-interaction.js';
 
 const HAND_CAP = 7;
 const PLAYABLE_AS_CREATURE = ['Creature', 'creature'];
 const SPELLS = ['Spell', 'spell'];
-const RELICS = ['Relic', 'relic', 'Permanent', 'permanent'];
+const RELICS_TYPES = ['Relic', 'relic', 'Permanent', 'permanent'];
 
 const ACTION_BTN_BASE_STYLE = `
   position: absolute;
@@ -54,25 +62,23 @@ const ACTION_BTN_BASE_STYLE = `
 let _container = null;
 let _aiTurnRunning = false;
 let _previewInst = null;
-let _previewSource = null;
 let _mode = 'normal';
 let _pendingPlayInst = null;
 let _pendingBlockerForAttackerIdx = null;
 let _resumeBlockChoice = null;
-let _sacrificeTargetType = 'creature'; // 'creature' or 'relic'
+let _sacrificeTargetType = 'creature';
+let _selectedHandInstId = null; // single-tap selection
+let _draggedHandInstId = null;
+let _draggedClone = null;
 
 export function mountBattleScreen(container, opts = {}) {
   _container = container;
-  const templateMode = opts.templateMode === true;
-  const playfieldClass = templateMode ? 'battle-playfield template-mode' : 'battle-playfield';
-
-  // Ensure relic slots exist on both sides
   ensureRelicSlots('player');
   ensureRelicSlots('ai');
 
   container.innerHTML = `
     <div id="battle-screen">
-      <div class="${playfieldClass}">
+      <div class="battle-playfield">
         <div class="overlay-layer">
           ${renderTopBarOverlay()}
           ${renderVitalsOverlay('opponent')}
@@ -101,8 +107,6 @@ export function mountBattleScreen(container, opts = {}) {
   enforceHandCap();
   renderAll();
   playGoldPulse('player', G.player.gold);
-
-  console.log('[battle] mounted with relics. phase=', G.phase, 'active=', G.activePlayer);
 }
 
 function renderActionButtons() {
@@ -126,36 +130,13 @@ function renderActionButtons() {
   `;
 }
 
-// ─── RELIC ROW ───
-// Player relics: small slot row at y=72-78%, x=42-87% (right of gold pill)
-// AI relics: y=12-18%, x=42-87% (right of opp gold pill)
-
 function renderRelicsOverlay(side) {
   const sideClass = side === 'opponent' ? 'opp' : 'pla';
   const top = side === 'opponent' ? '12%' : '71.5%';
   return `
-    <div class="overlay-relics overlay-relics-${sideClass}" style="
-      position: absolute;
-      top: ${top};
-      left: 42%;
-      right: 13%;
-      height: 6.5%;
-      display: flex;
-      justify-content: space-between;
-      gap: 1.5%;
-      z-index: 4;
-    ">
+    <div class="overlay-relics overlay-relics-${sideClass}" style="position: absolute; top: ${top}; left: 42%; right: 13%; height: 6.5%; display: flex; justify-content: space-between; gap: 1.5%; z-index: 4;">
       ${[0, 1, 2, 3].map(i => `
-        <div class="relic-slot" data-side="${who(side)}" data-relic-idx="${i}" style="
-          flex: 1;
-          aspect-ratio: 5/7;
-          height: 100%;
-          width: auto;
-          position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        ">
+        <div class="relic-slot" data-side="${who(side)}" data-relic-idx="${i}" style="flex: 1; aspect-ratio: 5/7; height: 100%; width: auto; position: relative; display: flex; align-items: center; justify-content: center;">
           <div class="relic-slot-host" style="width: 100%; height: 100%;"></div>
         </div>
       `).join('')}
@@ -270,7 +251,16 @@ function wireEvents() {
     btn.addEventListener('click', () => openDock(btn.dataset.dock));
   });
   _container.querySelector('[data-action="close-dock"]')?.addEventListener('click', closeDock);
+  // Tap on background deselects
+  _container.querySelector('.battle-playfield')?.addEventListener('click', (e) => {
+    if (e.target.classList.contains('battle-playfield') || e.target.classList.contains('overlay-layer')) {
+      _selectedHandInstId = null;
+      renderAll();
+    }
+  });
 }
+
+// ─── Combat phase entry ───
 
 function onGoToCombat() {
   if (G.activePlayer !== 'player') { showStatus('Not your turn'); return; }
@@ -282,6 +272,7 @@ function onGoToCombat() {
     return;
   }
 
+  _selectedHandInstId = null;
   _mode = 'combat-attackers';
   G.phase = 'combat';
   showModeBanner(`<div>⚔ COMBAT — tap your creatures to attack</div><div style="font-size:11px; color:#fde047; margin-top:4px">Then tap CONFIRM ATTACK</div>`);
@@ -320,7 +311,7 @@ async function runPlayerCombatResolution() {
     if (G.winner) { showWinner(); hideModeBanner(); return; }
     _mode = 'normal'; G.phase = 'main'; hideModeBanner(); renderAll();
   } catch (err) {
-    console.error('[combat] player combat error', err);
+    console.error('[combat] error', err);
     _mode = 'normal'; G.phase = 'main'; hideModeBanner();
     showStatus('Combat error'); renderAll();
   }
@@ -383,7 +374,7 @@ async function runAiCombatPhase() {
     checkWinCondition();
     G.phase = 'main'; _mode = 'normal'; hideModeBanner();
   } catch (err) {
-    console.error('[combat] AI combat error', err);
+    console.error('[combat] AI error', err);
     _mode = 'normal'; G.phase = 'main'; hideModeBanner(); renderAll();
   }
 }
@@ -447,6 +438,7 @@ async function onEndTurn() {
   }
 
   closePreview();
+  _selectedHandInstId = null;
   endTurn();
   renderAll();
 
@@ -459,15 +451,12 @@ async function onEndTurn() {
     playGoldPulse('ai', G.ai.gold);
 
     try {
-      // AI plays creatures via flow.js
       await runAiTurn({
         onAction: (a) => {
           if (a.type === 'play') logEvent(`AI plays ${a.card.name}`);
           renderAll();
         },
       });
-
-      // AI tries to play any relics in hand
       let relicAttempts = 0;
       while (relicAttempts < 4) {
         const r = aiTryPlayRelic('ai');
@@ -477,13 +466,9 @@ async function onEndTurn() {
         await delay(300);
         relicAttempts++;
       }
-
       await delay(300);
       if (!G.winner) { await runAiCombatPhase(); await delay(300); }
-
-      if (!G.winner && G.activePlayer === 'ai') {
-        endTurn();
-      }
+      if (!G.winner && G.activePlayer === 'ai') endTurn();
     } catch (err) {
       console.error('[turn] AI error', err);
       if (G.activePlayer === 'ai') { try { endTurn(); } catch (e) {} }
@@ -499,63 +484,186 @@ async function onEndTurn() {
   if (G.winner) showWinner();
 }
 
-function attachHandCardEvents(slotEl, inst) {
-  let touchMoved = false;
-  slotEl.addEventListener('touchstart', () => { touchMoved = false; }, { passive: true });
-  slotEl.addEventListener('touchmove', () => { touchMoved = true; }, { passive: true });
-  slotEl.addEventListener('touchend', (e) => {
-    if (touchMoved) return;
-    e.preventDefault?.(); e.stopPropagation?.();
-    onHandCardTap(inst);
-  }, { passive: false });
-  slotEl.addEventListener('mousedown', () => { touchMoved = false; });
-  slotEl.addEventListener('mouseup', () => { if (!touchMoved) onHandCardTap(inst); });
+// ═══════════════════════════════════════════════════════════
+// HAND CARD GESTURES
+// Tap = select / play if already selected
+// Long-press = preview
+// Drag from preview = play by drop
+// ═══════════════════════════════════════════════════════════
+
+function attachHandCardGestures(slotEl, inst) {
+  attachCardGestures(slotEl, {
+    onTap: () => {
+      if (_mode === 'discard') {
+        const result = discardFromHand('player', inst.instId);
+        if (result.ok) { showStatus(`Discarded ${inst.name}`); enforceHandCap(); renderAll(); }
+        return;
+      }
+      if (_mode !== 'normal') return;
+
+      // Already selected? Play it.
+      if (_selectedHandInstId === inst.instId) {
+        attemptPlayCard(inst);
+      } else {
+        _selectedHandInstId = inst.instId;
+        renderAll();
+      }
+    },
+    onLongPress: () => {
+      if (_mode === 'discard' || _mode === 'sacrifice-pick') return;
+      openPreview(inst, 'hand');
+    },
+    onDragStart: () => {
+      if (_mode !== 'normal') return;
+      if (G.activePlayer !== 'player') return;
+      // Close preview if it was open
+      closePreview();
+      _draggedHandInstId = inst.instId;
+      // Create a clone that follows finger
+      const rect = slotEl.getBoundingClientRect();
+      _draggedClone = slotEl.cloneNode(true);
+      _draggedClone.style.position = 'fixed';
+      _draggedClone.style.left = rect.left + 'px';
+      _draggedClone.style.top = rect.top + 'px';
+      _draggedClone.style.width = rect.width + 'px';
+      _draggedClone.style.height = rect.height + 'px';
+      _draggedClone.style.transform = 'rotate(0deg) scale(1.15)';
+      _draggedClone.style.zIndex = '8500';
+      _draggedClone.style.pointerEvents = 'none';
+      _draggedClone.style.transition = 'none';
+      _draggedClone.style.opacity = '0.95';
+      _draggedClone.style.filter = 'drop-shadow(0 8px 20px rgba(234, 179, 8, 0.7))';
+      document.body.appendChild(_draggedClone);
+      // Hide the original
+      slotEl.style.opacity = '0.3';
+    },
+    onDragMove: (x, y) => {
+      if (!_draggedClone) return;
+      const rect = _draggedClone.getBoundingClientRect();
+      _draggedClone.style.left = (x - rect.width / 2) + 'px';
+      _draggedClone.style.top = (y - rect.height / 2) + 'px';
+    },
+    onDragEnd: (x, y) => {
+      if (!_draggedClone) return;
+      _draggedClone.remove();
+      _draggedClone = null;
+      slotEl.style.opacity = '';
+
+      // Check if dropped above hand area (y < 78% of viewport playfield)
+      const playfield = _container.querySelector('.battle-playfield');
+      const pfRect = playfield.getBoundingClientRect();
+      const relY = (y - pfRect.top) / pfRect.height;
+
+      if (relY < 0.78) {
+        // Dropped on play area — try to play
+        attemptPlayCard(inst);
+      }
+      _draggedHandInstId = null;
+    },
+  });
 }
 
-function onHandCardTap(inst) {
-  if (_mode === 'discard') {
-    const result = discardFromHand('player', inst.instId);
-    if (result.ok) { showStatus(`Discarded ${inst.name}`); enforceHandCap(); renderAll(); }
+function attemptPlayCard(inst) {
+  if (G.activePlayer !== 'player') { showStatus('Not your turn'); return; }
+  const cardType = inst.type || 'Unknown';
+  const isCreature = PLAYABLE_AS_CREATURE.includes(cardType);
+  const isSpell = SPELLS.includes(cardType);
+  const isRelic = RELICS_TYPES.includes(cardType);
+
+  if (isSpell) { showStatus('Spells coming soon'); return; }
+  if (!isCreature && !isRelic) { showStatus(`${cardType} not yet supported`); return; }
+
+  if (isRelic) {
+    const goldCost = inst.goldCost || 0;
+    const bloodCost = inst.bloodCost || 0;
+    if ((G.player.gold || 0) < goldCost) { showStatus(`Need ${goldCost} gold`); return; }
+    if ((G.player.blood || 0) <= bloodCost) { showStatus(`Cannot pay ${bloodCost} blood`); return; }
+    if (isRelicBoardFull('player')) {
+      enterSacrificePickMode(inst, 'relic');
+      return;
+    }
+    const result = playRelicFromHand('player', inst.instId);
+    if (result.ok) {
+      logEvent(`You play relic ${inst.name}`);
+      _selectedHandInstId = null;
+      closePreview();
+      renderAll();
+    } else {
+      showStatus(result.error);
+    }
     return;
   }
-  if (_mode !== 'normal') return;
-  openPreview(inst, 'hand');
-}
 
-function attachSlotEvents(slotEl) {
-  slotEl.addEventListener('click', () => onSlotTap(slotEl));
-}
-
-function onSlotTap(slotEl) {
-  const side = slotEl.dataset.side;
-  const slotIdx = parseInt(slotEl.dataset.slotIdx, 10);
-
-  if (_mode === 'sacrifice-pick' && side === 'player') { onSacrificeSlotPick(slotIdx); return; }
-  if (_mode === 'combat-attackers' && side === 'player') { onAttackerSlotPick(slotIdx); return; }
-  if (_mode === 'combat-blockers' && side === 'player') { onBlockerSlotPick(slotIdx); return; }
-  if (_mode === 'normal') {
-    const inst = G[side === 'player' ? 'player' : 'ai'].creatures[slotIdx];
-    if (inst) openPreview(inst, 'battlefield');
-  }
-}
-
-function attachRelicSlotEvents(slotEl) {
-  slotEl.addEventListener('click', () => onRelicSlotTap(slotEl));
-}
-
-function onRelicSlotTap(slotEl) {
-  const side = slotEl.dataset.side;
-  const relicIdx = parseInt(slotEl.dataset.relicIdx, 10);
-
-  if (_mode === 'sacrifice-pick' && side === 'player' && _sacrificeTargetType === 'relic') {
-    onSacrificeRelicPick(relicIdx);
+  // Creature
+  if (!canAffordInst(inst)) {
+    showStatus(`Need ${inst.goldCost}⛁ ${inst.bloodCost > 0 ? '+ ' + inst.bloodCost + '🩸' : ''}`);
     return;
   }
-  if (_mode === 'normal') {
-    ensureRelicSlots(side);
-    const inst = G[side].relics[relicIdx];
-    if (inst) openPreview(inst, 'battlefield');
+  if (isCreatureBoardFull('player')) {
+    enterSacrificePickMode(inst, 'creature');
+    return;
   }
+  const result = playCardFromHand(inst);
+  if (result.ok) {
+    logEvent(`You play ${inst.name}`);
+    _selectedHandInstId = null;
+    closePreview();
+    renderAll();
+  } else {
+    showStatus(result.error);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// BATTLEFIELD CARD GESTURES
+// Tap = combat context action
+// Double tap = activate ability (placeholder)
+// Long-press = preview
+// ═══════════════════════════════════════════════════════════
+
+function attachBattlefieldGestures(slotEl, inst, kind) {
+  // kind = 'creature' | 'relic'
+  attachCardGestures(slotEl, {
+    enableDoubleTap: true,
+    onTap: () => {
+      const side = slotEl.dataset.side;
+      const slotIdx = parseInt(slotEl.dataset.slotIdx ?? slotEl.dataset.relicIdx, 10);
+
+      if (_mode === 'sacrifice-pick' && side === 'player') {
+        if (kind === 'creature' && _sacrificeTargetType === 'creature') onSacrificeSlotPick(slotIdx);
+        else if (kind === 'relic' && _sacrificeTargetType === 'relic') onSacrificeRelicPick(slotIdx);
+        return;
+      }
+      if (_mode === 'combat-attackers' && side === 'player' && kind === 'creature') {
+        onAttackerSlotPick(slotIdx);
+        return;
+      }
+      if (_mode === 'combat-blockers' && side === 'player' && kind === 'creature') {
+        onBlockerSlotPick(slotIdx);
+        return;
+      }
+      // Normal mode tap: no-op (selection visualized but no action yet)
+    },
+    onDoubleTap: () => {
+      const side = slotEl.dataset.side;
+      const slotIdx = parseInt(slotEl.dataset.slotIdx ?? slotEl.dataset.relicIdx, 10);
+      if (side !== 'player') return; // can only activate own
+      if (_mode !== 'normal') return;
+      activateAbility(inst, kind, slotIdx);
+    },
+    onLongPress: () => {
+      openPreview(inst, 'battlefield');
+    },
+  });
+}
+
+function activateAbility(inst, kind, slotIdx) {
+  // Placeholder: many cards in cards.js have activated abilities defined as
+  // "{Exhaust}: do X" text. Without a full keyword interpreter for each one,
+  // we just log it. A future session will wire this to actual effects.
+  showStatus(`${inst.name}'s ability — coming soon`);
+  logEvent(`Tried to activate ${inst.name}'s ability`);
+  console.log('[ability] activate:', inst.name, 'kind=', kind, 'slot=', slotIdx, 'inst=', inst);
 }
 
 function onAttackerSlotPick(slotIdx) {
@@ -580,11 +688,12 @@ function onBlockerSlotPick(slotIdx) {
   if (_resumeBlockChoice) _resumeBlockChoice();
 }
 
-// ─── Preview overlay ───
+// ═══════════════════════════════════════════════════════════
+// PREVIEW OVERLAY
+// ═══════════════════════════════════════════════════════════
 
 function openPreview(inst, source = 'hand') {
   _previewInst = inst;
-  _previewSource = source;
   const overlay = _container.querySelector('#card-preview-overlay');
   overlay.innerHTML = '';
   const wrapper = document.createElement('div');
@@ -599,91 +708,18 @@ function openPreview(inst, source = 'hand') {
   closeBtn.className = 'preview-btn preview-btn-close';
   closeBtn.textContent = '✕ CLOSE';
   closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closePreview(); });
+  actions.appendChild(closeBtn);
 
   if (source === 'hand') {
-    const isPlayerTurn = G.activePlayer === 'player';
-    const cardType = inst.type || 'Unknown';
-    const isCreature = PLAYABLE_AS_CREATURE.includes(cardType);
-    const isSpell = SPELLS.includes(cardType);
-    const isRelic = RELICS.includes(cardType);
-
     const playBtn = document.createElement('button');
     playBtn.className = 'preview-btn preview-btn-play';
-
-    if (isSpell) {
-      playBtn.textContent = 'SPELLS COMING SOON';
-      playBtn.classList.add('disabled');
-    } else if (!isCreature && !isRelic) {
-      playBtn.textContent = `${cardType.toUpperCase()} — UNSUPPORTED`;
-      playBtn.classList.add('disabled');
-    } else if (!isPlayerTurn) {
-      playBtn.textContent = 'NOT YOUR TURN';
-      playBtn.classList.add('disabled');
-    } else if (isRelic) {
-      // Relic flow
-      const goldCost = inst.goldCost || 0;
-      const bloodCost = inst.bloodCost || 0;
-      const canAffordRelic = (G.player.gold || 0) >= goldCost && (G.player.blood || 0) > bloodCost;
-      const relicBoardFull = isRelicBoardFull('player');
-
-      if (!canAffordRelic) {
-        playBtn.textContent = `NEED ${goldCost}⛁ ${bloodCost > 0 ? '+ ' + bloodCost + '🩸' : ''}`;
-        playBtn.classList.add('disabled');
-      } else if (relicBoardFull) {
-        playBtn.textContent = '🔁 SACRIFICE & PLAY';
-        playBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          enterSacrificePickMode(inst, 'relic');
-        });
-      } else {
-        playBtn.textContent = `▶ PLAY RELIC (${goldCost}⛁${bloodCost > 0 ? ' ' + bloodCost + '🩸' : ''})`;
-        playBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const result = playRelicFromHand('player', inst.instId);
-          if (result.ok) {
-            logEvent(`You play relic ${inst.name}`);
-            closePreview();
-            renderAll();
-          } else {
-            showStatus(result.error);
-          }
-        });
-      }
-    } else {
-      // Creature flow
-      const affordable = canAffordInst(inst);
-      const boardFull = isCreatureBoardFull('player');
-
-      if (!affordable) {
-        playBtn.textContent = `NEED ${inst.goldCost}⛁ ${inst.bloodCost > 0 ? '+ ' + inst.bloodCost + '🩸' : ''}`;
-        playBtn.classList.add('disabled');
-      } else if (boardFull) {
-        playBtn.textContent = '🔁 SACRIFICE & PLAY';
-        playBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          enterSacrificePickMode(inst, 'creature');
-        });
-      } else {
-        playBtn.textContent = `▶ PLAY (${inst.goldCost}⛁${inst.bloodCost > 0 ? ' ' + inst.bloodCost + '🩸' : ''})`;
-        playBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const result = playCardFromHand(inst);
-          if (result.ok) {
-            logEvent(`You play ${inst.name}`);
-            closePreview();
-            renderAll();
-          } else {
-            showStatus(result.error);
-          }
-        });
-      }
-    }
-
-    actions.appendChild(closeBtn);
+    playBtn.textContent = '▶ PLAY';
+    playBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closePreview();
+      attemptPlayCard(inst);
+    });
     actions.appendChild(playBtn);
-  } else {
-    // Battlefield: read-only
-    actions.appendChild(closeBtn);
   }
 
   wrapper.appendChild(actions);
@@ -694,7 +730,6 @@ function openPreview(inst, source = 'hand') {
 
 function closePreview() {
   _previewInst = null;
-  _previewSource = null;
   const overlay = _container.querySelector('#card-preview-overlay');
   if (!overlay) return;
   overlay.classList.add('hidden');
@@ -705,6 +740,7 @@ function enterSacrificePickMode(newInst, targetType) {
   _mode = 'sacrifice-pick';
   _pendingPlayInst = newInst;
   _sacrificeTargetType = targetType;
+  _selectedHandInstId = null;
   closePreview();
   const what = targetType === 'relic' ? 'relic' : 'creature';
   showModeBanner(`
@@ -776,6 +812,10 @@ function openDock(which) {
   panel.classList.remove('hidden');
 }
 function closeDock() { _container.querySelector('#dock-panel').classList.add('hidden'); }
+
+// ═══════════════════════════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════════════════════════
 
 function renderAll() {
   if (!_container || !G) return;
@@ -880,9 +920,7 @@ function renderBoard(side) {
       _container.querySelectorAll('.overlay-slots-pla .board-slot').forEach(s => {
         const idx = parseInt(s.dataset.slotIdx, 10);
         const c = G.player.creatures[idx];
-        if (c && !c.exhausted && !c.overexhausted) {
-          s.classList.add('block-target');
-        }
+        if (c && !c.exhausted && !c.overexhausted) s.classList.add('block-target');
       });
     }
     if (side === 'ai' && _pendingBlockerForAttackerIdx !== null) {
@@ -891,10 +929,13 @@ function renderBoard(side) {
     }
   }
 
+  // Re-clone slots and attach gestures
   _container.querySelectorAll(`.overlay-slots-${sideClass} .board-slot`).forEach(s => {
     const clone = s.cloneNode(true);
     s.parentNode.replaceChild(clone, s);
-    attachSlotEvents(clone);
+    const idx = parseInt(clone.dataset.slotIdx, 10);
+    const inst = G[side].creatures[idx];
+    if (inst) attachBattlefieldGestures(clone, inst, 'creature');
   });
 }
 
@@ -911,7 +952,6 @@ function renderRelics(side) {
     const inst = relics[i];
     if (inst) {
       slotEl.classList.remove('empty');
-      // Smaller card render for relic slot
       const cardEl = createCardElement(inst, 'battlefield');
       cardEl.style.width = '100%';
       cardEl.style.height = '100%';
@@ -929,11 +969,12 @@ function renderRelics(side) {
     });
   }
 
-  // Re-attach relic slot events
   _container.querySelectorAll(`.overlay-relics-${sideClass} .relic-slot`).forEach(s => {
     const clone = s.cloneNode(true);
     s.parentNode.replaceChild(clone, s);
-    attachRelicSlotEvents(clone);
+    const idx = parseInt(clone.dataset.relicIdx, 10);
+    const inst = G[side].relics[idx];
+    if (inst) attachBattlefieldGestures(clone, inst, 'relic');
   });
 }
 
@@ -961,8 +1002,15 @@ function renderHand() {
     slot.dataset.handIdx = idx;
     slot.dataset.instId = inst.instId;
 
+    if (_selectedHandInstId === inst.instId) {
+      slot.classList.add('selected');
+      // Lift the selected card so it's visible above its neighbors
+      slot.style.setProperty('--fan-rot', `0deg`);
+      slot.style.setProperty('--fan-lift', `-30px`);
+      slot.style.zIndex = '50';
+    }
+
     const card = createCardElement(inst, 'hand');
-    // Affordability check varies by type
     const isRelic = isRelicCard(inst);
     let affordable;
     if (isRelic) {
@@ -973,8 +1021,9 @@ function renderHand() {
       affordable = canAffordInst(inst) && G.activePlayer === 'player' && inst.type !== 'Spell';
     }
     if (!affordable && _mode !== 'discard') card.classList.add('unaffordable');
+    if (_selectedHandInstId === inst.instId) card.classList.add('selected');
 
-    attachHandCardEvents(slot, inst);
+    attachHandCardGestures(slot, inst);
     slot.appendChild(card);
     fan.appendChild(slot);
   });
