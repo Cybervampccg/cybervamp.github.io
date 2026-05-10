@@ -1,0 +1,29 @@
+/* ═══════════════════════════════════════════════════════════
+   Cybervamp v2 — Gesture overhaul CSS additions
+   APPEND to main.css. No existing rules changed.
+   ═══════════════════════════════════════════════════════════ */
+
+/* Selected hand card (single-tap state) — gold border, glowing */
+.hand-slot.selected {
+  z-index: 50 !important;
+}
+.hand-slot.selected .card,
+.hand-slot.selected .card-hand {
+  border-color: #fde047 !important;
+  border-width: 3px !important;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.95),
+    0 0 28px rgba(234, 179, 8, 0.65),
+    inset 0 0 18px rgba(234, 179, 8, 0.15);
+  animation: selected-hand-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes selected-hand-pulse {
+  0%, 100% { box-shadow: 0 8px 24px rgba(0,0,0,0.95), 0 0 24px rgba(234, 179, 8, 0.55), inset 0 0 18px rgba(234, 179, 8, 0.15); }
+  50%      { box-shadow: 0 8px 24px rgba(0,0,0,0.95), 0 0 38px rgba(234, 179, 8, 0.95), inset 0 0 22px rgba(234, 179, 8, 0.25); }
+}
+
+/* When dragging, the original slot is dimmed; clone overrides z-index */
+.hand-slot[style*="opacity: 0.3"] {
+  filter: brightness(0.5);
+}
