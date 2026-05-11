@@ -85,25 +85,25 @@
       </div>
     </div>
   `}function Fa(){return`
-    <div class="overlay-deckpile overlay-deckpile-opp" style="position:absolute; top:23.5%; right:1.5%; width:11%; height:14.5%; display:flex; gap:4px; z-index:5;">
+    <div class="overlay-deckpile overlay-deckpile-opp" style="position:absolute; top:23.5%; right:2%; width:8%; height:14.5%; display:flex; flex-direction:column; gap:4px; z-index:5;">
       <div class="pile pile-deck" data-side="ai" data-pile="deck" style="flex:1; background:rgba(20,20,30,0.85); border:1px solid rgba(192, 132, 252, 0.4); border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:default;">
-        <div style="font-size:10px; color:#a78bfa; letter-spacing:0.5px;">DECK</div>
-        <div style="font-size:14px; color:#fff; font-weight:700;" data-bind="ai.deck.length">0</div>
+        <div style="font-size:9px; color:#a78bfa; letter-spacing:0.5px;">DECK</div>
+        <div style="font-size:13px; color:#fff; font-weight:700;" data-bind="ai.deck.length">0</div>
       </div>
       <div class="pile pile-discard" data-side="ai" data-pile="discard" style="flex:1; background:rgba(20,20,30,0.85); border:1px solid rgba(244, 63, 94, 0.4); border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer;">
-        <div style="font-size:10px; color:#fca5a5; letter-spacing:0.5px;">DISC</div>
-        <div style="font-size:14px; color:#fff; font-weight:700;" data-bind="ai.discard.length">0</div>
+        <div style="font-size:9px; color:#fca5a5; letter-spacing:0.5px;">DISC</div>
+        <div style="font-size:13px; color:#fff; font-weight:700;" data-bind="ai.discard.length">0</div>
       </div>
     </div>
 
-    <div class="overlay-deckpile overlay-deckpile-pla" style="position:absolute; top:55%; right:1.5%; width:11%; height:14%; display:flex; gap:4px; z-index:5;">
+    <div class="overlay-deckpile overlay-deckpile-pla" style="position:absolute; top:55%; right:2%; width:8%; height:14%; display:flex; flex-direction:column; gap:4px; z-index:5;">
       <div class="pile pile-deck" data-side="player" data-pile="deck" style="flex:1; background:rgba(20,20,30,0.85); border:1px solid rgba(192, 132, 252, 0.4); border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:default;">
-        <div style="font-size:10px; color:#a78bfa; letter-spacing:0.5px;">DECK</div>
-        <div style="font-size:14px; color:#fff; font-weight:700;" data-bind="player.deck.length">0</div>
+        <div style="font-size:9px; color:#a78bfa; letter-spacing:0.5px;">DECK</div>
+        <div style="font-size:13px; color:#fff; font-weight:700;" data-bind="player.deck.length">0</div>
       </div>
       <div class="pile pile-discard" data-side="player" data-pile="discard" style="flex:1; background:rgba(20,20,30,0.85); border:1px solid rgba(244, 63, 94, 0.4); border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer;">
-        <div style="font-size:10px; color:#fca5a5; letter-spacing:0.5px;">DISC</div>
-        <div style="font-size:14px; color:#fff; font-weight:700;" data-bind="player.discard.length">0</div>
+        <div style="font-size:9px; color:#fca5a5; letter-spacing:0.5px;">DISC</div>
+        <div style="font-size:13px; color:#fff; font-weight:700;" data-bind="player.discard.length">0</div>
       </div>
     </div>
   `}function tt(e){return`
@@ -238,4 +238,4 @@
       <div id="home-status" class="home-status"></div>
     </div>
   `,e.querySelectorAll("[data-action]").forEach(a=>{a.addEventListener("click",()=>kr(a.dataset.action,e))}),console.log(`[Cybervamp] Home screen mounted — version ${it}`)}function kr(e,t){const a=t.querySelector("#home-status");switch(e){case"battle-red-black":ve("Red","Black",t,!1);break;case"battle-purple-white":ve("Purple","White",t,!1);break;case"template-mode":console.log("[Cybervamp] Template mode requested"),ve("Red","Black",t,!0);break;case"inspect-state":{const o=window.G;if(!o){a.textContent="⚠ No active state. Start a battle first.",a.className="home-status warn";return}console.log("Current G:",o),a.textContent="✓ State printed to console (F12).",a.className="home-status success";break}case"reset-meta":{if(!confirm("Wipe all save data? This cannot be undone."))return;Ot(),a.textContent="✓ Meta wiped. Reload page to see fresh state.",a.className="home-status warn";break}}}function ve(e,t,a,o){const r=ze(e,"player"),i=ze(t,"ai"),l=Ht({playerFaction:e,aiFaction:t,playerDeck:r,aiDeck:i});window.G=l,window.getEffectivePower=be,window._battleLog=[`— Battle begins: ${e} vs ${t} —`],console.log(`▶ Battle: ${e} vs ${t}${o?" (TEMPLATE MODE)":""}`),Ha(a,{})}const Dt=Object.freeze(Object.defineProperty({__proto__:null,mountHomeScreen:Lt},Symbol.toStringTag,{value:"Module"}));console.log("Cybervamp v2 booting…");setTimeout(()=>{Lt(document.getElementById("app"))},300);
-//# sourceMappingURL=index-BJ0sNb8v.js.map
+//# sourceMappingURL=index-CwIjOScD.js.map
