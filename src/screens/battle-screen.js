@@ -224,28 +224,29 @@ function renderVitalsOverlay(side) {
 }
 
 function renderDeckIndicator() {
-  // Opponent deck + discard, stacked side-by-side, right of opp slot 4
-  // Player deck + discard, stacked side-by-side, right of player slot 4
+  // Opponent deck + discard, stacked vertically (deck on top, discard below), right of opp slot 4
+  // Player deck + discard, stacked vertically, right of player slot 4
+  // Sized to fit within screen bounds: width 8%, total height 14% (matches creature row)
   return `
-    <div class="overlay-deckpile overlay-deckpile-opp" style="position:absolute; top:23.5%; right:1.5%; width:11%; height:14.5%; display:flex; gap:4px; z-index:5;">
+    <div class="overlay-deckpile overlay-deckpile-opp" style="position:absolute; top:23.5%; right:2%; width:8%; height:14.5%; display:flex; flex-direction:column; gap:4px; z-index:5;">
       <div class="pile pile-deck" data-side="ai" data-pile="deck" style="flex:1; background:rgba(20,20,30,0.85); border:1px solid rgba(192, 132, 252, 0.4); border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:default;">
-        <div style="font-size:10px; color:#a78bfa; letter-spacing:0.5px;">DECK</div>
-        <div style="font-size:14px; color:#fff; font-weight:700;" data-bind="ai.deck.length">0</div>
+        <div style="font-size:9px; color:#a78bfa; letter-spacing:0.5px;">DECK</div>
+        <div style="font-size:13px; color:#fff; font-weight:700;" data-bind="ai.deck.length">0</div>
       </div>
       <div class="pile pile-discard" data-side="ai" data-pile="discard" style="flex:1; background:rgba(20,20,30,0.85); border:1px solid rgba(244, 63, 94, 0.4); border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer;">
-        <div style="font-size:10px; color:#fca5a5; letter-spacing:0.5px;">DISC</div>
-        <div style="font-size:14px; color:#fff; font-weight:700;" data-bind="ai.discard.length">0</div>
+        <div style="font-size:9px; color:#fca5a5; letter-spacing:0.5px;">DISC</div>
+        <div style="font-size:13px; color:#fff; font-weight:700;" data-bind="ai.discard.length">0</div>
       </div>
     </div>
 
-    <div class="overlay-deckpile overlay-deckpile-pla" style="position:absolute; top:55%; right:1.5%; width:11%; height:14%; display:flex; gap:4px; z-index:5;">
+    <div class="overlay-deckpile overlay-deckpile-pla" style="position:absolute; top:55%; right:2%; width:8%; height:14%; display:flex; flex-direction:column; gap:4px; z-index:5;">
       <div class="pile pile-deck" data-side="player" data-pile="deck" style="flex:1; background:rgba(20,20,30,0.85); border:1px solid rgba(192, 132, 252, 0.4); border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:default;">
-        <div style="font-size:10px; color:#a78bfa; letter-spacing:0.5px;">DECK</div>
-        <div style="font-size:14px; color:#fff; font-weight:700;" data-bind="player.deck.length">0</div>
+        <div style="font-size:9px; color:#a78bfa; letter-spacing:0.5px;">DECK</div>
+        <div style="font-size:13px; color:#fff; font-weight:700;" data-bind="player.deck.length">0</div>
       </div>
       <div class="pile pile-discard" data-side="player" data-pile="discard" style="flex:1; background:rgba(20,20,30,0.85); border:1px solid rgba(244, 63, 94, 0.4); border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer;">
-        <div style="font-size:10px; color:#fca5a5; letter-spacing:0.5px;">DISC</div>
-        <div style="font-size:14px; color:#fff; font-weight:700;" data-bind="player.discard.length">0</div>
+        <div style="font-size:9px; color:#fca5a5; letter-spacing:0.5px;">DISC</div>
+        <div style="font-size:13px; color:#fff; font-weight:700;" data-bind="player.discard.length">0</div>
       </div>
     </div>
   `;
