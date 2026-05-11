@@ -188,7 +188,31 @@ function renderVitalsOverlay(side) {
 }
 
 function renderDeckIndicator() {
-  return `<div class="overlay-deck"><span class="deck-count" data-bind="opponent.deck.length">x35</span></div>`;
+  // Opponent deck + discard, stacked side-by-side, right of opp slot 4
+  // Player deck + discard, stacked side-by-side, right of player slot 4
+  return `
+    <div class="overlay-deckpile overlay-deckpile-opp" style="position:absolute; top:23.5%; right:1.5%; width:11%; height:14.5%; display:flex; gap:4px; z-index:5;">
+      <div class="pile pile-deck" data-side="ai" data-pile="deck" style="flex:1; background:rgba(20,20,30,0.85); border:1px solid rgba(192, 132, 252, 0.4); border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:default;">
+        <div style="font-size:10px; color:#a78bfa; letter-spacing:0.5px;">DECK</div>
+        <div style="font-size:14px; color:#fff; font-weight:700;" data-bind="ai.deck.length">0</div>
+      </div>
+      <div class="pile pile-discard" data-side="ai" data-pile="discard" style="flex:1; background:rgba(20,20,30,0.85); border:1px solid rgba(244, 63, 94, 0.4); border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer;">
+        <div style="font-size:10px; color:#fca5a5; letter-spacing:0.5px;">DISC</div>
+        <div style="font-size:14px; color:#fff; font-weight:700;" data-bind="ai.discard.length">0</div>
+      </div>
+    </div>
+
+    <div class="overlay-deckpile overlay-deckpile-pla" style="position:absolute; top:55%; right:1.5%; width:11%; height:14%; display:flex; gap:4px; z-index:5;">
+      <div class="pile pile-deck" data-side="player" data-pile="deck" style="flex:1; background:rgba(20,20,30,0.85); border:1px solid rgba(192, 132, 252, 0.4); border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:default;">
+        <div style="font-size:10px; color:#a78bfa; letter-spacing:0.5px;">DECK</div>
+        <div style="font-size:14px; color:#fff; font-weight:700;" data-bind="player.deck.length">0</div>
+      </div>
+      <div class="pile pile-discard" data-side="player" data-pile="discard" style="flex:1; background:rgba(20,20,30,0.85); border:1px solid rgba(244, 63, 94, 0.4); border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer;">
+        <div style="font-size:10px; color:#fca5a5; letter-spacing:0.5px;">DISC</div>
+        <div style="font-size:14px; color:#fff; font-weight:700;" data-bind="player.discard.length">0</div>
+      </div>
+    </div>
+  `;
 }
 
 function renderSlotsOverlay(side) {
@@ -207,12 +231,51 @@ function renderSlotsOverlay(side) {
 function renderHandFan() { return `<div id="hand-fan-overlay"></div>`; }
 
 function renderSideDock() {
+  // Top-right corner, horizontal row of three small buttons
+  // Positioned LEFT of the existing home button (which sits at top-right corner)
   return `
-    <aside id="side-dock-overlay">
-      <button class="dock-btn" data-dock="mission" title="Mission">📋</button>
-      <button class="dock-btn" data-dock="log" title="Log">📜</button>
-      <button class="dock-btn" data-dock="settings" title="Settings">⚙</button>
-    </aside>
+    <div id="top-right-dock" style="
+      position: absolute;
+      top: 1.5%;
+      right: 9%;
+      display: flex;
+      gap: 6px;
+      z-index: 7;
+    ">
+      <button class="dock-btn dock-btn-top" data-dock="mission" title="Mission" style="
+        width: 32px; height: 32px;
+        background: rgba(20, 20, 30, 0.85);
+        border: 1px solid rgba(192, 132, 252, 0.4);
+        border-radius: 6px;
+        color: #e9d5ff;
+        font-size: 16px;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(4px);
+      ">📋</button>
+      <button class="dock-btn dock-btn-top" data-dock="log" title="Battle Log" style="
+        width: 32px; height: 32px;
+        background: rgba(20, 20, 30, 0.85);
+        border: 1px solid rgba(192, 132, 252, 0.4);
+        border-radius: 6px;
+        color: #e9d5ff;
+        font-size: 16px;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(4px);
+      ">📜</button>
+      <button class="dock-btn dock-btn-top" data-dock="settings" title="Settings" style="
+        width: 32px; height: 32px;
+        background: rgba(20, 20, 30, 0.85);
+        border: 1px solid rgba(192, 132, 252, 0.4);
+        border-radius: 6px;
+        color: #e9d5ff;
+        font-size: 16px;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(4px);
+      ">⚙</button>
+    </div>
   `;
 }
 
@@ -239,6 +302,13 @@ function wireEvents() {
     btn.addEventListener('click', () => openDock(btn.dataset.dock));
   });
   _container.querySelector('[data-action="close-dock"]')?.addEventListener('click', closeDock);
+  // Discard pile click handlers
+  _container.querySelectorAll('[data-pile="discard"]').forEach(p => {
+    p.addEventListener('click', () => {
+      const side = p.dataset.side;
+      openDiscardViewer(side);
+    });
+  });
   _container.querySelector('.battle-playfield')?.addEventListener('click', (e) => {
     if (e.target.classList.contains('battle-playfield') || e.target.classList.contains('overlay-layer')) {
       _selectedHandInstId = null;
@@ -588,6 +658,8 @@ function attachHandCardGestures(slotEl, inst) {
 
 function attemptPlayCard(inst) {
   if (G.activePlayer !== 'player') { showStatus('Not your turn'); return; }
+  if (_aiTurnRunning) { showStatus('AI is playing'); return; }
+  if (_mode !== 'normal' && _mode !== 'discard') { showStatus('Finish current action first'); return; }
   const cardType = inst.type || 'Unknown';
   const isCreature = PLAYABLE_AS_CREATURE.includes(cardType);
   const isSpell = SPELLS.includes(cardType);
@@ -946,6 +1018,75 @@ function onSacrificeRelicPick(relicIdx) {
   exitSacrificePickMode();
 }
 
+function openDiscardViewer(side) {
+  const discard = G[side]?.discard || [];
+  const overlay = _container.querySelector('#card-preview-overlay');
+  overlay.innerHTML = '';
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = `
+    background: rgba(15, 10, 25, 0.96);
+    border: 2px solid rgba(192, 132, 252, 0.5);
+    border-radius: 12px;
+    padding: 16px;
+    width: 92%;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.95), 0 0 30px rgba(192,132,252,0.4);
+  `;
+
+  const header = document.createElement('div');
+  header.style.cssText = `
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    color: #e9d5ff;
+    font-family: 'Cinzel Decorative', serif;
+  `;
+  const label = side === 'player' ? 'Your Discard' : "Opponent's Discard";
+  header.innerHTML = `
+    <span style="font-size: 16px; font-weight: 700; letter-spacing: 2px;">${label} (${discard.length})</span>
+    <button id="btn-close-discard" style="background: rgba(244, 63, 94, 0.2); border: 1px solid rgba(244, 63, 94, 0.6); color: #fca5a5; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 700;">✕ CLOSE</button>
+  `;
+  wrapper.appendChild(header);
+
+  if (discard.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'color:#94a3b8; text-align:center; padding:32px; font-style:italic;';
+    empty.textContent = 'Discard pile is empty.';
+    wrapper.appendChild(empty);
+  } else {
+    const grid = document.createElement('div');
+    grid.style.cssText = `display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;`;
+    // Newest first
+    [...discard].reverse().forEach(inst => {
+      const cardSlot = document.createElement('div');
+      cardSlot.style.cssText = 'aspect-ratio: 5/7; cursor: pointer;';
+      const card = createCardElement(inst, 'hand');
+      card.style.width = '100%';
+      card.style.height = '100%';
+      cardSlot.appendChild(card);
+      cardSlot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openPreview(inst, 'discard');
+      });
+      grid.appendChild(cardSlot);
+    });
+    wrapper.appendChild(grid);
+  }
+
+  overlay.appendChild(wrapper);
+  setTimeout(() => {
+    wrapper.querySelector('#btn-close-discard')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closePreview();
+    });
+  }, 0);
+  overlay.onclick = (e) => { if (e.target === overlay) closePreview(); };
+  overlay.classList.remove('hidden');
+}
+
 function openDock(which) {
   const panel = _container.querySelector('#dock-panel');
   const title = _container.querySelector('#dock-panel-title');
@@ -1032,9 +1173,13 @@ function renderVitals() {
 }
 
 function renderDeck() {
-  const oppDeck = G.ai.deck.length;
-  const el = _container.querySelector('[data-bind="opponent.deck.length"]');
-  if (el) el.textContent = `x${oppDeck}`;
+  // Update deck and discard counts for both sides
+  for (const side of ['player', 'ai']) {
+    const deckCount = G[side]?.deck?.length || 0;
+    const discardCount = G[side]?.discard?.length || 0;
+    setBoundText(`${side}.deck.length`, deckCount);
+    setBoundText(`${side}.discard.length`, discardCount);
+  }
 }
 
 function applyCombatVisuals(slotEl, inst, isPlayerSide) {
