@@ -450,6 +450,362 @@ const EXPANSION = {
 // Merge expansion into main effects dict
 Object.assign(CARD_EFFECTS, EXPANSION);
 
+// ═══════════ FINAL EXPANSION — remaining spells + many ability cards ═══════════
+// Strategy: implement everything reachable with existing effect types.
+// Skip with notes: tokens, walls, Glimpse, Pitch, Support, hand peeking, deck search,
+// return-from-discard-to-board, blood color management.
+
+const EXPANSION2 = {
+
+  // ═══════════ MORE SPELLS ═══════════
+
+  // RED — Left Behind: "Target player can only block with one creature this turn / Pitch: Draw 1"
+  // The "can only block with one creature" is a global combat restriction we'd need to plumb.
+  // Approximated: exhaust an enemy creature (removes a blocker) + add 1 bleed.
+  'Left Behind': {
+    targets: [{ type: 'enemyCreature', label: 'enemy creature to lock down' }],
+    onPlay: [
+      { type: 'exhaust', target: 'target' },
+      { type: 'addBleed', amount: 1, target: 'opponent' },
+    ],
+  },
+
+  // RED — Demolition Expert: "Power doubled vs wall blocker"
+  // Without walls, approximated as +2 power to attacker.
+  'Demolition Expert': {
+    targets: [{ type: 'creature', label: 'attacking creature' }],
+    onPlay: [{ type: 'buff', power: 2, duration: 'endOfTurn', target: 'target' }],
+  },
+
+  // BLACK — Swarm Surge: "+2 power; +Bleed +1 if has Bat/Wolf token"
+  // No token mechanic; just buff +2.
+  'Swarm Surge': {
+    targets: [{ type: 'creature', label: 'creature to buff' }],
+    onPlay: [{ type: 'buff', power: 2, duration: 'endOfTurn', target: 'target' }],
+  },
+
+  // BLACK — Lying in Wait: "Return target creature card from discard into play... removed at EOT"
+  // We can't easily put a card from discard back INTO PLAY (slot mgmt + summoning sickness rules).
+  // Approximate: return one card from your discard to your hand.
+  'Lying in Wait': {
+    targets: [],
+    onPlay: [{ type: 'returnFromDiscard' }],
+  },
+
+  // PURPLE — Surveiling Eye: "Look at hand + Glimpse 1" — hand peek not implemented; draw 1.
+  'Surveiling Eye': {
+    targets: [],
+    onPlay: [{ type: 'draw', amount: 1, target: 'controller' }],
+  },
+
+  // PURPLE — Psyche Symposium: "Opp discards 1 OR you Glimpse 2 and draw 1"
+  // Player choice between branches not a thing yet; default to: opp random discard 1.
+  'Psyche Symposium': {
+    targets: [],
+    onPlay: [{ type: 'discard', amount: 1, target: 'opponent' }],
+  },
+
+  // PURPLE — Etherhand Locator: "Search deck for a card and put on top"
+  // Deck search not implemented; approximate as draw 1.
+  'Etherhand Locator': {
+    targets: [],
+    onPlay: [{ type: 'draw', amount: 1, target: 'controller' }],
+  },
+
+  // ═══════════ MORE ACTIVATED ABILITIES — CREATURES ═══════════
+
+  // RED — Chrome Fang Berserker: "Exhaust: 2 Bleed to player, Selfbleed 2"
+  'Chrome Fang Berserker': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'player', label: 'player to bleed' }],
+      effects: [
+        { type: 'addBleed', amount: 2, target: 'target' },
+        { type: 'addBleed', amount: 2, target: 'controller' }, // selfbleed
+      ],
+    },
+  },
+
+  // RED — Blood Lab Master: "Exhaust: Remove all bleed from target player, they take damage = removed"
+  'Blood Lab Master': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'player', label: 'player' }],
+      effects: [{ type: 'damageBleedAndClear', target: 'target' }],
+    },
+  },
+
+  // WHITE — Faithful Healer: "Exhaust: -1 bleed; Overexhaust: -2 bleed"
+  // Player chooses which mode by current exhaust state. We support exhaust path here.
+  'Faithful Healer': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'player', label: 'player to cleanse' }],
+      effects: [{ type: 'removeBleed', amount: 1, target: 'target' }],
+    },
+  },
+
+  // WHITE — Selene Crystalforge: "Exhaust: +1 power counter on target non-wall creature"
+  'Selene Crystalforge': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'creature', label: 'creature to enhance' }],
+      effects: [{ type: 'addPowerCounter', amount: 1, target: 'target' }],
+    },
+  },
+
+  // WHITE — Aristocrat Seer: "Exhaust: Destroy own wall or relic, gain life=cost, draw 1"
+  // Approximation: destroy own relic, heal small + draw 1.
+  'Aristocrat Seer': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'ownRelic', label: 'relic to sacrifice' }],
+      effects: [
+        { type: 'destroy', target: 'target' },
+        { type: 'heal', amount: 2, target: 'controller' },
+        { type: 'draw', amount: 1, target: 'controller' },
+      ],
+    },
+  },
+
+  // WHITE — Count Vladislav Dracul: "WWWW Exhaust: Destroy all creatures except self"
+  'Count Vladislav Dracul': {
+    activatedAbility: {
+      cost: { gold: 4, exhaust: true },
+      targets: [],
+      effects: [{ type: 'destroyAllCreaturesExceptSelf' }],
+    },
+  },
+
+  // WHITE — Loyal Butler: "Exhaust+sac: prevent damage from one source"
+  // Approximate as: destroy self + heal 2 (damage prevention substitute)
+  'Loyal Butler': {
+    activatedAbility: {
+      cost: { exhaust: true, sacrificeSelf: true },
+      targets: [],
+      effects: [{ type: 'heal', amount: 2, target: 'controller' }],
+    },
+  },
+
+  // WHITE — Vault Keeper: "Exhaust: reveal top card; if relic, put in hand; else top of deck"
+  // No deck-peek UI; approximate as draw 1.
+  'Vault Keeper': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [],
+      effects: [{ type: 'draw', amount: 1, target: 'controller' }],
+    },
+  },
+
+  // BLACK — Dusk Warrior: "Sac: Create 1 Bat Token"
+  // No tokens — skip until token system exists. (Excluded from CARD_EFFECTS.)
+
+  // ═══════════ MORE ACTIVATED ABILITIES — RELICS ═══════════
+
+  // RED — Blood Vial Toolbelt: "Exhaust: target creature gains Bleed +1 EOT"
+  'Blood Vial Toolbelt': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'creature', label: 'creature to mark' }],
+      effects: [{ type: 'addBleed', amount: 1, target: 'targetController' }],
+    },
+  },
+
+  // BLACK — Koru Boneshard: "Exhaust + sac own token: 1 damage anywhere"
+  // No tokens; approximated as: exhaust (cost), 1 damage to any target.
+  'Koru Boneshard': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'creatureOrPlayer', label: 'damage target' }],
+      effects: [{ type: 'damage', amount: 1, target: 'target' }],
+    },
+  },
+
+  // PURPLE — Nexus of Veils: "PP Overexhaust: overexhaust target creature"
+  'Nexus of Veils': {
+    activatedAbility: {
+      cost: { gold: 2, overexhaust: true },
+      targets: [{ type: 'creature', label: 'creature to overexhaust' }],
+      effects: [{ type: 'overexhaust', target: 'target' }],
+    },
+  },
+
+  // PURPLE — Augur's Signet: "Exhaust: target creature with Glimpse +1 power EOT"
+  // No Glimpse; just buff any creature.
+  "Augur's Signet": {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'creature', label: 'creature to buff' }],
+      effects: [{ type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' }],
+    },
+  },
+
+  // COLORLESS — Dawnscribe Codex: "CCC Exhaust: Draw 1"
+  'Dawnscribe Codex': {
+    activatedAbility: {
+      cost: { gold: 3, exhaust: true },
+      targets: [],
+      effects: [{ type: 'draw', amount: 1, target: 'controller' }],
+    },
+  },
+
+  // COLORLESS — Hemostasis Recounter: "CC Exhaust: -1 bleed on target player"
+  'Hemostasis Recounter': {
+    activatedAbility: {
+      cost: { gold: 2, exhaust: true },
+      targets: [{ type: 'player', label: 'player' }],
+      effects: [{ type: 'removeBleed', amount: 1, target: 'target' }],
+    },
+  },
+
+  // COLORLESS — Vein Tap: "Exhaust: -1 bleed on target player"
+  'Vein Tap': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'player', label: 'player' }],
+      effects: [{ type: 'removeBleed', amount: 1, target: 'target' }],
+    },
+  },
+
+  // COLORLESS — Bloodletter Ring: "C Exhaust: Target gains Siphon EOT" → buff +1
+  'Bloodletter Ring': {
+    activatedAbility: {
+      cost: { gold: 1, exhaust: true },
+      targets: [{ type: 'creature', label: 'creature to grant siphon' }],
+      effects: [{ type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' }],
+    },
+  },
+
+  // COLORLESS — Technae Core Glasses: "C Exhaust: target creature Bleed +1 EOT"
+  'Technae Core Glasses': {
+    activatedAbility: {
+      cost: { gold: 1, exhaust: true },
+      targets: [{ type: 'creature', label: 'creature to mark' }],
+      effects: [{ type: 'addBleed', amount: 1, target: 'targetController' }],
+    },
+  },
+
+  // COLORLESS — Gun Store: "Exhaust: attacking creature with power≤2 gets +1 EOT"
+  'Gun Store': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'creature', label: 'attacking creature' }],
+      effects: [{ type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' }],
+    },
+  },
+
+  // COLORLESS — Pop-Up Veinmart: "Overexhaust: +1 blood point"
+  'Pop-Up Veinmart': {
+    activatedAbility: {
+      cost: { overexhaust: true },
+      targets: [],
+      effects: [{ type: 'heal', amount: 1, target: 'controller' }],
+    },
+  },
+
+  // COLORLESS — Solace-12: "Enters exhausted. Exhaust: destroy self, target creature unblockable EOT"
+  'Solace-12': {
+    activatedAbility: {
+      cost: { exhaust: true, sacrificeSelf: true },
+      targets: [{ type: 'creature', label: 'creature to make unblockable' }],
+      effects: [{ type: 'flagCantBeBlocked', target: 'target' }],
+    },
+  },
+
+  // COLORLESS — Spirelight Harness: "Exhaust: target creature gains Tireless EOT" → buff +1
+  'Spirelight Harness': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'creature', label: 'creature to grant tireless' }],
+      effects: [{ type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' }],
+    },
+  },
+
+  // COLORLESS — Scavenger Bot: "Exhaust: Destroy own relic, gain blood = its cost"
+  // Approximation: destroy own relic + heal 2 (we don't track per-card cost easily here)
+  'Scavenger Bot': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'ownRelic', label: 'relic to sacrifice' }],
+      effects: [
+        { type: 'destroy', target: 'target' },
+        { type: 'heal', amount: 2, target: 'controller' },
+      ],
+    },
+  },
+
+  // COLORLESS — Equilibrium Pulse: "CCCC Exhaust: destroy self + destroy ALL creatures"
+  'Equilibrium Pulse': {
+    activatedAbility: {
+      cost: { gold: 4, exhaust: true, sacrificeSelf: true },
+      targets: [],
+      effects: [{ type: 'destroyAllCreatures' }],
+    },
+  },
+
+  // COLORLESS — Chronal Spire: "Exhaust: destroy self, lose half blood, take extra turn"
+  // Extra-turn is huge to implement; approximate as: destroy self, heal nothing, draw 1.
+  'Chronal Spire': {
+    activatedAbility: {
+      cost: { exhaust: true, sacrificeSelf: true },
+      targets: [],
+      effects: [{ type: 'draw', amount: 1, target: 'controller' }],
+    },
+  },
+
+  // COLORLESS — Loyalty Badge: "Exhaust: Exhaust own creature, add 1 Blood any color"
+  // Blood-color management → approximate as +1 gold.
+  'Loyalty Badge': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'ownCreature', label: 'creature to exhaust' }],
+      effects: [
+        { type: 'exhaust', target: 'target' },
+        { type: 'gainGold', amount: 1 },
+      ],
+    },
+  },
+
+  // ═══════════ SKIPPED — require new mechanics ═══════════
+  //
+  // Token mechanic needed:
+  //   Spells:   Dark Reach, Siphon Life, Grave Reanimation (×2), Verdigris Husk,
+  //             Fodder's Bequest, Binding of the Damned, Aether Copy
+  //   Relics:   Grimfang Lair, Sanguine Batspring, Necrotic Battery, Soulforge Anvil
+  //   Creatures: Dusk Warrior (Sac: token), most "create token" abilities
+  //
+  // Wall mechanic needed:
+  //   Spells:   Grid Hack Wallbuster, Palace Decree, Ancient Reclamation
+  //   Creatures: Relic Guardian, Estate Grounds Keeper, Crystal Ward Guardian
+  //
+  // Glimpse mechanic needed:
+  //   Spells:   Void Classroom Echo
+  //   Relics:   Astral Archive, Prophecy Foretold, Drone Scanner
+  //
+  // Pitch alt-cost needed:
+  //   Most cards with "Pitch:" text (we only handle their non-pitch effect)
+  //
+  // Support / Tireless / Siphon keywords needed:
+  //   Spells:   Alchemical Infusion
+  //   Many creatures with these keywords still play as plain creatures
+  //
+  // Hand peek needed:
+  //   Creatures: Perch Watcher
+  //
+  // Deck search needed:
+  //   Spells:   Etherhand Locator (approximated as draw)
+  //
+  // Control change needed (gain control of enemy creature):
+  //   Creatures: Hypeflux Ghostjacker, Relic Hoarder
+  //
+  // Blood-color management needed:
+  //   Relics:   Muckmouth Bauble, Obsidian Resonance Tower, Vein-to-Vault Mobile,
+  //             Blood Vending Machine, Eternal Archive, Echo Reliquary, Key to the Last Page
+
+};
+
+Object.assign(CARD_EFFECTS, EXPANSION2);
+
 export function getCardEffects(card) {
   if (!card || !card.name) return null;
   return CARD_EFFECTS[card.name] || null;

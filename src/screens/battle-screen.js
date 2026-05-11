@@ -29,6 +29,7 @@ import { canPlaySpell, getSpellTargetRequirements, playSpellFromHand } from '../
 import { canActivateAbility, getAbilityTargetRequirements, activateAbility } from '../game/abilities.js';
 import { getValidTargets } from '../game/effects.js';
 import { hasActivatedAbility, isSpellSupported } from '../game/card-effects.js';
+import { aiCastSpells, aiActivateAbilities } from '../game/ai-spells.js';
 
 const HAND_CAP = 7;
 const PLAYABLE_AS_CREATURE = ['Creature', 'creature'];
@@ -621,6 +622,30 @@ async function onEndTurn() {
         await delay(300);
         relicAttempts++;
       }
+
+      // AI casts spells
+      const spellEvents = aiCastSpells((a) => {
+        if (a.type === 'cast') logEvent(`AI casts ${a.card.name}`);
+        renderAll();
+      });
+      if (spellEvents.length > 0) {
+        await playSpellEvents(spellEvents);
+        await delay(200);
+      }
+
+      // AI activates abilities (before combat for proactive plays)
+      const abilEvents = aiActivateAbilities((a) => {
+        if (a.type === 'activate') logEvent(`AI activates ${a.card.name}`);
+        renderAll();
+      });
+      if (abilEvents.length > 0) {
+        await playSpellEvents(abilEvents);
+        await delay(200);
+      }
+
+      checkWinCondition();
+      if (G.winner) showWinner();
+
       await delay(300);
       if (!G.winner) { await runAiCombatPhase(); await delay(300); }
       if (!G.winner && G.activePlayer === 'ai') endTurn();

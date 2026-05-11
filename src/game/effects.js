@@ -117,6 +117,13 @@ function runOneEffect(eff, ctx, events) {
     case 'gainGold':            return effGainGold(eff, events, ctx.sourceSide, ctx);
     case 'damageEqualTargetPower': return effDamageEqualTargetPower(eff, target, events, ctx);
     case 'ifLastDestroyed':     return effIfLastDestroyed(eff, events, ctx);
+    case 'destroySelf':         return effDestroySelf(eff, events, ctx);
+    case 'destroyAllCreatures': return effDestroyAllCreatures(eff, events, ctx);
+    case 'destroyAllCreaturesExceptSelf': return effDestroyAllCreaturesExceptSelf(eff, events, ctx);
+    case 'damageBleedAndClear': return effDamageBleedAndClear(eff, target, events);
+    case 'flagCantBeBlocked':   return effFlagCantBeBlocked(eff, target, events);
+    case 'returnFromDiscard':   return effReturnFromDiscard(eff, events, ctx);
+    case 'preventDamage':       return effPreventDamage(eff, target, events);
     case 'custom':              return eff.fn ? !!eff.fn(ctx) : false;
     default:
       console.warn('[effects] unknown effect type:', eff.type);
@@ -396,5 +403,106 @@ function effIfLastDestroyed(eff, events, ctx) {
   for (const inner of (eff.then || [])) {
     runOneEffect(inner, ctx, events);
   }
+  return true;
+}
+
+// destroySelf — destroys the card whose ability is being activated
+function effDestroySelf(eff, events, ctx) {
+  const side = ctx.sourceSide;
+  const slotIdx = ctx.sourceSlotIdx;
+  if (slotIdx === undefined || slotIdx === null) return false;
+  // Try creature first, then relic
+  if (ctx.sourceCard?.type === 'Relic' || ctx.sourceCard?.type === 'relic') {
+    const r = G[side].relics?.[slotIdx];
+    if (r) {
+      sacrificeRelic(side, slotIdx);
+      events.push({ type: 'relic-destroyed', side, name: r.name });
+      return true;
+    }
+  } else {
+    const c = G[side].creatures?.[slotIdx];
+    if (c) {
+      sacrificeCreature(side, slotIdx);
+      events.push({ type: 'creature-destroyed', side, name: c.name });
+      return true;
+    }
+  }
+  return false;
+}
+
+// destroyAllCreatures — wipes all creatures on board
+function effDestroyAllCreatures(eff, events, ctx) {
+  let any = false;
+  for (const side of ['player', 'ai']) {
+    (G[side]?.creatures || []).forEach((c, i) => {
+      if (!c) return;
+      sacrificeCreature(side, i);
+      events.push({ type: 'creature-destroyed', side, name: c.name });
+      any = true;
+    });
+  }
+  return any;
+}
+
+// destroyAllCreaturesExceptSelf — wipes all except the activating creature
+function effDestroyAllCreaturesExceptSelf(eff, events, ctx) {
+  const protectedSide = ctx.sourceSide;
+  const protectedSlot = ctx.sourceSlotIdx;
+  let any = false;
+  for (const side of ['player', 'ai']) {
+    (G[side]?.creatures || []).forEach((c, i) => {
+      if (!c) return;
+      if (side === protectedSide && i === protectedSlot) return;
+      sacrificeCreature(side, i);
+      events.push({ type: 'creature-destroyed', side, name: c.name });
+      any = true;
+    });
+  }
+  return any;
+}
+
+// damageBleedAndClear — clears target player's bleed pool and damages them by that amount
+function effDamageBleedAndClear(eff, target, events) {
+  if (!target || target.kind !== 'player') return false;
+  const bleed = G[target.side].bleedPool || 0;
+  if (bleed <= 0) {
+    events.push({ type: 'bleed-add', side: target.side, amount: 0 });
+    return false;
+  }
+  G[target.side].bleedPool = 0;
+  G[target.side].blood = Math.max(0, (G[target.side].blood || 0) - bleed);
+  events.push({ type: 'bleed-remove', side: target.side, amount: bleed });
+  events.push({ type: 'face-damage', defenderSide: target.side, damage: bleed, attackerName: 'Bleed conversion' });
+  return true;
+}
+
+// flagCantBeBlocked — sets a flag on target creature for can't-be-blocked this turn
+function effFlagCantBeBlocked(eff, target, events) {
+  if (!target || target.kind !== 'creature') return false;
+  const c = G[target.side].creatures[target.slotIdx];
+  if (!c) return false;
+  c._cantBeBlocked = true;
+  c._cantBeBlockedExpiresEndOfTurn = true;
+  events.push({ type: 'flag', side: target.side, name: c.name, flag: 'unblockable' });
+  return true;
+}
+
+// returnFromDiscard — return a card from owner's discard to their hand (random for now)
+function effReturnFromDiscard(eff, events, ctx) {
+  const side = ctx.sourceSide;
+  const discard = G[side]?.discard || [];
+  if (discard.length === 0) return false;
+  // Pop the most recently added (top)
+  const card = discard.pop();
+  (G[side].hand || (G[side].hand = [])).push(card);
+  events.push({ type: 'return-to-hand', side, name: card.name });
+  return true;
+}
+
+// preventDamage — prevent up to N damage to target (visual flag only)
+function effPreventDamage(eff, target, events) {
+  if (!target) return false;
+  // Just log it for now; full damage prevention requires combat-system integration.
+  events.push({ type: 'prevent-damage', amount: eff.amount || 0 });
   return true;
 }
