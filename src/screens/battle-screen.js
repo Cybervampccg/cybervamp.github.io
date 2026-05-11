@@ -58,6 +58,40 @@ let _draggedClone = null;
 
 // Target-pick mode state
 let _pickContext = null;
+
+// ─── Renewal helper ───
+// At the start of each side's turn, their permanents step toward renewed:
+//   Overexhausted (180°) → Exhausted (90°)
+//   Exhausted (90°)       → Renewed (upright)
+//   Renewed                → no change
+// Also clears end-of-turn temp buffs and once-per-turn ability flags.
+function renewPermanents(side) {
+  const permanents = [
+    ...(G[side]?.creatures || []),
+    ...(G[side]?.relics || []),
+  ];
+  for (const p of permanents) {
+    if (!p) continue;
+    if (p.overexhausted) {
+      // Step down one notch: overexhausted → exhausted
+      delete p.overexhausted;
+      p.exhausted = true;
+    } else if (p.exhausted) {
+      // Fully renewed
+      delete p.exhausted;
+    }
+    // Clear end-of-turn temp buffs from THIS side's previous turn
+    if (p._tempPowerBonus && p._tempBonusExpiresAt === 'endOfTurn') {
+      p.power = (p.power || 0) - p._tempPowerBonus;
+      delete p._tempPowerBonus;
+      delete p._tempBonusExpiresAt;
+    }
+    // Clear once-per-turn ability flags
+    delete p._abilityUsedThisTurn;
+    // Clear damage tracking (creatures heal between turns in this design)
+    delete p._damageTaken;
+  }
+}
 // shape: {
 //   kind: 'spell' | 'ability',
 //   inst, side, slotIdx?, ability?,
@@ -99,6 +133,7 @@ export function mountBattleScreen(container, opts = {}) {
 
   wireEvents();
   beginTurn('player');
+  renewPermanents('player'); // turn 1 has no exhausted cards but safe to call
   enforceHandCap();
   renderAll();
   playGoldPulse('player', G.player.gold);
@@ -558,6 +593,8 @@ async function onEndTurn() {
     });
   });
   endTurn();
+  // After endTurn, the active player has changed. Renew the new active side.
+  renewPermanents(G.activePlayer);
   renderAll();
 
   if (G.activePlayer === 'ai' && !G.winner) {
@@ -590,6 +627,11 @@ async function onEndTurn() {
     } catch (err) {
       console.error('[turn] AI error', err);
       if (G.activePlayer === 'ai') { try { endTurn(); } catch (e) {} }
+    }
+
+    // AI's turn is done — control should now be back with player. Renew player's permanents.
+    if (G.activePlayer === 'player') {
+      renewPermanents('player');
     }
 
     _aiTurnRunning = false;
