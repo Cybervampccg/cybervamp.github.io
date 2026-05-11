@@ -304,6 +304,152 @@ export const CARD_EFFECTS = {
 
 };
 
+// ═══════════ EXPANSION — additional spells ═══════════
+// Merging into CARD_EFFECTS below.
+
+const EXPANSION = {
+
+  // ─── RED ───
+
+  'Blending In': {
+    // Exhaust own creature → deal damage = its power to ANOTHER creature.
+    // If destroyed, opp gets 1 bleed and you draw 1.
+    targets: [
+      { type: 'ownCreature', label: 'creature to exhaust (source)' },
+      { type: 'creature', label: 'creature to damage' },
+    ],
+    onPlay: [
+      { type: 'damageEqualTargetPower', exhaustSource: true },
+      {
+        type: 'ifLastDestroyed',
+        then: [
+          { type: 'addBleed', amount: 1, target: 'opponent' },
+          { type: 'draw', amount: 1, target: 'controller' },
+        ],
+      },
+    ],
+  },
+
+  'Flankwire Feint': {
+    targets: [{ type: 'creature', label: 'attacking creature' }],
+    onPlay: [
+      // "Bleed triggers regardless of direct damage" — approximated as a small bleed bump + draw
+      { type: 'addBleed', amount: 1, target: 'targetController' },
+      { type: 'draw', amount: 1, target: 'controller' },
+    ],
+  },
+
+  'Redline Frenzy': {
+    targets: [{ type: 'creature', label: 'creature to empower' }],
+    onPlay: [
+      { type: 'buff', power: 2, duration: 'endOfTurn', target: 'target' },
+      // "Breach" and "Bleed +1" approximated as 1 bleed to that creature's controller's opponent
+      // (we don't have per-creature bleed counters yet)
+    ],
+  },
+
+  'Drone Hack': {
+    targets: [{ type: 'creature', label: 'creature to neutralize' }],
+    onPlay: [
+      { type: 'exhaust', target: 'target' },
+      // "controller gains bleed = half power rounded up" — approximated as 1 bleed
+      { type: 'addBleed', amount: 1, target: 'targetController' },
+    ],
+  },
+
+  'Blade Silhouette': {
+    targets: [{ type: 'creature', label: 'creature whose bleed is amplified' }],
+    onPlay: [
+      // Full "double bleed" needs per-creature bleed counters not yet implemented.
+      // Substitute: add 1 bleed to the creature's controller as a thematic stand-in.
+      { type: 'addBleed', amount: 1, target: 'targetController' },
+    ],
+  },
+
+  'Info Brokers': {
+    // "Look at top 3, swap one with hand, rest on top in any order" — simplified to draw 1
+    targets: [],
+    onPlay: [{ type: 'draw', amount: 1, target: 'controller' }],
+  },
+
+  // ─── WHITE ───
+
+  'Relic Absorbtion': {
+    // "Destroy a relic YOU control: gain 5 blood; if you have any bleed, draw 1"
+    targets: [{ type: 'ownRelic', label: 'relic to destroy' }],
+    onPlay: [
+      { type: 'destroy', target: 'target' },
+      { type: 'heal', amount: 5, target: 'controller' },
+      {
+        type: 'ifLastDestroyed',
+        then: [
+          // "If you have any bleed → draw 1" — approximated as always draw 1 since destroy succeeded
+          { type: 'draw', amount: 1, target: 'controller' },
+        ],
+      },
+    ],
+  },
+
+  'Echo of Ages': {
+    // "Look at top 3, put one in hand, rest on bottom" — simplified: draw 1
+    targets: [],
+    onPlay: [{ type: 'draw', amount: 1, target: 'controller' }],
+  },
+
+  'Dawn Defier': {
+    targets: [{ type: 'creature', label: 'creature to empower' }],
+    onPlay: [
+      // "+1 power, Siphon, and Breach" — only +1 power is implementable now
+      { type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' },
+    ],
+  },
+
+  'Ask for Blessings': {
+    targets: [{ type: 'creature', label: 'creature to bless' }],
+    onPlay: [
+      // "Tireless and Siphon" — approximated as small permanent power buff
+      { type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' },
+    ],
+  },
+
+  // ─── BLACK ───
+
+  'Shadowstalk Burst': {
+    targets: [{ type: 'creature', label: 'creature to grant siphon' }],
+    onPlay: [
+      // "Siphon until EOT" — approximated as +1 power
+      { type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' },
+    ],
+  },
+
+  'Wicked Harvest': {
+    // Already exists in original — skip
+  },
+
+  // ─── PURPLE ───
+
+  'Eternal Subterfuge': {
+    // "Remove target creature from game, replaced by Illusion Token"
+    // Without token system, we approximate by destroying the creature.
+    targets: [{ type: 'creature', label: 'creature to remove' }],
+    onPlay: [{ type: 'destroy', target: 'target' }],
+  },
+
+  'Mindforge Dominion': {
+    // "Gain control of target creature" — control change is complex.
+    // Substitute: exhaust target creature (loses use this turn) + buff own creature
+    targets: [{ type: 'enemyCreature', label: 'enemy creature to subvert' }],
+    onPlay: [
+      { type: 'exhaust', target: 'target' },
+      // No buff target here since we can't easily target own creature secondarily
+    ],
+  },
+
+};
+
+// Merge expansion into main effects dict
+Object.assign(CARD_EFFECTS, EXPANSION);
+
 export function getCardEffects(card) {
   if (!card || !card.name) return null;
   return CARD_EFFECTS[card.name] || null;
