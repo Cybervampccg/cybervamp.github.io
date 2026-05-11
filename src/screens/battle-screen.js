@@ -1,12 +1,12 @@
 // ─────────────────────────────────────────────────────────────
-// Battle Screen — combat-tap-fix
-// Fixes:
-//   1. Disabled double-tap detection during combat sub-modes
-//      → single tap fires INSTANTLY when declaring attackers/blockers
-//   2. Inline visual feedback on declared attackers (red glow + ⚔ icon)
-//      → no longer depends on CSS classes that may not exist
-//   3. Inline outlines on eligible attack/block targets
-//   4. Console logging of every tap during combat
+// Battle Screen — Spells & Abilities session
+// Adds:
+//   - Spell playing: drag spell from hand → enters target-pick mode →
+//     valid targets highlighted → tap a target → effect resolves
+//   - Activated abilities: double-tap own creature/relic → if it has an
+//     ability → enters target-pick mode → tap target → effect resolves
+//   - Banner indicates current target requirement
+//   - Cancel button cancels target picking and refunds the action
 // ─────────────────────────────────────────────────────────────
 
 import { G } from '../game/state.js';
@@ -25,6 +25,10 @@ import {
   sacrificeRelic, isRelicCard, aiTryPlayRelic,
 } from '../game/relics.js';
 import { attachCardGestures } from './card-interaction.js';
+import { canPlaySpell, getSpellTargetRequirements, playSpellFromHand } from '../game/spells.js';
+import { canActivateAbility, getAbilityTargetRequirements, activateAbility } from '../game/abilities.js';
+import { getValidTargets } from '../game/effects.js';
+import { hasActivatedAbility, isSpellSupported } from '../game/card-effects.js';
 
 const HAND_CAP = 7;
 const PLAYABLE_AS_CREATURE = ['Creature', 'creature'];
@@ -32,29 +36,17 @@ const SPELLS = ['Spell', 'spell'];
 const RELICS_TYPES = ['Relic', 'relic', 'Permanent', 'permanent'];
 
 const ACTION_BTN_BASE_STYLE = `
-  position: absolute;
-  top: 92.5%;
-  width: 16%;
-  height: 6.2%;
-  font-family: 'Cinzel Decorative', serif;
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 1px;
-  border: 1px solid rgba(255, 200, 200, 0.4);
+  position: absolute; top: 92.5%; width: 16%; height: 6.2%;
+  font-family: 'Cinzel Decorative', serif; font-weight: 700; font-size: 11px;
+  letter-spacing: 1px; border: 1px solid rgba(255, 200, 200, 0.4);
   clip-path: polygon(15% 0%, 85% 0%, 100% 50%, 85% 100%, 15% 100%, 0% 50%);
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
-  z-index: 7;
-  line-height: 1.1;
+  cursor: pointer; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9); z-index: 7; line-height: 1.1;
 `;
 
 let _container = null;
 let _aiTurnRunning = false;
-let _previewInst = null;
 let _mode = 'normal';
 let _pendingPlayInst = null;
 let _pendingBlockerForAttackerIdx = null;
@@ -63,6 +55,16 @@ let _sacrificeTargetType = 'creature';
 let _selectedHandInstId = null;
 let _draggedHandInstId = null;
 let _draggedClone = null;
+
+// Target-pick mode state
+let _pickContext = null;
+// shape: {
+//   kind: 'spell' | 'ability',
+//   inst, side, slotIdx?, ability?,
+//   targetReqs: [{type, label, optional, filter}, ...],
+//   collected: [],
+//   currentIdx: 0,
+// }
 
 export function mountBattleScreen(container, opts = {}) {
   _container = container;
@@ -175,17 +177,10 @@ function renderVitalsOverlay(side) {
     <div class="overlay-vitals overlay-vitals-${side}">
       <div class="vitals-label">${side === 'player' ? 'YOU' : 'OPPONENT'}</div>
       <div class="vitals-stats">
-        <span class="vital-stat">
-          <span class="vital-icon">❤</span>
-          <span class="vital-num" data-bind="${who(side)}.blood">30</span>
-        </span>
-        <span class="vital-stat">
-          <span class="vital-icon">🩸</span>
-          <span class="vital-num" data-bind="${who(side)}.bleedPool">0</span>
-        </span>
+        <span class="vital-stat"><span class="vital-icon">❤</span><span class="vital-num" data-bind="${who(side)}.blood">30</span></span>
+        <span class="vital-stat"><span class="vital-icon">🩸</span><span class="vital-num" data-bind="${who(side)}.bleedPool">0</span></span>
         <span class="vital-stat gold-stat ${side === 'opponent' ? 'dim' : ''}" data-vital="gold" data-side="${who(side)}">
-          <span class="vital-icon">⛁</span>
-          <span class="vital-num" data-bind="${who(side)}.gold">0/0</span>
+          <span class="vital-icon">⛁</span><span class="vital-num" data-bind="${who(side)}.gold">0/0</span>
         </span>
       </div>
     </div>
@@ -252,15 +247,17 @@ function wireEvents() {
   });
 }
 
+// ═══════════════════════════════════════════════════════════
+// COMBAT
+// ═══════════════════════════════════════════════════════════
+
 function onGoToCombat() {
-  console.log('[combat] GO TO COMBAT tapped');
   if (G.activePlayer !== 'player') { showStatus('Not your turn'); return; }
   if (G.winner) return;
   if (_mode !== 'normal') { showStatus('Finish current action first'); return; }
 
   if (countAvailableAttackers('player') === 0) {
-    showStatus('No creatures ready to attack');
-    return;
+    showStatus('No creatures ready to attack'); return;
   }
 
   _selectedHandInstId = null;
@@ -402,6 +399,60 @@ async function playBleedEvents(events) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// SPELL / ABILITY EVENT REPLAY
+// ═══════════════════════════════════════════════════════════
+
+async function playSpellEvents(events) {
+  const fx = _container.querySelector('#combat-fx-layer');
+  for (const e of events) {
+    switch (e.type) {
+      case 'face-damage':
+        showFloatingNumber(fx, `-${e.damage} ❤`, '#f43f5e', e.defenderSide);
+        logEvent(`${e.attackerName} → ${e.defenderSide} for ${e.damage}`);
+        await delay(300); break;
+      case 'creature-damage':
+        showFloatingNumber(fx, `-${e.amount}`, '#f43f5e', e.side);
+        logEvent(`${e.name} takes ${e.amount}`);
+        await delay(300); break;
+      case 'creature-destroyed':
+        logEvent(`${e.name} destroyed`); await delay(200); break;
+      case 'relic-destroyed':
+        logEvent(`Relic ${e.name} destroyed`); await delay(200); break;
+      case 'heal':
+        showFloatingNumber(fx, `+${e.amount} ❤`, '#22c55e', e.side);
+        logEvent(`${e.side === 'player' ? 'You' : 'AI'} healed ${e.amount}`);
+        await delay(300); break;
+      case 'buff':
+        showFloatingNumber(fx, `+${e.power} ⚔`, '#fde047', e.side);
+        logEvent(`${e.name} +${e.power} power`); await delay(200); break;
+      case 'exhaust': logEvent(`${e.name} exhausted`); await delay(200); break;
+      case 'overexhaust': logEvent(`${e.name} overexhausted`); await delay(200); break;
+      case 'renew': logEvent(`${e.name} renewed`); await delay(200); break;
+      case 'draw':
+        showFloatingNumber(fx, `+${e.amount} 🂠`, '#60a5fa', e.side);
+        logEvent(`${e.side === 'player' ? 'You' : 'AI'} drew ${e.amount}`);
+        await delay(300); break;
+      case 'discard': logEvent(`${e.side === 'player' ? 'You' : 'AI'} discarded ${e.amount}`); await delay(200); break;
+      case 'bleed-add':
+        showFloatingNumber(fx, `+${e.amount} 🩸`, '#dc2626', e.side);
+        logEvent(`${e.side === 'player' ? 'You' : 'AI'} +${e.amount} bleed`);
+        await delay(300); break;
+      case 'bleed-remove':
+        showFloatingNumber(fx, `-${e.amount} 🩸`, '#22c55e', e.side);
+        logEvent(`${e.side === 'player' ? 'You' : 'AI'} -${e.amount} bleed`);
+        await delay(300); break;
+      case 'return-to-hand': logEvent(`${e.name} returned to hand`); await delay(200); break;
+      case 'gain-gold':
+        showFloatingNumber(fx, `+${e.amount} ⛁`, '#fde047', e.side);
+        logEvent(`${e.side === 'player' ? 'You' : 'AI'} +${e.amount} gold`);
+        await delay(300); break;
+      case 'power-counter': logEvent(`${e.name} +${e.amount} permanent power`); await delay(200); break;
+    }
+    renderAll();
+  }
+}
+
 function showFloatingNumber(fx, text, color, side) {
   const n = document.createElement('div');
   n.style.cssText = `position:absolute; font-family:'Cinzel Decorative',serif; font-weight:700; font-size:36px; text-shadow:0 0 8px ${color}, 0 2px 4px rgba(0,0,0,0.95); transition:transform 0.9s cubic-bezier(.3,.1,.3,1.2), opacity 0.9s; pointer-events:none; z-index:100; color:${color}; top:${side === 'player' ? '70%' : '12%'}; left:40%;`;
@@ -424,12 +475,18 @@ async function onEndTurn() {
   if (_mode === 'discard') {
     showStatus(`Discard ${G.player.hand.length - HAND_CAP} card(s) to continue`); return;
   }
-  if (_mode === 'sacrifice-pick' || _mode === 'combat-attackers' || _mode === 'combat-blockers') {
+  if (_mode === 'sacrifice-pick' || _mode === 'combat-attackers' || _mode === 'combat-blockers' || _mode === 'target-pick') {
     showStatus('Finish current action first'); return;
   }
 
   closePreview();
   _selectedHandInstId = null;
+  // Clear once-per-turn ability flags
+  ['player', 'ai'].forEach(s => {
+    [...(G[s]?.creatures || []), ...(G[s]?.relics || [])].forEach(x => {
+      if (x) delete x._abilityUsedThisTurn;
+    });
+  });
   endTurn();
   renderAll();
 
@@ -496,7 +553,7 @@ function attachHandCardGestures(slotEl, inst) {
       }
     },
     onLongPress: () => {
-      if (_mode === 'discard' || _mode === 'sacrifice-pick') return;
+      if (_mode === 'discard' || _mode === 'sacrifice-pick' || _mode === 'target-pick') return;
       openPreview(inst, 'hand');
     },
     onDragStart: () => {
@@ -504,20 +561,9 @@ function attachHandCardGestures(slotEl, inst) {
       if (G.activePlayer !== 'player') return;
       closePreview();
       _draggedHandInstId = inst.instId;
-
       const rect = slotEl.getBoundingClientRect();
       _draggedClone = slotEl.cloneNode(true);
-      _draggedClone.style.position = 'fixed';
-      _draggedClone.style.left = rect.left + 'px';
-      _draggedClone.style.top = rect.top + 'px';
-      _draggedClone.style.width = rect.width + 'px';
-      _draggedClone.style.height = rect.height + 'px';
-      _draggedClone.style.transform = 'rotate(0deg) scale(1.15)';
-      _draggedClone.style.zIndex = '8500';
-      _draggedClone.style.pointerEvents = 'none';
-      _draggedClone.style.transition = 'none';
-      _draggedClone.style.opacity = '0.95';
-      _draggedClone.style.filter = 'drop-shadow(0 8px 20px rgba(234, 179, 8, 0.8))';
+      _draggedClone.style.cssText = `position:fixed; left:${rect.left}px; top:${rect.top}px; width:${rect.width}px; height:${rect.height}px; transform: rotate(0deg) scale(1.15); z-index:8500; pointer-events:none; transition:none; opacity:0.95; filter: drop-shadow(0 8px 20px rgba(234, 179, 8, 0.8));`;
       document.body.appendChild(_draggedClone);
       slotEl.style.opacity = '0.3';
     },
@@ -547,7 +593,27 @@ function attemptPlayCard(inst) {
   const isSpell = SPELLS.includes(cardType);
   const isRelic = RELICS_TYPES.includes(cardType);
 
-  if (isSpell) { showStatus('Spells coming soon'); return; }
+  if (isSpell) {
+    // NEW: route to spell flow
+    const check = canPlaySpell('player', inst.instId);
+    if (!check.ok) { showStatus(check.error); return; }
+
+    const reqs = getSpellTargetRequirements(inst);
+    if (reqs.length === 0) {
+      // No targets — fire immediately
+      finalizeSpellPlay(inst, []);
+      return;
+    }
+    // Enter target-pick mode
+    startTargetPick({
+      kind: 'spell',
+      inst,
+      side: 'player',
+      targetReqs: reqs,
+    });
+    return;
+  }
+
   if (!isCreature && !isRelic) { showStatus(`${cardType} not yet supported`); return; }
 
   if (isRelic) {
@@ -576,14 +642,118 @@ function attemptPlayCard(inst) {
   } else showStatus(result.error);
 }
 
+async function finalizeSpellPlay(inst, targets) {
+  const result = playSpellFromHand('player', inst.instId, targets);
+  if (!result.ok) { showStatus(result.error); return; }
+  logEvent(`You cast ${inst.name}`);
+  _selectedHandInstId = null;
+  renderAll();
+  await playSpellEvents(result.events || []);
+  checkWinCondition();
+  if (G.winner) showWinner();
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════
+// TARGET PICKING (used by both spells & abilities)
+// ═══════════════════════════════════════════════════════════
+
+function startTargetPick(ctx) {
+  _pickContext = { ...ctx, collected: [], currentIdx: 0 };
+  _mode = 'target-pick';
+  _selectedHandInstId = null;
+  closePreview();
+  showCurrentTargetBanner();
+  renderAll();
+}
+
+function showCurrentTargetBanner() {
+  if (!_pickContext) return;
+  const req = _pickContext.targetReqs[_pickContext.currentIdx];
+  const sourceName = _pickContext.inst.name;
+  const stepText = req
+    ? `<div>${_pickContext.kind === 'spell' ? '✨' : '⚙'} ${sourceName} — choose <strong>${req.label}</strong></div>`
+    : `<div>Confirming...</div>`;
+  const optionalSkip = req?.optional
+    ? `<button class="banner-cancel-btn" id="btn-skip-target" style="background:#475569;">SKIP TARGET</button>`
+    : '';
+  showModeBanner(`
+    ${stepText}
+    <button class="banner-cancel-btn" id="btn-cancel-pick">CANCEL</button>
+    ${optionalSkip}
+  `);
+  setTimeout(() => {
+    _container.querySelector('#btn-cancel-pick')?.addEventListener('click', cancelTargetPick);
+    _container.querySelector('#btn-skip-target')?.addEventListener('click', skipOptionalTarget);
+  }, 0);
+}
+
+function cancelTargetPick() {
+  _pickContext = null;
+  _mode = 'normal';
+  hideModeBanner();
+  renderAll();
+}
+
+function skipOptionalTarget() {
+  if (!_pickContext) return;
+  _pickContext.collected.push(null);
+  _pickContext.currentIdx++;
+  advanceTargetPick();
+}
+
+function advanceTargetPick() {
+  if (!_pickContext) return;
+  if (_pickContext.currentIdx >= _pickContext.targetReqs.length) {
+    // All collected — execute
+    const filtered = _pickContext.collected.filter(t => t !== null);
+    executeTargetedAction(_pickContext, filtered);
+    return;
+  }
+  showCurrentTargetBanner();
+  renderAll();
+}
+
+function executeTargetedAction(ctx, targets) {
+  if (ctx.kind === 'spell') {
+    const inst = ctx.inst;
+    _pickContext = null;
+    _mode = 'normal';
+    hideModeBanner();
+    finalizeSpellPlay(inst, targets);
+  } else if (ctx.kind === 'ability') {
+    finalizeAbilityActivation(ctx, targets);
+  }
+}
+
+function isValidTargetForCurrent(target) {
+  if (!_pickContext) return false;
+  const req = _pickContext.targetReqs[_pickContext.currentIdx];
+  if (!req) return false;
+  const valid = getValidTargets(req.type, _pickContext.side, req.filter);
+  return valid.some(v =>
+    v.kind === target.kind &&
+    v.side === target.side &&
+    (v.slotIdx === undefined || v.slotIdx === target.slotIdx)
+  );
+}
+
+function pickTarget(target) {
+  if (!_pickContext) return;
+  if (!isValidTargetForCurrent(target)) {
+    showStatus('Invalid target');
+    return;
+  }
+  _pickContext.collected.push(target);
+  _pickContext.currentIdx++;
+  advanceTargetPick();
+}
+
 // ═══════════════════════════════════════════════════════════
 // BATTLEFIELD GESTURES
-// FIX: double-tap detection only enabled in normal mode
-// → during combat, single tap fires INSTANTLY
 // ═══════════════════════════════════════════════════════════
 
 function attachBattlefieldGestures(slotEl, inst, kind) {
-  // Only enable double-tap in normal mode where ability activation matters
   const useDoubleTap = (_mode === 'normal');
 
   attachCardGestures(slotEl, {
@@ -591,8 +761,11 @@ function attachBattlefieldGestures(slotEl, inst, kind) {
     onTap: () => {
       const side = slotEl.dataset.side;
       const slotIdx = parseInt(slotEl.dataset.slotIdx ?? slotEl.dataset.relicIdx, 10);
-      console.log('[gesture] battlefield TAP', inst.name, 'side=', side, 'slotIdx=', slotIdx, 'mode=', _mode);
 
+      if (_mode === 'target-pick') {
+        pickTarget({ kind, side, slotIdx });
+        return;
+      }
       if (_mode === 'sacrifice-pick' && side === 'player') {
         if (kind === 'creature' && _sacrificeTargetType === 'creature') onSacrificeSlotPick(slotIdx);
         else if (kind === 'relic' && _sacrificeTargetType === 'relic') onSacrificeRelicPick(slotIdx);
@@ -612,33 +785,63 @@ function attachBattlefieldGestures(slotEl, inst, kind) {
       const slotIdx = parseInt(slotEl.dataset.slotIdx ?? slotEl.dataset.relicIdx, 10);
       if (side !== 'player') return;
       if (_mode !== 'normal') return;
-      activateAbility(inst, kind, slotIdx);
+      tryActivateAbility(side, kind, slotIdx);
     },
     onLongPress: () => {
+      if (_mode === 'target-pick') return;
       openPreview(inst, 'battlefield');
     },
   });
 }
 
-function activateAbility(inst, kind, slotIdx) {
-  showStatus(`${inst.name}'s ability — coming soon`);
-  logEvent(`Tried to activate ${inst.name}'s ability`);
+function tryActivateAbility(side, kind, slotIdx) {
+  const arr = kind === 'creature' ? G[side].creatures : G[side].relics;
+  const inst = arr[slotIdx];
+  if (!inst) return;
+
+  if (!hasActivatedAbility(inst)) {
+    showStatus(`${inst.name} has no activated ability`);
+    return;
+  }
+
+  const check = canActivateAbility(side, kind, slotIdx);
+  if (!check.ok) { showStatus(check.error); return; }
+
+  const reqs = getAbilityTargetRequirements(side, kind, slotIdx);
+  if (reqs.length === 0) {
+    finalizeAbilityActivation({ kind: 'ability', inst, side, slotIdx, sourceKind: kind }, []);
+    return;
+  }
+  startTargetPick({
+    kind: 'ability',
+    inst,
+    side,
+    slotIdx,
+    sourceKind: kind,
+    targetReqs: reqs,
+  });
+}
+
+async function finalizeAbilityActivation(ctx, targets) {
+  const result = activateAbility(ctx.side, ctx.sourceKind, ctx.slotIdx, targets);
+  _pickContext = null;
+  _mode = 'normal';
+  hideModeBanner();
+  if (!result.ok) { showStatus(result.error); renderAll(); return; }
+  logEvent(`Activated ${ctx.inst.name}'s ability`);
+  renderAll();
+  await playSpellEvents(result.events || []);
+  checkWinCondition();
+  if (G.winner) showWinner();
+  renderAll();
 }
 
 function onAttackerSlotPick(slotIdx) {
   const inst = G.player.creatures[slotIdx];
-  if (!inst) {
-    console.log('[combat] no creature at slot', slotIdx);
-    return;
-  }
-  console.log('[combat] attacker pick: slot', slotIdx, 'inst=', inst.name, '_attacking=', inst._attacking);
-
-  if (inst._attacking) {
-    undeclareAttacker('player', slotIdx);
-    console.log('[combat] undeclared attacker', inst.name);
-  } else {
+  if (!inst) return;
+  if (inst._attacking) undeclareAttacker('player', slotIdx);
+  else {
     const r = declareAttacker('player', slotIdx);
-    console.log('[combat] declareAttacker result:', r);
     if (!r.ok) { showStatus(r.error); return; }
   }
   renderAll();
@@ -654,14 +857,16 @@ function onBlockerSlotPick(slotIdx) {
   if (_resumeBlockChoice) _resumeBlockChoice();
 }
 
+// ═══════════════════════════════════════════════════════════
+// PREVIEW
+// ═══════════════════════════════════════════════════════════
+
 function openPreview(inst, source = 'hand') {
-  _previewInst = inst;
   const overlay = _container.querySelector('#card-preview-overlay');
   overlay.innerHTML = '';
   const wrapper = document.createElement('div');
   wrapper.className = 'preview-wrapper';
-  const card = createCardElement(inst, 'preview');
-  wrapper.appendChild(card);
+  wrapper.appendChild(createCardElement(inst, 'preview'));
 
   const actions = document.createElement('div');
   actions.className = 'preview-actions';
@@ -691,7 +896,6 @@ function openPreview(inst, source = 'hand') {
 }
 
 function closePreview() {
-  _previewInst = null;
   const overlay = _container.querySelector('#card-preview-overlay');
   if (!overlay) return;
   overlay.classList.add('hidden');
@@ -714,11 +918,8 @@ function enterSacrificePickMode(newInst, targetType) {
 }
 
 function exitSacrificePickMode() {
-  _mode = 'normal';
-  _pendingPlayInst = null;
-  _sacrificeTargetType = 'creature';
-  hideModeBanner();
-  renderAll();
+  _mode = 'normal'; _pendingPlayInst = null; _sacrificeTargetType = 'creature';
+  hideModeBanner(); renderAll();
 }
 
 function onSacrificeSlotPick(slotIdx) {
@@ -759,10 +960,7 @@ function openDock(which) {
     content.innerHTML = lines || '<p>No actions yet.</p>';
   } else if (which === 'settings') {
     title.textContent = 'Settings';
-    content.innerHTML = `
-      <p>Mute and animation speed coming.</p>
-      <button class="home-btn home-btn-warn" id="btn-end-game">End Game (return home)</button>
-    `;
+    content.innerHTML = `<p>Mute and animation speed coming.</p><button class="home-btn home-btn-warn" id="btn-end-game">End Game (return home)</button>`;
     setTimeout(() => {
       _container.querySelector('#btn-end-game')?.addEventListener('click', () => {
         if (confirm('End this battle and return home?')) {
@@ -774,6 +972,10 @@ function openDock(which) {
   panel.classList.remove('hidden');
 }
 function closeDock() { _container.querySelector('#dock-panel').classList.add('hidden'); }
+
+// ═══════════════════════════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════════════════════════
 
 function renderAll() {
   if (!_container || !G) return;
@@ -807,7 +1009,7 @@ function updateActionButtons() {
       ? `<span>CONFIRM</span><span>ATTACK (${declared})</span>`
       : `<span>SKIP</span><span>COMBAT</span>`;
   }
-  endBtn.style.display = (inCombatAttackers || _mode === 'combat-blockers') ? 'none' : 'flex';
+  endBtn.style.display = (inCombatAttackers || _mode === 'combat-blockers' || _mode === 'target-pick') ? 'none' : 'flex';
 }
 
 function renderTopBar() {
@@ -835,22 +1037,15 @@ function renderDeck() {
   if (el) el.textContent = `x${oppDeck}`;
 }
 
-// ═══════════════════════════════════════════════════════════
-// FIX: Inline visual feedback for combat states (no CSS reliance)
-// ═══════════════════════════════════════════════════════════
-
 function applyCombatVisuals(slotEl, inst, isPlayerSide) {
-  // Clear any previous combat visuals
   slotEl.style.outline = '';
   slotEl.style.outlineOffset = '';
   slotEl.style.boxShadow = '';
-  // Remove any existing attack-icon child
   const existingIcon = slotEl.querySelector('.combat-attack-icon');
   if (existingIcon) existingIcon.remove();
 
   if (!inst) return;
 
-  // Declared attacker — red glow + ⚔ icon
   if (inst._attacking) {
     slotEl.style.outline = '3px solid #f43f5e';
     slotEl.style.outlineOffset = '2px';
@@ -859,23 +1054,11 @@ function applyCombatVisuals(slotEl, inst, isPlayerSide) {
     const icon = document.createElement('div');
     icon.className = 'combat-attack-icon';
     icon.textContent = '⚔';
-    icon.style.cssText = `
-      position: absolute;
-      top: -22px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 28px;
-      color: #f43f5e;
-      text-shadow: 0 0 12px #f43f5e, 0 0 4px #fff, 0 2px 4px rgba(0,0,0,0.95);
-      z-index: 50;
-      pointer-events: none;
-      animation: attack-bounce 1s ease-in-out infinite;
-    `;
+    icon.style.cssText = `position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font-size: 28px; color: #f43f5e; text-shadow: 0 0 12px #f43f5e, 0 0 4px #fff, 0 2px 4px rgba(0,0,0,0.95); z-index: 50; pointer-events: none; animation: attack-bounce 1s ease-in-out infinite;`;
     slotEl.appendChild(icon);
     return;
   }
 
-  // Eligible attacker target — red dashed outline
   if (_mode === 'combat-attackers' && isPlayerSide && !inst.exhausted && !inst.overexhausted && (inst.power || 0) > 0) {
     slotEl.style.outline = '2px dashed rgba(244, 63, 94, 0.7)';
     slotEl.style.outlineOffset = '4px';
@@ -884,7 +1067,6 @@ function applyCombatVisuals(slotEl, inst, isPlayerSide) {
     return;
   }
 
-  // Eligible blocker — blue dashed outline
   if (_mode === 'combat-blockers' && isPlayerSide && !inst.exhausted && !inst.overexhausted) {
     slotEl.style.outline = '2px dashed rgba(96, 165, 250, 0.8)';
     slotEl.style.outlineOffset = '4px';
@@ -893,7 +1075,6 @@ function applyCombatVisuals(slotEl, inst, isPlayerSide) {
     return;
   }
 
-  // Pending AI attacker (being blocked) — gold glow
   if (_mode === 'combat-blockers' && !isPlayerSide) {
     const slotIdx = parseInt(slotEl.dataset.slotIdx, 10);
     if (slotIdx === _pendingBlockerForAttackerIdx) {
@@ -901,35 +1082,30 @@ function applyCombatVisuals(slotEl, inst, isPlayerSide) {
       slotEl.style.outlineOffset = '2px';
       slotEl.style.boxShadow = '0 0 24px rgba(253, 224, 71, 0.85)';
       slotEl.style.borderRadius = '8px';
-      const icon = document.createElement('div');
-      icon.className = 'combat-attack-icon';
-      icon.textContent = '⚔';
-      icon.style.cssText = `
-        position: absolute;
-        bottom: -22px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 28px;
-        color: #fde047;
-        text-shadow: 0 0 12px #fde047, 0 2px 4px rgba(0,0,0,0.95);
-        z-index: 50;
-        pointer-events: none;
-      `;
-      slotEl.appendChild(icon);
     }
   }
 }
 
-// Inject the bounce keyframe once
+function applyTargetPickVisuals(slotEl, kind, side, slotIdx) {
+  if (_mode !== 'target-pick' || !_pickContext) return false;
+  const target = { kind, side, slotIdx };
+  if (isValidTargetForCurrent(target)) {
+    slotEl.style.outline = '3px dashed #c084fc';
+    slotEl.style.outlineOffset = '4px';
+    slotEl.style.boxShadow = '0 0 20px rgba(192, 132, 252, 0.8), inset 0 0 10px rgba(192, 132, 252, 0.3)';
+    slotEl.style.borderRadius = '8px';
+    return true;
+  }
+  return false;
+}
+
 function ensureCombatAnimations() {
   if (document.getElementById('combat-anim-styles')) return;
   const style = document.createElement('style');
   style.id = 'combat-anim-styles';
   style.textContent = `
-    @keyframes attack-bounce {
-      0%, 100% { transform: translateX(-50%) scale(1); }
-      50% { transform: translateX(-50%) scale(1.2); }
-    }
+    @keyframes attack-bounce { 0%, 100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.2); } }
+    @keyframes target-pulse { 0%, 100% { box-shadow: 0 0 16px rgba(192, 132, 252, 0.6); } 50% { box-shadow: 0 0 28px rgba(192, 132, 252, 1); } }
   `;
   document.head.appendChild(style);
 }
@@ -949,11 +1125,6 @@ function renderBoard(side) {
     if (inst) {
       slotEl.classList.remove('empty');
       const cardEl = createCardElement(inst, 'battlefield');
-      if (inst.exhausted) cardEl.classList.add('is-exhausted');
-      if (inst.overexhausted) cardEl.classList.add('is-overexhausted');
-
-      // Inline exhaust rotation — guaranteed to work regardless of CSS state
-      // Exhausted: 90° sideways. Overexhausted: 180° upside-down.
       cardEl.style.transition = 'transform 0.35s cubic-bezier(.3,.1,.3,1.2), filter 0.35s';
       if (inst.overexhausted) {
         cardEl.style.transform = 'rotate(180deg) scale(0.88)';
@@ -965,16 +1136,14 @@ function renderBoard(side) {
         cardEl.style.transform = '';
         cardEl.style.filter = '';
       }
-
       host.appendChild(cardEl);
     } else {
       slotEl.classList.add('empty');
     }
 
-    // Apply inline combat visuals
     applyCombatVisuals(slotEl, inst, isPlayerSide);
+    applyTargetPickVisuals(slotEl, 'creature', side, i);
 
-    // Sacrifice target visual
     if (_mode === 'sacrifice-pick' && isPlayerSide && _sacrificeTargetType === 'creature' && inst) {
       slotEl.style.outline = '3px solid #fb923c';
       slotEl.style.outlineOffset = '2px';
@@ -983,7 +1152,6 @@ function renderBoard(side) {
     }
   }
 
-  // Re-clone slots to clear old gesture listeners, attach new ones
   _container.querySelectorAll(`.overlay-slots-${sideClass} .board-slot`).forEach(s => {
     const clone = s.cloneNode(true);
     s.parentNode.replaceChild(clone, s);
@@ -1010,8 +1178,6 @@ function renderRelics(side) {
       const cardEl = createCardElement(inst, 'battlefield');
       cardEl.style.width = '100%';
       cardEl.style.height = '100%';
-
-      // Inline exhaust rotation for relics too
       cardEl.style.transition = 'transform 0.35s cubic-bezier(.3,.1,.3,1.2), filter 0.35s';
       if (inst.overexhausted) {
         cardEl.style.transform = 'rotate(180deg) scale(0.88)';
@@ -1020,11 +1186,12 @@ function renderRelics(side) {
         cardEl.style.transform = 'rotate(90deg) scale(0.92)';
         cardEl.style.filter = 'brightness(0.7) saturate(0.75)';
       }
-
       host.appendChild(cardEl);
     } else {
       slotEl.classList.add('empty');
     }
+
+    applyTargetPickVisuals(slotEl, 'relic', side, i);
 
     if (_mode === 'sacrifice-pick' && side === 'player' && _sacrificeTargetType === 'relic' && inst) {
       slotEl.style.outline = '3px solid #fb923c';
@@ -1041,6 +1208,37 @@ function renderRelics(side) {
     const inst = G[side].relics[idx];
     if (inst) attachBattlefieldGestures(clone, inst, 'relic');
   });
+
+  // Apply target-pick visual to vital labels (for player targets)
+  if (_mode === 'target-pick' && _pickContext) {
+    ['player', 'ai'].forEach(s => {
+      const vital = _container.querySelector(`.overlay-vitals-${s === 'player' ? 'player' : 'opponent'}`);
+      if (!vital) return;
+      vital.style.outline = '';
+      vital.style.boxShadow = '';
+      if (isValidTargetForCurrent({ kind: 'player', side: s })) {
+        vital.style.outline = '3px dashed #c084fc';
+        vital.style.outlineOffset = '4px';
+        vital.style.boxShadow = '0 0 20px rgba(192, 132, 252, 0.8)';
+        vital.style.borderRadius = '8px';
+        vital.style.cursor = 'pointer';
+        vital.onclick = () => pickTarget({ kind: 'player', side: s });
+      } else {
+        vital.onclick = null;
+        vital.style.cursor = '';
+      }
+    });
+  } else {
+    ['player', 'ai'].forEach(s => {
+      const vital = _container.querySelector(`.overlay-vitals-${s === 'player' ? 'player' : 'opponent'}`);
+      if (vital) {
+        vital.style.outline = '';
+        vital.style.boxShadow = '';
+        vital.style.cursor = '';
+        vital.onclick = null;
+      }
+    });
+  }
 }
 
 function renderHand() {
@@ -1079,13 +1277,19 @@ function renderHand() {
 
     const card = createCardElement(inst, 'hand');
     const isRelic = isRelicCard(inst);
+    const cardType = inst.type || '';
+    const isSpell = SPELLS.includes(cardType);
     let affordable;
     if (isRelic) {
       affordable = (G.player.gold || 0) >= (inst.goldCost || 0)
         && (G.player.blood || 0) > (inst.bloodCost || 0)
         && G.activePlayer === 'player';
+    } else if (isSpell) {
+      affordable = (G.player.gold || 0) >= (inst.goldCost || 0)
+        && G.activePlayer === 'player'
+        && isSpellSupported(inst);
     } else {
-      affordable = canAffordInst(inst) && G.activePlayer === 'player' && inst.type !== 'Spell';
+      affordable = canAffordInst(inst) && G.activePlayer === 'player';
     }
     if (!affordable && _mode !== 'discard') card.classList.add('unaffordable');
 
