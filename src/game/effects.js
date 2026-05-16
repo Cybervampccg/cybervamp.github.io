@@ -2,7 +2,7 @@
 // effects.js — Effect interpreter for spells and abilities
 // ─────────────────────────────────────────────────────────────
 
-import { G } from './state.js';
+import { G, attachToken, removeToken } from './state.js';
 import { grantKeyword, modifyBleedValue } from './keywords.js';
 import { sacrificeCreature } from './sacrifice.js';
 import { sacrificeRelic, ensureRelicSlots } from './relics.js';
@@ -125,6 +125,9 @@ function runOneEffect(eff, ctx, events) {
     case 'flagCantBeBlocked':   return effFlagCantBeBlocked(eff, target, events);
     case 'returnFromDiscard':   return effReturnFromDiscard(eff, events, ctx);
     case 'preventDamage':       return effPreventDamage(eff, target, events);
+    case 'createToken':         return effCreateToken(eff, target, events, ctx);
+    case 'destroyToken':        return effDestroyToken(eff, target, events, ctx);
+    case 'glimpse':             return effGlimpse(eff, events, ctx);
     // ─── New keyword/bleed-grant effects (keyword-patch session) ───
     case 'GRANT_KEYWORD':       return effGrantKeyword(eff, target, events, ctx);
     case 'MODIFY_BLEED_VALUE':  return effModifyBleedValue(eff, target, events, ctx);
@@ -508,6 +511,119 @@ function effPreventDamage(eff, target, events) {
   if (!target) return false;
   // Just log it for now; full damage prevention requires combat-system integration.
   events.push({ type: 'prevent-damage', amount: eff.amount || 0 });
+  return true;
+}
+
+// ───────── Token effects ─────────
+
+// createToken — attach one or more tokens of tokenType to a host creature.
+//
+// Effect shape:
+//   { type: 'createToken', tokenType: 'Bat'|'Raven'|'Wolf'|'Zombie', amount: N, host: 'self'|undefined }
+//
+// host: 'self'  → host is the source creature (ctx.sourceSide + ctx.sourceSlotIdx)
+// host: unset   → host is resolved from eff.target (e.g. 'target' → first picked creature)
+function effCreateToken(eff, target, events, ctx) {
+  let host = null;
+  if (eff.host === 'self') {
+    if (ctx.sourceSlotIdx != null) {
+      host = G[ctx.sourceSide]?.creatures?.[ctx.sourceSlotIdx] || null;
+    }
+  } else if (target?.kind === 'creature') {
+    host = G[target.side].creatures[target.slotIdx];
+  }
+  if (!host) return false;
+
+  const tokenType = eff.tokenType;
+  if (!tokenType) return false;
+  const amount = eff.amount || 1;
+  let created = 0;
+  for (let i = 0; i < amount; i++) {
+    if (attachToken(host, tokenType)) created++;
+    else break; // token cap (5) hit
+  }
+  if (created === 0) return false;
+
+  const side = eff.host === 'self' ? ctx.sourceSide : (target?.side || ctx.sourceSide);
+  events.push({ type: 'token-created', side, hostName: host.name, tokenType, amount: created });
+  return true;
+}
+
+// destroyToken — remove one token of tokenType from a host creature and exile it.
+//
+// Effect shape:
+//   { type: 'destroyToken', tokenType: 'Bat'|'Raven'|'Wolf'|'Zombie'|'any', host: 'self'|undefined }
+//
+// tokenType 'any' removes the first token in the array regardless of type.
+function effDestroyToken(eff, target, events, ctx) {
+  let host = null;
+  if (eff.host === 'self') {
+    if (ctx.sourceSlotIdx != null) {
+      host = G[ctx.sourceSide]?.creatures?.[ctx.sourceSlotIdx] || null;
+    }
+  } else if (target?.kind === 'creature') {
+    host = G[target.side].creatures[target.slotIdx];
+  }
+  if (!host) return false;
+
+  const tokenType = eff.tokenType || 'any';
+  let removed = false;
+  if (tokenType === 'any') {
+    if (host.tokens.length > 0) {
+      host.tokens.splice(0, 1);
+      removed = true;
+    }
+  } else {
+    removed = removeToken(host, tokenType);
+  }
+  if (!removed) return false;
+
+  const side = eff.host === 'self' ? ctx.sourceSide : (target?.side || ctx.sourceSide);
+  events.push({ type: 'token-destroyed', side, hostName: host.name, tokenType });
+  return true;
+}
+
+// glimpse — reveal top N cards of controller's deck, keep 1, shuffle rest to bottom.
+//
+// Effect shape:
+//   { type: 'glimpse', amount: N }
+//   { type: 'glimpse', amountFrom: 'ownRelicCount' }
+//
+// Per RULES §14.4: player picks 1 to draw; remaining go to bottom in random order.
+// Auto-picks first card for AI (and as a placeholder for human players until UI is built).
+// Emits a 'glimpse' event with the revealed card names so UI can later intercept.
+function effGlimpse(eff, events, ctx) {
+  const side = ctx.sourceSide;
+  const deck = G[side]?.deck;
+  const hand = G[side]?.hand;
+  if (!deck || deck.length === 0) return false;
+
+  let amount = eff.amount || 1;
+  if (eff.amountFrom === 'ownRelicCount') {
+    amount = (G[side].relics || []).filter(r => r !== null).length;
+    if (amount === 0) return false;
+  }
+
+  const take = Math.min(amount, deck.length);
+  const revealed = [];
+  for (let i = 0; i < take; i++) {
+    revealed.push(deck.pop()); // pop = top of deck
+  }
+
+  events.push({ type: 'glimpse', side, cards: revealed.map(c => c.name), amount: take });
+
+  // Keep first card (auto-pick; UI can override this later by intercepting the event)
+  const kept = revealed.shift();
+  kept.location = 'hand';
+  hand.push(kept);
+  events.push({ type: 'draw', side, amount: 1 });
+
+  // Shuffle remaining to random positions near bottom of deck
+  for (const card of revealed) {
+    const maxInsert = Math.floor(deck.length / 2) + 1;
+    const pos = Math.floor(Math.random() * maxInsert);
+    deck.splice(pos, 0, card);
+  }
   return true;
 }
 

@@ -9,6 +9,7 @@
 // To add support for a new card, add an entry keyed by card name.
 // ─────────────────────────────────────────────────────────────
 
+import { G } from './state.js';
 import { hasKeyword } from './keywords.js';
 
 export const CARD_EFFECTS = {
@@ -132,8 +133,16 @@ export const CARD_EFFECTS = {
   },
 
   'Echo Siphon': {
-    targets: [{ type: 'creature', label: 'creature to buff' }],
-    onPlay: [{ type: 'buff', power: 3, duration: 'endOfTurn', target: 'target' }],
+    // "Destroy any token under your control to give +3 power to target creature until end of turn"
+    targets: [
+      { type: 'ownCreature', label: 'own creature to sacrifice token from',
+        filter: (t) => t.kind === 'creature' && (t._inst?.tokens?.length || 0) > 0 },
+      { type: 'creature', label: 'creature to buff' },
+    ],
+    onPlay: [
+      { type: 'destroyToken', tokenType: 'any', target: 'target' },
+      { type: 'buff', power: 3, duration: 'endOfTurn', target: 'target2' },
+    ],
   },
 
   'Essence Siphon': {
@@ -503,10 +512,20 @@ const EXPANSION2 = {
   },
 
   // BLACK — Swarm Surge: "+2 power; +Bleed +1 if has Bat/Wolf token"
-  // No token mechanic; just buff +2.
   'Swarm Surge': {
     targets: [{ type: 'creature', label: 'creature to buff' }],
-    onPlay: [{ type: 'buff', power: 2, duration: 'endOfTurn', target: 'target' }],
+    onPlay: [
+      { type: 'buff', power: 2, duration: 'endOfTurn', target: 'target' },
+      {
+        type: 'GRANT_KEYWORD', keyword: 'BLEED:1', duration: 'endOfTurn', target: 'target',
+        onlyIf: (ctx) => {
+          const t = (ctx.targets || [])[0];
+          if (!t || t.kind !== 'creature') return false;
+          const c = G[t.side]?.creatures?.[t.slotIdx];
+          return (c?.tokens || []).some(tok => tok === 'Bat' || tok === 'Wolf');
+        },
+      },
+    ],
   },
 
   // BLACK — Lying in Wait: "Return target creature card from discard into play... removed at EOT"
@@ -854,45 +873,328 @@ const EXPANSION2 = {
     },
   },
 
-  // ═══════════ SKIPPED — require new mechanics ═══════════
-  //
-  // Token mechanic needed:
-  //   Spells:   Dark Reach, Siphon Life, Grave Reanimation (×2), Verdigris Husk,
-  //             Fodder's Bequest, Binding of the Damned, Aether Copy
-  //   Relics:   Grimfang Lair, Sanguine Batspring, Necrotic Battery, Soulforge Anvil
-  //   Creatures: Dusk Warrior (Sac: token), most "create token" abilities
+  // ═══════════ SKIPPED — still require new mechanics ═══════════
   //
   // Wall mechanic needed:
   //   Spells:   Palace Decree, Ancient Reclamation
   //   Creatures: Relic Guardian, Estate Grounds Keeper, Crystal Ward Guardian
   //
-  // Glimpse mechanic needed:
-  //   Spells:   Void Classroom Echo
-  //   Relics:   Astral Archive, Prophecy Foretold, Drone Scanner
-  //
   // Pitch alt-cost needed:
   //   Most cards with "Pitch:" text (we only handle their non-pitch effect)
   //
-  // Support / Tireless / Siphon keywords needed:
-  //   Spells:   Alchemical Infusion
-  //   Many creatures with these keywords still play as plain creatures
+  // Complex token cards (conditional/passive effects):
+  //   Bogveil Packwitch, Lupine Countess passive, Hornshadow Stringlord, Fenlily Seraphine,
+  //   Runefang Wardrum, Fodder's Bequest, Aether Copy, Soulforge Anvil
   //
-  // Hand peek needed:
-  //   Creatures: Perch Watcher
+  // Triggered abilities (ON_DEATH, ON_ATTACK, ON_DIRECT_DAMAGE):
+  //   Valthor ON_DEATH, Werewolf Shaman ON_DIRECT_DAMAGE,
+  //   Lyssara ON_KILL, Rothollow ON_DIRECT_DAMAGE,
+  //   Lunara Prismwing ON_DIRECT_DAMAGE, Archsage Alaris Vox ON_DIRECT_DAMAGE
   //
-  // Deck search needed:
-  //   Spells:   Etherhand Locator (approximated as draw)
+  // Hand peek / Deck search needed:
+  //   Perch Watcher, Etherhand Locator (approximated as draw)
   //
-  // Control change needed (gain control of enemy creature):
-  //   Creatures: Hypeflux Ghostjacker, Relic Hoarder
+  // Control change: Hypeflux Ghostjacker, Relic Hoarder
   //
-  // Blood-color management needed:
-  //   Relics:   Muckmouth Bauble, Obsidian Resonance Tower, Vein-to-Vault Mobile,
-  //             Blood Vending Machine, Eternal Archive, Echo Reliquary, Key to the Last Page
+  // Blood-color management:
+  //   Muckmouth Bauble, Obsidian Resonance Tower, Vein-to-Vault Mobile,
+  //   Blood Vending Machine, Eternal Archive, Echo Reliquary, Key to the Last Page
 
 };
 
 Object.assign(CARD_EFFECTS, EXPANSION2);
+
+// ═══════════ EXPANSION3 — Token system + Glimpse mechanic ═══════════
+
+const EXPANSION3 = {
+
+  // ─── TOKEN SPELLS ───
+
+  // BLACK — Dark Reach: "Create a Raven token on target creature"
+  // Pitch: Target takes 1 damage, gain 1 blood (pitch not yet implemented)
+  'Dark Reach': {
+    targets: [{ type: 'ownCreature', label: 'creature to receive Raven token' }],
+    onPlay: [{ type: 'createToken', tokenType: 'Raven', target: 'target' }],
+  },
+
+  // BLACK — Siphon Life: "Destroy a Bat token, gain 1 life, create 2 Bat tokens"
+  'Siphon Life': {
+    targets: [{
+      type: 'ownCreature', label: 'creature with Bat token',
+      filter: (t) => t.kind === 'creature' && (t._inst?.tokens || []).includes('Bat'),
+    }],
+    onPlay: [
+      { type: 'destroyToken', tokenType: 'Bat', target: 'target' },
+      { type: 'heal', amount: 1, target: 'controller' },
+      { type: 'createToken', tokenType: 'Bat', amount: 2, target: 'target' },
+    ],
+  },
+
+  // BLACK — Grave Reanimation: "Create 1 Wolf token"
+  // Conditional (if already have wolf token, grant Haste+Tireless) not implemented
+  'Grave Reanimation': {
+    targets: [{ type: 'ownCreature', label: 'creature to receive Wolf token' }],
+    onPlay: [{ type: 'createToken', tokenType: 'Wolf', target: 'target' }],
+  },
+
+  // BLACK — Verdigris Husk: "Exhaust target relic, create 1 Zombie token"
+  'Verdigris Husk': {
+    targets: [
+      { type: 'relic', label: 'relic to exhaust' },
+      { type: 'ownCreature', label: 'creature to receive Zombie token' },
+    ],
+    onPlay: [
+      { type: 'exhaust', target: 'target' },
+      { type: 'createToken', tokenType: 'Zombie', target: 'target2' },
+    ],
+  },
+
+  // BLACK — Binding of the Damned: "Destroy own token, exhaust target creature"
+  'Binding of the Damned': {
+    targets: [
+      { type: 'ownCreature', label: 'own creature to remove token from',
+        filter: (t) => t.kind === 'creature' && (t._inst?.tokens?.length || 0) > 0 },
+      { type: 'creature', label: 'creature to exhaust' },
+    ],
+    onPlay: [
+      { type: 'destroyToken', tokenType: 'any', target: 'target' },
+      { type: 'exhaust', target: 'target2' },
+    ],
+  },
+
+  // ─── TOKEN CREATURE ONPLAY EFFECTS ───
+
+  // BLACK — Ebonwing Matriarch: "Selfbleed 1, enters with 1 Bat token"
+  'Ebonwing Matriarch': {
+    onPlay: [{ type: 'createToken', tokenType: 'Bat', host: 'self' }],
+  },
+
+  // COLORLESS — Dr. Elias Crowe: "Siphon, enters with 1 Bat token and 2 Raven tokens.
+  //   Sac a token orbiting this creature to gain +1 power"
+  'Dr. Elias Crowe': {
+    onPlay: [
+      { type: 'createToken', tokenType: 'Bat', host: 'self' },
+      { type: 'createToken', tokenType: 'Raven', amount: 2, host: 'self' },
+    ],
+    activatedAbility: {
+      cost: {},
+      targets: [],
+      effects: [
+        { type: 'destroyToken', tokenType: 'any', host: 'self' },
+        { type: 'addPowerCounter', amount: 1, target: 'self' },
+      ],
+      oncePerTurn: false,
+    },
+  },
+
+  // ─── TOKEN CREATURE ACTIVATED ABILITIES ───
+
+  // BLACK — Dusk Warrior: "Sac self: Create 1 Bat Token on target own creature"
+  'Dusk Warrior': {
+    activatedAbility: {
+      cost: { sacrificeSelf: true },
+      targets: [{ type: 'ownCreature', label: 'creature to receive Bat token' }],
+      effects: [{ type: 'createToken', tokenType: 'Bat', target: 'target' }],
+    },
+  },
+
+  // BLACK — Gravehorde Hierophant: "Selfbleed 1. Exhaust: Create 1 Zombie token"
+  'Gravehorde Hierophant': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [],
+      effects: [{ type: 'createToken', tokenType: 'Zombie', host: 'self' }],
+    },
+  },
+
+  // BLACK — Grimbeak Summoner: "Exhaust: Create 1 Raven token"
+  'Grimbeak Summoner': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [],
+      effects: [{ type: 'createToken', tokenType: 'Raven', host: 'self' }],
+    },
+  },
+
+  // BLACK — Swarmshade Witch: "Exhaust: Create 1 Raven token"
+  // "If any tokens are destroyed, destroy this creature" — triggered, skipped
+  'Swarmshade Witch': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [],
+      effects: [{ type: 'createToken', tokenType: 'Raven', host: 'self' }],
+    },
+  },
+
+  // BLACK — Shadowpack Mistress: "Selfbleed 1, Bleed 1. {B}{Exhaust}: Create 1 Wolf token"
+  // {B} blood cost approximated as gold: 1
+  'Shadowpack Mistress': {
+    activatedAbility: {
+      cost: { gold: 1, exhaust: true },
+      targets: [],
+      effects: [{ type: 'createToken', tokenType: 'Wolf', host: 'self' }],
+    },
+  },
+
+  // BLACK — Werewolf Hierophant: "{B}{B}{B}{B}{Exhaust}: Create 2 Wolf tokens"
+  // Blood cost approximated as gold: 4. Second ability (overexhaust) not modeled.
+  'Werewolf Hierophant': {
+    activatedAbility: {
+      cost: { gold: 4, exhaust: true },
+      targets: [],
+      effects: [{ type: 'createToken', tokenType: 'Wolf', amount: 2, host: 'self' }],
+    },
+  },
+
+  // ─── TOKEN RELIC ACTIVATED ABILITIES ───
+
+  // BLACK — Sanguine Batspring: "{B}{Overexhaust}: Create 1 Bat token on target own creature"
+  // Blood cost approximated as gold: 1
+  'Sanguine Batspring': {
+    activatedAbility: {
+      cost: { gold: 1, overexhaust: true },
+      targets: [{ type: 'ownCreature', label: 'creature to receive Bat token' }],
+      effects: [{ type: 'createToken', tokenType: 'Bat', target: 'target' }],
+    },
+  },
+
+  // BLACK — Grimfang Lair: "{B}{B}{Overexhaust}: Create 1 Wolf token on target own creature"
+  // Blood cost approximated as gold: 2
+  'Grimfang Lair': {
+    activatedAbility: {
+      cost: { gold: 2, overexhaust: true },
+      targets: [{ type: 'ownCreature', label: 'creature to receive Wolf token' }],
+      effects: [{ type: 'createToken', tokenType: 'Wolf', target: 'target' }],
+    },
+  },
+
+  // COLORLESS — Necrotic Battery: "{C}{C}{C}{Exhaust}: Create 1 Zombie token on target own creature"
+  'Necrotic Battery': {
+    activatedAbility: {
+      cost: { gold: 3, exhaust: true },
+      targets: [{ type: 'ownCreature', label: 'creature to receive Zombie token' }],
+      effects: [{ type: 'createToken', tokenType: 'Zombie', target: 'target' }],
+    },
+  },
+
+  // ─── GLIMPSE SPELLS ───
+
+  // PURPLE — Void Classroom Echo: "Glimpse 2"
+  'Void Classroom Echo': {
+    targets: [],
+    onPlay: [{ type: 'glimpse', amount: 2 }],
+  },
+
+  // PURPLE — Psychic Shard: "Deal 1 damage then Glimpse 1" (replaces draw 1 placeholder)
+  // Already in CARD_EFFECTS — override via EXPANSION3 merge
+  'Psychic Shard': {
+    targets: [{ type: 'creatureOrPlayer', label: 'damage target' }],
+    onPlay: [
+      { type: 'damage', amount: 1, target: 'target' },
+      { type: 'glimpse', amount: 1 },
+    ],
+  },
+
+  // PURPLE — Surveiling Eye: "Look at target player's hand then Glimpse 1"
+  // Hand peek not implemented; just Glimpse 1
+  'Surveiling Eye': {
+    targets: [],
+    onPlay: [{ type: 'glimpse', amount: 1 }],
+  },
+
+  // PURPLE — Veilcataclysm: "Glimpse 3 then draw a card"
+  'Veilcataclysm': {
+    targets: [],
+    onPlay: [
+      { type: 'glimpse', amount: 3 },
+      { type: 'draw', amount: 1, target: 'controller' },
+    ],
+  },
+
+  // PURPLE — Focused Clairvoyance: "Glimpse 5, then draw 1"
+  'Focused Clairvoyance': {
+    targets: [],
+    onPlay: [
+      { type: 'glimpse', amount: 5 },
+      { type: 'draw', amount: 1, target: 'controller' },
+    ],
+  },
+
+  // ─── GLIMPSE CREATURE ACTIVATED ABILITIES ───
+
+  // PURPLE — Arcane Scholar Acolyte: "{P}: Glimpse 1 (once per turn)"
+  // Blood cost approximated as gold: 1
+  'Arcane Scholar Acolyte': {
+    activatedAbility: {
+      cost: { gold: 1 },
+      targets: [],
+      effects: [{ type: 'glimpse', amount: 1 }],
+      oncePerTurn: true,
+    },
+  },
+
+  // PURPLE — Dustveil Prospector: "{P}{Exhaust}: Glimpse 1"
+  // "If relic, reveal and put in hand" — that's the Glimpse pick behavior, handled by auto-pick
+  'Dustveil Prospector': {
+    activatedAbility: {
+      cost: { gold: 1, exhaust: true },
+      targets: [],
+      effects: [{ type: 'glimpse', amount: 1 }],
+    },
+  },
+
+  // PURPLE — Aetheric Diviner: "{P}{P}{P}{Overexhaust}: Glimpse 3, draw 1"
+  // Blood cost approximated as gold: 3
+  'Aetheric Diviner': {
+    activatedAbility: {
+      cost: { gold: 3, overexhaust: true },
+      targets: [],
+      effects: [
+        { type: 'glimpse', amount: 3 },
+        { type: 'draw', amount: 1, target: 'controller' },
+      ],
+    },
+  },
+
+  // PURPLE — Akane Chishiki: "When this card enters play, Glimpse 2"
+  // (Has Bleed 2, Breach, Haste, Siphon, Tireless via keywords)
+  'Akane Chishiki': {
+    onPlay: [{ type: 'glimpse', amount: 2 }],
+  },
+
+  // ─── GLIMPSE RELIC ACTIVATED ABILITIES ───
+
+  // PURPLE — Astral Archive: "Exhaust: Reverse Glimpse 2"
+  // Reverse Glimpse (bottom-of-deck to top) is niche; approximated as standard Glimpse 2
+  'Astral Archive': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [],
+      effects: [{ type: 'glimpse', amount: 2 }],
+    },
+  },
+
+  // PURPLE — Prophecy Foretold: "Exhaust: Glimpse X where X = number of relics you control"
+  'Prophecy Foretold': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [],
+      effects: [{ type: 'glimpse', amountFrom: 'ownRelicCount' }],
+    },
+  },
+
+  // COLORLESS — Drone Scanner: "{C}{Exhaust}: Glimpse 1"
+  'Drone Scanner': {
+    activatedAbility: {
+      cost: { gold: 1, exhaust: true },
+      targets: [],
+      effects: [{ type: 'glimpse', amount: 1 }],
+    },
+  },
+
+};
+
+Object.assign(CARD_EFFECTS, EXPANSION3);
 
 export function getCardEffects(card) {
   if (!card || !card.name) return null;

@@ -140,6 +140,13 @@ function dealDirectDamageToPlayer(sourceInst, sourceSide, defenderSide, amount, 
     });
   }
 
+  // 2b. Bat tokens: each Bat orbiting the attacker adds 1 Bleed on direct damage (§9.3)
+  const batCount = (sourceInst?.tokens || []).filter(t => t === 'Bat').length;
+  if (batCount > 0) {
+    G[defenderSide].bleedPool = (G[defenderSide].bleedPool || 0) + batCount;
+    events.push({ type: 'bleed-add', side: defenderSide, amount: batCount, source: 'BatToken' });
+  }
+
   // 3. SIPHON — controller gains Blood per damage point dealt
   if (hasKeyword(sourceInst, 'SIPHON')) {
     G[sourceSide].blood = (G[sourceSide].blood || 0) + amount;
@@ -185,8 +192,14 @@ export function resolveCombat(attackerSide, defenderSide) {
     }
 
     // ── Exhaust the attacker (unless TIRELESS per RULES §7) ──
+    // Zombie token: attacker becomes OVEREXHAUSTED instead of EXHAUSTED (§9.3)
     if (!hasKeyword(attacker, 'TIRELESS')) {
-      attacker.exhausted = true;
+      if ((attacker.tokens || []).includes('Zombie')) {
+        attacker.exhausted = true;
+        attacker.overexhausted = true;
+      } else {
+        attacker.exhausted = true;
+      }
     }
 
     if (blockerSlotIdx === null || blockerSlotIdx === undefined) {
