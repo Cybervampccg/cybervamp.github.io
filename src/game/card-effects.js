@@ -9,6 +9,8 @@
 // To add support for a new card, add an entry keyed by card name.
 // ─────────────────────────────────────────────────────────────
 
+import { hasKeyword } from './keywords.js';
+
 export const CARD_EFFECTS = {
 
   // ═══════════ RED SPELLS ═══════════
@@ -50,12 +52,25 @@ export const CARD_EFFECTS = {
 
   'Reckless Surge': {
     targets: [{ type: 'creature', label: 'creature to buff' }],
-    onPlay: [{ type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' }],
+    onPlay: [
+      { type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' },
+      { type: 'GRANT_KEYWORD', keyword: 'BREACH', duration: 'endOfTurn', target: 'target' },
+    ],
   },
 
   'Cut the Line': {
     targets: [{ type: 'creatureOrRelic', label: 'creature or relic to renew' }],
     onPlay: [{ type: 'renew', target: 'target' }],
+  },
+
+  // RED — Grid Hack Wallbuster: "Destroy target wall"
+  'Grid Hack Wallbuster': {
+    targets: [{
+      type: 'creature',
+      label: 'wall to destroy',
+      filter: (t) => t.kind === 'creature' && hasKeyword(t._inst, 'WALL'),
+    }],
+    onPlay: [{ type: 'destroy', target: 'target' }],
   },
 
   // ═══════════ WHITE SPELLS ═══════════
@@ -132,8 +147,9 @@ export const CARD_EFFECTS = {
   'Grave Whisper': {
     targets: [],
     onPlay: [
-      // Would need "return from discard" — for now, just draw
-      { type: 'draw', amount: 1, target: 'controller' },
+      // Card: "Return target creature (power ≤2) from discard to hand"
+      // Power filter not supported; returns most-recent card from discard.
+      { type: 'returnFromDiscard' },
     ],
   },
 
@@ -606,6 +622,65 @@ const EXPANSION2 = {
     },
   },
 
+  // PURPLE — Mystic Alchemist: "Exhaust: Target creature gets -1 power until end of turn"
+  'Mystic Alchemist': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'creature', label: 'creature to weaken' }],
+      effects: [{ type: 'buff', power: -1, duration: 'endOfTurn', target: 'target' }],
+    },
+  },
+
+  // PURPLE — Arcane Petalwhipser: "Exhaust: Give -1 power to 2 target creatures until end of turn"
+  'Arcane Petalwhipser': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [
+        { type: 'creature', label: 'first creature to weaken' },
+        { type: 'creature', label: 'second creature to weaken', optional: true },
+      ],
+      effects: [
+        { type: 'buff', power: -1, duration: 'endOfTurn', target: 'target' },
+        { type: 'buff', power: -1, duration: 'endOfTurn', target: 'target2', skipIfMissing: true },
+      ],
+    },
+  },
+
+  // PURPLE — Mystic Trapper: "Exhaust: Exhaust target creature"
+  'Mystic Trapper': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'creature', label: 'creature to exhaust' }],
+      effects: [{ type: 'exhaust', target: 'target' }],
+    },
+  },
+
+  // BLACK — Korzathrax, Marrow Sovereign:
+  // "{B}{B}{B} Overexhaust: Return one creature card from discard to hand"
+  // Blood cost approximated as gold cost (blood-color ability costs not yet supported).
+  'Korzathrax, Marrow Sovereign': {
+    activatedAbility: {
+      cost: { gold: 3, overexhaust: true },
+      targets: [],
+      effects: [{ type: 'returnFromDiscard' }],
+      oncePerTurn: true,
+    },
+  },
+
+  // PURPLE — Quantum Oracle:
+  // "Exhaust: Destroy target relic you control, draw 1 and reveal; if relic, may play free"
+  // Free-play-on-relic not supported; approximated as destroy own relic + draw 1.
+  'Quantum Oracle': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'ownRelic', label: 'relic to sacrifice' }],
+      effects: [
+        { type: 'destroy', target: 'target' },
+        { type: 'draw', amount: 1, target: 'controller' },
+      ],
+    },
+  },
+
   // BLACK — Dusk Warrior: "Sac: Create 1 Bat Token"
   // No tokens — skip until token system exists. (Excluded from CARD_EFFECTS.)
 
@@ -788,7 +863,7 @@ const EXPANSION2 = {
   //   Creatures: Dusk Warrior (Sac: token), most "create token" abilities
   //
   // Wall mechanic needed:
-  //   Spells:   Grid Hack Wallbuster, Palace Decree, Ancient Reclamation
+  //   Spells:   Palace Decree, Ancient Reclamation
   //   Creatures: Relic Guardian, Estate Grounds Keeper, Crystal Ward Guardian
   //
   // Glimpse mechanic needed:
