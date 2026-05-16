@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { G } from './state.js';
+import { grantKeyword, modifyBleedValue } from './keywords.js';
 import { sacrificeCreature } from './sacrifice.js';
 import { sacrificeRelic, ensureRelicSlots } from './relics.js';
 
@@ -124,6 +125,9 @@ function runOneEffect(eff, ctx, events) {
     case 'flagCantBeBlocked':   return effFlagCantBeBlocked(eff, target, events);
     case 'returnFromDiscard':   return effReturnFromDiscard(eff, events, ctx);
     case 'preventDamage':       return effPreventDamage(eff, target, events);
+    // ─── New keyword/bleed-grant effects (keyword-patch session) ───
+    case 'GRANT_KEYWORD':       return effGrantKeyword(eff, target, events, ctx);
+    case 'MODIFY_BLEED_VALUE':  return effModifyBleedValue(eff, target, events, ctx);
     case 'custom':              return eff.fn ? !!eff.fn(ctx) : false;
     default:
       console.warn('[effects] unknown effect type:', eff.type);
@@ -504,5 +508,74 @@ function effPreventDamage(eff, target, events) {
   if (!target) return false;
   // Just log it for now; full damage prevention requires combat-system integration.
   events.push({ type: 'prevent-damage', amount: eff.amount || 0 });
+  return true;
+}
+
+// ───────── New effects added by keyword-patch session ─────────
+
+// GRANT_KEYWORD — adds a keyword to a target creature's _grantedKeywords array.
+//
+// Effect shape:
+//   { type: 'GRANT_KEYWORD', keyword: 'BREACH', duration: 'endOfTurn', target: 'target' }
+//
+// keyword: string like 'HASTE', 'BREACH', 'TIRELESS', 'SIPHON', 'BLEED:1'
+// duration: 'endOfTurn' (default) or 'permanent'
+//
+// Per RULES §7: granted keywords behave identically to printed keywords for
+// combat math purposes. Combat reads keywords via getKeywords(inst) which
+// returns the union of both.
+//
+// Per RULES §5 "Reset Rule": granted keywords are stripped when the card
+// leaves play (anything to discard reverts to printed state).
+function effGrantKeyword(eff, target, events, ctx) {
+  if (!target || target.kind !== 'creature') return false;
+  const inst = G[target.side].creatures[target.slotIdx];
+  if (!inst) return false;
+  const keyword = eff.keyword;
+  const duration = eff.duration || 'endOfTurn';
+  if (!keyword) return false;
+  grantKeyword(inst, keyword, duration);
+  events.push({
+    type: 'grant-keyword',
+    side: target.side,
+    name: inst.name,
+    keyword,
+    duration,
+  });
+  return true;
+}
+
+// MODIFY_BLEED_VALUE — modifies a creature's BLEED X output via bonus/multiplier.
+//
+// Effect shape:
+//   { type: 'MODIFY_BLEED_VALUE', op: 'multiply', value: 2, duration: 'endOfTurn', target: 'target' }
+//   { type: 'MODIFY_BLEED_VALUE', op: 'add', value: 1, target: 'target' }
+//
+// op: 'add' (additive bonus, stacks) | 'multiply' (multiplicative)
+// value: number
+// duration: 'endOfTurn' (default; cleared by renewPermanents) | 'permanent'
+//
+// Used by:
+//   • Blade Silhouette: { op: 'multiply', value: 2 }  (doubles bleed)
+//   • "Bleed +1 until end of turn" effects on creatures that may have NO printed
+//     BLEED — use { op: 'add', value: 1 } AND also grant 'BLEED:0' so the bonus
+//     has something to modify. (Implementation note: getKeywordValue treats
+//     BLEED:0 as "present, value 0" so + bonus works correctly.)
+//   Alternative simpler form for "Bleed +1": just use GRANT_KEYWORD 'BLEED:1' —
+//   the per-instance sum will add it. Both paths produce the same effective value.
+function effModifyBleedValue(eff, target, events, ctx) {
+  if (!target || target.kind !== 'creature') return false;
+  const inst = G[target.side].creatures[target.slotIdx];
+  if (!inst) return false;
+  const op = eff.op || 'add';
+  const value = typeof eff.value === 'number' ? eff.value : 1;
+  modifyBleedValue(inst, op, value);
+  events.push({
+    type: 'modify-bleed-value',
+    side: target.side,
+    name: inst.name,
+    op,
+    value,
+  });
   return true;
 }

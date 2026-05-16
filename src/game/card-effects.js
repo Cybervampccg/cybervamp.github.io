@@ -284,12 +284,12 @@ export const CARD_EFFECTS = {
     },
   },
 
-  // White relic: exhaust + W -> target creature gets Siphon (we just buff +1)
+  // White relic: exhaust + W -> target creature gains Siphon
   'Ivory Hemaclaw': {
     activatedAbility: {
       cost: { gold: 1, exhaust: true },
-      targets: [{ type: 'creature', label: 'creature' }],
-      effects: [{ type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' }],
+      targets: [{ type: 'creature', label: 'creature to grant siphon' }],
+      effects: [{ type: 'GRANT_KEYWORD', keyword: 'SIPHON', duration: 'endOfTurn', target: 'target' }],
     },
   },
 
@@ -340,11 +340,13 @@ const EXPANSION = {
   },
 
   'Redline Frenzy': {
+    // Card text: "Target creature gains +2 power, Breach, and Bleed +1 until end of turn"
+    // Fixed in keyword-patch session: now grants real keywords.
     targets: [{ type: 'creature', label: 'creature to empower' }],
     onPlay: [
       { type: 'buff', power: 2, duration: 'endOfTurn', target: 'target' },
-      // "Breach" and "Bleed +1" approximated as 1 bleed to that creature's controller's opponent
-      // (we don't have per-creature bleed counters yet)
+      { type: 'GRANT_KEYWORD', keyword: 'BREACH', duration: 'endOfTurn', target: 'target' },
+      { type: 'GRANT_KEYWORD', keyword: 'BLEED:1', duration: 'endOfTurn', target: 'target' },
     ],
   },
 
@@ -358,11 +360,12 @@ const EXPANSION = {
   },
 
   'Blade Silhouette': {
-    targets: [{ type: 'creature', label: 'creature whose bleed is amplified' }],
+    // Card text: "Target creature's bleed is doubled until end of turn"
+    // (Pitch: Add {G} — pitch mode not yet implemented)
+    // Fixed in keyword-patch session: uses MODIFY_BLEED_VALUE multiplier.
+    targets: [{ type: 'creature', label: 'creature whose bleed is doubled' }],
     onPlay: [
-      // Full "double bleed" needs per-creature bleed counters not yet implemented.
-      // Substitute: add 1 bleed to the creature's controller as a thematic stand-in.
-      { type: 'addBleed', amount: 1, target: 'targetController' },
+      { type: 'MODIFY_BLEED_VALUE', op: 'multiply', value: 2, duration: 'endOfTurn', target: 'target' },
     ],
   },
 
@@ -397,28 +400,34 @@ const EXPANSION = {
   },
 
   'Dawn Defier': {
+    // Card text: "+1 power, Siphon, and Breach until end of turn"
+    // Fixed in keyword-patch session.
     targets: [{ type: 'creature', label: 'creature to empower' }],
     onPlay: [
-      // "+1 power, Siphon, and Breach" — only +1 power is implementable now
       { type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' },
+      { type: 'GRANT_KEYWORD', keyword: 'SIPHON', duration: 'endOfTurn', target: 'target' },
+      { type: 'GRANT_KEYWORD', keyword: 'BREACH', duration: 'endOfTurn', target: 'target' },
     ],
   },
 
   'Ask for Blessings': {
+    // Card text: "Target creature gains Tireless and Siphon until end of turn"
+    // Fixed in keyword-patch session.
     targets: [{ type: 'creature', label: 'creature to bless' }],
     onPlay: [
-      // "Tireless and Siphon" — approximated as small permanent power buff
-      { type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' },
+      { type: 'GRANT_KEYWORD', keyword: 'TIRELESS', duration: 'endOfTurn', target: 'target' },
+      { type: 'GRANT_KEYWORD', keyword: 'SIPHON', duration: 'endOfTurn', target: 'target' },
     ],
   },
 
   // ─── BLACK ───
 
   'Shadowstalk Burst': {
+    // Card text: "Target creature gains Siphon until end of turn"
+    // Fixed in keyword-patch session.
     targets: [{ type: 'creature', label: 'creature to grant siphon' }],
     onPlay: [
-      // "Siphon until EOT" — approximated as +1 power
-      { type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' },
+      { type: 'GRANT_KEYWORD', keyword: 'SIPHON', duration: 'endOfTurn', target: 'target' },
     ],
   },
 
@@ -602,12 +611,13 @@ const EXPANSION2 = {
 
   // ═══════════ MORE ACTIVATED ABILITIES — RELICS ═══════════
 
-  // RED — Blood Vial Toolbelt: "Exhaust: target creature gains Bleed +1 EOT"
+  // RED — Blood Vial Toolbelt: "Selfbleed 1. Exhaust: target creature gains Bleed +1 EOT"
+  // Fixed: grants real BLEED:1 keyword.
   'Blood Vial Toolbelt': {
     activatedAbility: {
       cost: { exhaust: true },
-      targets: [{ type: 'creature', label: 'creature to mark' }],
-      effects: [{ type: 'addBleed', amount: 1, target: 'targetController' }],
+      targets: [{ type: 'creature', label: 'creature to mark with Bleed +1' }],
+      effects: [{ type: 'GRANT_KEYWORD', keyword: 'BLEED:1', duration: 'endOfTurn', target: 'target' }],
     },
   },
 
@@ -667,21 +677,23 @@ const EXPANSION2 = {
     },
   },
 
-  // COLORLESS — Bloodletter Ring: "C Exhaust: Target gains Siphon EOT" → buff +1
+  // COLORLESS — Bloodletter Ring: "C Exhaust: Target gains Siphon EOT"
+  // Fixed: grants real SIPHON keyword.
   'Bloodletter Ring': {
     activatedAbility: {
       cost: { gold: 1, exhaust: true },
       targets: [{ type: 'creature', label: 'creature to grant siphon' }],
-      effects: [{ type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' }],
+      effects: [{ type: 'GRANT_KEYWORD', keyword: 'SIPHON', duration: 'endOfTurn', target: 'target' }],
     },
   },
 
   // COLORLESS — Technae Core Glasses: "C Exhaust: target creature Bleed +1 EOT"
+  // Fixed.
   'Technae Core Glasses': {
     activatedAbility: {
       cost: { gold: 1, exhaust: true },
-      targets: [{ type: 'creature', label: 'creature to mark' }],
-      effects: [{ type: 'addBleed', amount: 1, target: 'targetController' }],
+      targets: [{ type: 'creature', label: 'creature to mark with Bleed +1' }],
+      effects: [{ type: 'GRANT_KEYWORD', keyword: 'BLEED:1', duration: 'endOfTurn', target: 'target' }],
     },
   },
 
@@ -712,12 +724,13 @@ const EXPANSION2 = {
     },
   },
 
-  // COLORLESS — Spirelight Harness: "Exhaust: target creature gains Tireless EOT" → buff +1
+  // COLORLESS — Spirelight Harness: "Exhaust: target creature gains Tireless EOT"
+  // Fixed.
   'Spirelight Harness': {
     activatedAbility: {
       cost: { exhaust: true },
       targets: [{ type: 'creature', label: 'creature to grant tireless' }],
-      effects: [{ type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' }],
+      effects: [{ type: 'GRANT_KEYWORD', keyword: 'TIRELESS', duration: 'endOfTurn', target: 'target' }],
     },
   },
 

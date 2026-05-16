@@ -1,36 +1,39 @@
 // ─────────────────────────────────────────────────────────────
-// combat.js — Combat resolution logic for Cybervamp v2
+// combat.js — Cybervamp v2 combat resolution
 //
-// Combat flow:
-//   1. Active player declares attackers (one or more unexhausted creatures)
-//   2. Defender assigns blockers (or null = "go to face")
-//   3. resolveCombat() runs each attacker → blocker pairing
-//   4. Damage applied, creatures exhausted, bleed accumulated
-//   5. resolvePostBattle() drains bleed pools, checks win condition
+// PATCHED for keyword-patch session:
+//   • Reads creature keywords (printed + granted) per RULES §6 + §7
+//   • SELFBLEED X: triggers ONLY on creatures with the keyword (not all attackers)
+//   • BLEED X: applies X bleed to defender on direct damage (unblocked OR breach overflow)
+//   • BREACH: excess damage spills to defender (using blocker's BASE power per §6.2)
+//   • TIRELESS: attacker does NOT exhaust on attack
+//   • SIPHON: controller gains Blood per direct damage point dealt
+//   • Ties go to ATTACKER (blocker dies) per §6.2
+//   • All damage events carry damageSourceType per §17
 //
-// Simplification for first pass (Session D-1):
-//   - One blocker per attacker (no supporters yet)
-//   - No "Hemorrhage" bonus (active while bleed > 0)
-//   - No "Breaker" (excess damage to face)
-//   - No death triggers
-//   - Damaged creatures don't track damage between turns — they survive at full
-//     power if their power >= attacker's power, or are destroyed if not
+// Still pending (future sessions):
+//   • Support (supporters, Fortify, Breaker contributions)
+//   • Walls (Wall Decay, can't attack/support)
+//   • Hemorrhage triggered abilities
+//   • Stack/priority windows during combat
 // ─────────────────────────────────────────────────────────────
 
 import { G } from './state.js';
 import { sacrificeCreature } from './sacrifice.js';
+import { getKeywords, hasKeyword, getKeywordValue } from './keywords.js';
 
-// Attempts to compute effective power for an instance.
-// Falls back to inst.power if no advanced power calc available.
+// Effective power = base + permanent bonus + temp bonus (legacy paths).
+// Kept for compatibility with existing window.getEffectivePower hook.
 function getPower(inst) {
+  if (!inst) return 0;
   if (typeof window !== 'undefined' && typeof window.getEffectivePower === 'function') {
     try { return window.getEffectivePower(inst); } catch (e) {}
   }
   return inst.power || 0;
 }
 
-// Mark a creature as an attacker.
-// Returns { ok, error }.
+// ───────── Attacker declaration ─────────
+
 export function declareAttacker(side, slotIdx) {
   const inst = G[side]?.creatures?.[slotIdx];
   if (!inst) return { ok: false, error: 'No creature there' };
@@ -39,6 +42,15 @@ export function declareAttacker(side, slotIdx) {
   }
   if (getPower(inst) <= 0) {
     return { ok: false, error: 'Cannot attack with 0 power' };
+  }
+  // Walls cannot attack (per RULES §6.2 / §7)
+  if (hasKeyword(inst, 'WALL')) {
+    return { ok: false, error: 'Walls cannot attack' };
+  }
+  // Newly turned check (only enforced if instance was flagged on play; engine
+  // may not be flagging this yet — TODO)
+  if (inst._newlyTurned && !hasKeyword(inst, 'HASTE')) {
+    return { ok: false, error: 'Creature has summoning sickness' };
   }
   inst._attacking = true;
   return { ok: true };
@@ -51,7 +63,6 @@ export function undeclareAttacker(side, slotIdx) {
   return { ok: true };
 }
 
-// Get all declared attackers as { slotIdx, inst }
 export function getAttackers(side) {
   const slots = G[side]?.creatures || [];
   return slots
@@ -59,15 +70,15 @@ export function getAttackers(side) {
     .filter(Boolean);
 }
 
-// Defender side assigns a blocker (or sets attacker to "unblocked")
-// blockerSlotIdx === null means "go to face" (no block)
+// ───────── Blocker assignment ─────────
+
 export function assignBlocker(defenderSide, attackerSide, attackerSlotIdx, blockerSlotIdx) {
   const attacker = G[attackerSide]?.creatures?.[attackerSlotIdx];
   if (!attacker || !attacker._attacking) {
     return { ok: false, error: 'No such attacker' };
   }
   if (blockerSlotIdx === null || blockerSlotIdx === undefined) {
-    attacker._blockedBy = null; // explicitly unblocked
+    attacker._blockedBy = null;
     return { ok: true };
   }
   const blocker = G[defenderSide]?.creatures?.[blockerSlotIdx];
@@ -75,7 +86,7 @@ export function assignBlocker(defenderSide, attackerSide, attackerSlotIdx, block
   if (blocker.exhausted || blocker.overexhausted) {
     return { ok: false, error: 'Blocker is exhausted' };
   }
-  // Each blocker can only block one attacker — clear if used elsewhere
+  // Clear if used to block another attacker
   for (const other of G[attackerSide]?.creatures || []) {
     if (other && other._blockedBy === blockerSlotIdx) {
       other._blockedBy = undefined;
@@ -85,7 +96,73 @@ export function assignBlocker(defenderSide, attackerSide, attackerSlotIdx, block
   return { ok: true };
 }
 
-// Run all damage resolution. Returns array of damage events for animation.
+// ───────── Damage helpers ─────────
+
+/**
+ * Deal direct damage to a player. Handles:
+ *   • Blood loss
+ *   • BLEED X application from the source creature
+ *   • SIPHON gain on the source's controller
+ *
+ * sourceInst: the attacking creature (may have BLEED, SIPHON keywords)
+ * sourceSide: side of the attacker
+ * defenderSide: side of the defending player
+ * amount: damage amount
+ * breach: true if this damage came via Breach overflow
+ * events: array to push events into
+ */
+function dealDirectDamageToPlayer(sourceInst, sourceSide, defenderSide, amount, breach, events) {
+  if (amount <= 0) return;
+
+  // 1. Apply Blood damage
+  G[defenderSide].blood = Math.max(0, (G[defenderSide].blood || 0) - amount);
+  events.push({
+    type: 'face-damage',
+    damageSourceType: 'combat',
+    attackerSide: sourceSide,
+    defenderSide,
+    attackerSlotIdx: findCreatureSlot(sourceSide, sourceInst),
+    attackerName: sourceInst?.name || 'Attacker',
+    damage: amount,
+    breach: !!breach,
+    defenderBloodAfter: G[defenderSide].blood,
+  });
+
+  // 2. BLEED X — add X bleed to defender's pool (once per direct damage instance)
+  const bleedValue = getKeywordValue(sourceInst, 'BLEED');
+  if (bleedValue > 0) {
+    G[defenderSide].bleedPool = (G[defenderSide].bleedPool || 0) + bleedValue;
+    events.push({
+      type: 'bleed-add',
+      side: defenderSide,
+      amount: bleedValue,
+      source: sourceInst?.name || 'Attacker',
+    });
+  }
+
+  // 3. SIPHON — controller gains Blood per damage point dealt
+  if (hasKeyword(sourceInst, 'SIPHON')) {
+    G[sourceSide].blood = (G[sourceSide].blood || 0) + amount;
+    events.push({
+      type: 'siphon-heal',
+      side: sourceSide,
+      amount,
+      source: sourceInst?.name || 'Attacker',
+    });
+  }
+}
+
+function findCreatureSlot(side, inst) {
+  if (!inst) return -1;
+  const slots = G[side]?.creatures || [];
+  for (let i = 0; i < slots.length; i++) {
+    if (slots[i] === inst) return i;
+  }
+  return -1;
+}
+
+// ───────── Main combat resolution ─────────
+
 export function resolveCombat(attackerSide, defenderSide) {
   const events = [];
   const attackers = getAttackers(attackerSide);
@@ -94,59 +171,45 @@ export function resolveCombat(attackerSide, defenderSide) {
     const aPow = getPower(attacker);
     const blockerSlotIdx = attacker._blockedBy;
 
-    // Selfbleed on attack — add 1 to attacker's bleed pool by default
-    // (cards with Selfbleed N: this is N; we use 1 as default, override per card)
-    const selfbleedAmount = attacker.selfbleedOnAttack ?? 1;
-    G[attackerSide].bleedPool = (G[attackerSide].bleedPool || 0) + selfbleedAmount;
-    events.push({
-      type: 'selfbleed',
-      side: attackerSide,
-      slotIdx: aSlotIdx,
-      amount: selfbleedAmount,
-      attackerName: attacker.name,
-    });
+    // ── SELFBLEED on attack (only for creatures with the keyword) ──
+    const selfbleedAmount = getKeywordValue(attacker, 'SELFBLEED');
+    if (selfbleedAmount > 0) {
+      G[attackerSide].bleedPool = (G[attackerSide].bleedPool || 0) + selfbleedAmount;
+      events.push({
+        type: 'selfbleed',
+        side: attackerSide,
+        slotIdx: aSlotIdx,
+        amount: selfbleedAmount,
+        attackerName: attacker.name,
+      });
+    }
 
-    // Exhaust the attacker (all attackers exhaust, except Tireless — not implemented yet)
-    attacker.exhausted = true;
+    // ── Exhaust the attacker (unless TIRELESS per RULES §7) ──
+    if (!hasKeyword(attacker, 'TIRELESS')) {
+      attacker.exhausted = true;
+    }
 
     if (blockerSlotIdx === null || blockerSlotIdx === undefined) {
-      // Unblocked — full damage to defender's Blood pool
-      G[defenderSide].blood = Math.max(0, (G[defenderSide].blood || 0) - aPow);
-      events.push({
-        type: 'face-damage',
-        attackerSide,
-        defenderSide,
-        attackerSlotIdx: aSlotIdx,
-        attackerName: attacker.name,
-        damage: aPow,
-        defenderBloodAfter: G[defenderSide].blood,
-      });
+      // Unblocked → all damage to defender's face
+      dealDirectDamageToPlayer(attacker, attackerSide, defenderSide, aPow, false, events);
       continue;
     }
 
-    // Blocked — compare powers
     const blocker = G[defenderSide].creatures[blockerSlotIdx];
     if (!blocker) {
-      // Blocker disappeared somehow (shouldn't happen) — treat as unblocked
-      G[defenderSide].blood = Math.max(0, (G[defenderSide].blood || 0) - aPow);
-      events.push({
-        type: 'face-damage',
-        attackerSide, defenderSide,
-        attackerSlotIdx: aSlotIdx,
-        attackerName: attacker.name,
-        damage: aPow,
-        defenderBloodAfter: G[defenderSide].blood,
-      });
+      // Blocker disappeared mid-resolution → treat as unblocked
+      dealDirectDamageToPlayer(attacker, attackerSide, defenderSide, aPow, false, events);
       continue;
     }
 
     const bPow = getPower(blocker);
     const bSlotIdx = blockerSlotIdx;
 
-    if (aPow > bPow) {
-      // Attacker wins: blocker destroyed, excess does NOT go to face (Breaker not impl)
+    // ── Combat resolution (attacker-favored, ties kill blocker per RULES §6.2) ──
+    if (aPow >= bPow) {
+      // Attacker wins or ties → blocker dies
       events.push({
-        type: 'combat-attacker-wins',
+        type: aPow > bPow ? 'combat-attacker-wins' : 'combat-tie-attacker-wins',
         attackerSide, defenderSide,
         attackerSlotIdx: aSlotIdx,
         blockerSlotIdx: bSlotIdx,
@@ -156,8 +219,16 @@ export function resolveCombat(attackerSide, defenderSide) {
         blockerPower: bPow,
       });
       sacrificeCreature(defenderSide, bSlotIdx);
-    } else if (aPow < bPow) {
-      // Blocker wins: attacker destroyed
+
+      // ── BREACH: excess damage spills to face ──
+      // Per RULES §6.2: excess = attackerPower - blocker's BASE power
+      // (Support contributions don't absorb Breach overflow.)
+      if (hasKeyword(attacker, 'BREACH') && aPow > bPow) {
+        const overflow = aPow - bPow;
+        dealDirectDamageToPlayer(attacker, attackerSide, defenderSide, overflow, true, events);
+      }
+    } else {
+      // Blocker wins: attacker dies
       events.push({
         type: 'combat-blocker-wins',
         attackerSide, defenderSide,
@@ -169,18 +240,6 @@ export function resolveCombat(attackerSide, defenderSide) {
         blockerPower: bPow,
       });
       sacrificeCreature(attackerSide, aSlotIdx);
-    } else {
-      // Tie: both exhaust, neither destroyed
-      blocker.exhausted = true;
-      events.push({
-        type: 'combat-tie',
-        attackerSide, defenderSide,
-        attackerSlotIdx: aSlotIdx,
-        blockerSlotIdx: bSlotIdx,
-        attackerName: attacker.name,
-        blockerName: blocker.name,
-        power: aPow,
-      });
     }
   }
 
@@ -196,7 +255,8 @@ export function resolveCombat(attackerSide, defenderSide) {
   return events;
 }
 
-// Drain bleed pools as Blood damage. Run after combat resolves.
+// ───────── Post-battle (bleed drain) ─────────
+
 export function resolvePostBattle() {
   const events = [];
   for (const side of ['player', 'ai']) {
@@ -205,6 +265,7 @@ export function resolvePostBattle() {
       G[side].blood = Math.max(0, (G[side].blood || 0) - pool);
       events.push({
         type: 'bleed-drain',
+        damageSourceType: 'bleed',
         side,
         amount: pool,
         bloodAfter: G[side].blood,
@@ -215,7 +276,6 @@ export function resolvePostBattle() {
   return events;
 }
 
-// Check if anyone has won. Sets G.winner if so.
 export function checkWinCondition() {
   if (G.winner) return G.winner;
   if ((G.player.blood || 0) <= 0 && (G.ai.blood || 0) <= 0) {
@@ -228,38 +288,33 @@ export function checkWinCondition() {
   return G.winner;
 }
 
-// Helper: count unexhausted creatures with power > 0
 export function countAvailableAttackers(side) {
   return (G[side]?.creatures || []).filter(c =>
-    c && !c.exhausted && !c.overexhausted && getPower(c) > 0
+    c && !c.exhausted && !c.overexhausted && getPower(c) > 0 && !hasKeyword(c, 'WALL')
   ).length;
 }
 
-// Helper: count unexhausted creatures (potential blockers)
 export function countAvailableBlockers(side) {
   return (G[side]?.creatures || []).filter(c =>
     c && !c.exhausted && !c.overexhausted
   ).length;
 }
 
-// Simple AI: pick all unexhausted creatures with power > 0 as attackers
+// AI: declare all eligible attackers
 export function aiDeclareAllAttackers(side) {
   const slots = G[side]?.creatures || [];
   let count = 0;
   slots.forEach((inst, idx) => {
-    if (inst && !inst.exhausted && !inst.overexhausted && getPower(inst) > 0) {
-      inst._attacking = true;
-      count++;
-    }
+    if (!inst || inst.exhausted || inst.overexhausted) return;
+    if (getPower(inst) <= 0) return;
+    if (hasKeyword(inst, 'WALL')) return;
+    inst._attacking = true;
+    count++;
   });
   return count;
 }
 
-// Simple AI: assign best blocker per attacker
-// Strategy: for each attacker, find a defender creature that can either
-// (a) destroy the attacker (defender power > attacker power), or
-// (b) tie (defender power == attacker power)
-// otherwise leave unblocked.
+// AI: assign best blocker per attacker
 export function aiAssignBlockers(defenderSide, attackerSide) {
   const attackers = getAttackers(attackerSide);
   const usedBlockers = new Set();
@@ -269,23 +324,24 @@ export function aiAssignBlockers(defenderSide, attackerSide) {
     let bestSlot = null;
     let bestPow = -1;
 
-    // Find defender that can win or tie
+    // Prefer a blocker that wins or ties (note: ties FAVOR attacker now,
+    // so a tie means blocker dies but absorbs damage. AI should consider this.)
+    // For now, simple: prefer blocker with power >= attacker (defender survives or trades)
     (G[defenderSide]?.creatures || []).forEach((bInst, bSlotIdx) => {
       if (!bInst || bInst.exhausted || bInst.overexhausted) return;
       if (usedBlockers.has(bSlotIdx)) return;
       const bPow = getPower(bInst);
-      if (bPow >= aPow && bPow > bestPow) {
+      // AI prefers strictly winning the trade (bPow > aPow) since ties now kill blocker
+      if (bPow > aPow && bPow > bestPow) {
         bestSlot = bSlotIdx;
         bestPow = bPow;
       }
     });
 
-    // If no winning block, consider chump block to save Blood
-    // Block if defender's Blood is low enough that the hit hurts more
+    // Fallback: chump-block to save Blood if hit would be significant
     if (bestSlot === null) {
       const defenderBlood = G[defenderSide].blood || 0;
       if (aPow >= defenderBlood / 4) {
-        // Chump-block — find lowest power creature to throw away
         let chumpSlot = null;
         let chumpPow = 99;
         (G[defenderSide]?.creatures || []).forEach((bInst, bSlotIdx) => {

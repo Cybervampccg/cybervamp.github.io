@@ -1,111 +1,160 @@
 // ─────────────────────────────────────────────────────────────
-// Keyword parser + checker
+// keywords.js — runtime keyword helpers
 //
-// Parses ability text into a flat object of standing keywords.
-// Context-aware: ignores keywords appearing inside ability costs,
-// triggered clauses, and "create token with X" descriptive text.
+// All keyword lookups go through these helpers so the engine reads
+// the union of (printed keywords) ∪ (granted keywords) ∪ (modifications).
 //
-// Standing keywords supported:
-//   bleed:N          (Bleed N — applies N bleed when this hits opponent)
-//   selfBleed:N      (Selfbleed N — N bleed to controller on attack/ability)
-//   haste            (can attack the turn it's played)
-//   tireless         (attacking does not exhaust)
-//   breach           (excess damage hits opponent)
-//   wall             (cannot attack/support, loses 1 power per block)
-//   siphon           (gain blood per direct damage)
-//   breaker          (ignores supporters when calculating defense)
-//   fortify          (each supporter gives +2 power instead of +1)
-//
-// See design doc 05-rules-final.md and 07-keyword-transition.md.
+// Lazy parsing: if a card instance arrives without a `keywords` array,
+// we auto-extract from its ability text on first access. This means
+// the engine works without any entry-point wiring — existing cards.js
+// data needs no modification.
 // ─────────────────────────────────────────────────────────────
 
-export function parseKeywords(abilityText) {
-  const t = (abilityText || '').toLowerCase();
-  const kw = {};
-  if (!t) return kw;
+import { extractKeywords } from './keyword-parser.js';
 
-  // ── Haste — only as a standing keyword, not when describing a token/copy ──
-  if (t.includes('haste')) {
-    const idx = t.indexOf('haste');
-    const before = t.substring(0, idx);
-    const isDescriptive =
-      /\b(has|have|gains?|with|having)\s+$/i.test(before) ||
-      /\b(it|token|copy|they|each)\b[^,\n]*\s(has|gains?|with)\s+$/i.test(before);
-    const isConditional = before.includes(': ') && (
-      before.includes('if ') || before.includes('when ') ||
-      before.includes('target of') || before.includes('targeted') ||
-      before.includes('make a copy') || before.includes('create')
-    );
-    if (!isDescriptive && !isConditional) kw.haste = true;
+// Internal cache of printed keywords per card-instance. Cards in cards.js
+// often share the same OBJECT reference across all instances of the same
+// card, so caching on the card object directly works once per card.
+function ensurePrintedKeywords(inst) {
+  if (!inst) return [];
+  if (Array.isArray(inst.keywords)) return inst.keywords;
+  // Lazy-parse from ability text
+  const text =
+    inst.ability ||
+    inst.abilities ||
+    inst.abilityText ||
+    inst.text ||
+    '';
+  if (typeof text !== 'string' || text.length === 0) {
+    try { inst.keywords = []; } catch (e) { /* frozen object */ }
+    return [];
   }
-
-  // ── Tireless ──
-  if (/\btireless\b/.test(t)) kw.tireless = true;
-
-  // ── Breach — only when clearly a standing keyword ──
-  if (/\bbreach\b/.test(t)) {
-    // Exclude "may breach" or "after breach" etc. Most cards just say "Breach" alone or in a comma list.
-    const idx = t.search(/\bbreach\b/);
-    const before = t.substring(0, idx);
-    const isConditional = before.includes(': ') &&
-      (before.includes('if ') || before.includes('when '));
-    if (!isConditional) kw.breach = true;
+  const { keywords } = extractKeywords(text);
+  try {
+    inst.keywords = keywords;
+  } catch (e) {
+    // Frozen card object — just return the parsed result without caching.
+    // (This means every getKeywords call re-parses; minor perf hit, no bug.)
   }
-
-  // ── Wall ──
-  if (/\bwall\b/.test(t)) kw.wall = true;
-
-  // ── Siphon ──
-  if (/\bsiphon\b/.test(t)) kw.siphon = true;
-
-  // ── Breaker (NEW in v2 rules) ──
-  if (/\bbreaker\b/.test(t)) kw.breaker = true;
-
-  // ── Fortify (NEW in v2 rules) ──
-  if (/\bfortify\b/.test(t)) kw.fortify = true;
-
-  // ── Bleed N — standing keyword, but not when granted to a target via ability ──
-  // Match `bleed N` NOT preceded by "self" (Selfbleed is separate).
-  const bm = t.match(/(?:^|[^a-z])bleed (\d+)/);
-  if (bm) {
-    const bIdx = t.indexOf(bm[0]);
-    const bBefore = t.substring(0, bIdx);
-    const inAbility = bBefore.includes('{exhaust}') || bBefore.includes('{overexhaust}') ||
-                      bBefore.includes(': ') || bBefore.includes('gains ') ||
-                      bBefore.includes('gain ') || bBefore.includes('target') ||
-                      /bleed \+\d/.test(t.substring(bIdx - 2, bIdx + bm[0].length));
-    if (!inAbility) kw.bleed = parseInt(bm[1]);
-  }
-
-  // ── Selfbleed N — standing keyword, only when not inside an ability cost/effect ──
-  const sb = t.match(/selfbleed (\d+)/i);
-  if (sb) {
-    const sbIdx = t.indexOf(sb[0]);
-    const sbBefore = t.substring(0, sbIdx);
-    const inAbility = sbBefore.includes('{exhaust}') || sbBefore.includes('{overexhaust}') ||
-                      sbBefore.includes(': ') || sbBefore.includes('when attacking') ||
-                      sbBefore.includes('when this') || sbBefore.includes('whenever') ||
-                      sbBefore.includes('may ') || sbBefore.includes('pay ') ||
-                      sbBefore.includes('to ') || sbBefore.includes(' and ');
-    if (!inAbility) kw.selfBleed = parseInt(sb[1]);
-  }
-
-  return kw;
+  return keywords;
 }
 
-// Check if an instance has a keyword (combines standing + temporary).
-export function hasKeyword(inst, kw) {
-  if (!inst) return false;
-  if (inst.keywords && inst.keywords[kw]) return true;
-  if (inst.tempKeywords && inst.tempKeywords[kw]) return true;
-  return false;
+/**
+ * Returns the effective set of keyword strings on this in-play instance.
+ * Combines printed (`inst.keywords`, auto-parsed if missing) with
+ * runtime-granted (`inst._grantedKeywords`).
+ */
+export function getKeywords(inst) {
+  if (!inst) return [];
+  const printed = ensurePrintedKeywords(inst);
+  const granted = Array.isArray(inst._grantedKeywords)
+    ? inst._grantedKeywords.map(g => g.keyword)
+    : [];
+  return [...printed, ...granted];
 }
 
-// Get a numeric keyword value (Bleed N, Selfbleed N).
-export function keywordValue(inst, kw) {
+/**
+ * Check whether the instance has a specific keyword (bare flag).
+ * For value keywords, checks if the BASE name exists (any value).
+ *
+ * hasKeyword(inst, 'HASTE')      → true if inst has 'HASTE' anywhere
+ * hasKeyword(inst, 'BLEED')      → true if inst has any 'BLEED:X'
+ */
+export function hasKeyword(inst, name) {
+  if (!inst || !name) return false;
+  const target = name.toUpperCase();
+  return getKeywords(inst).some(kw => {
+    const base = kw.split(':')[0].toUpperCase();
+    return base === target;
+  });
+}
+
+/**
+ * Get the numeric value of a value-bearing keyword (BLEED, SELFBLEED).
+ * Returns the SUM of all printed + granted values, then applies modifiers.
+ *
+ * For BLEED, also applies _bleedBonus (additive) and _bleedMultiplier (multiplicative).
+ * For SELFBLEED, returns raw sum (no modifier system for selfbleed yet).
+ *
+ * Returns 0 if the keyword is not present.
+ */
+export function getKeywordValue(inst, name) {
   if (!inst) return 0;
-  const standing = inst.keywords?.[kw] || 0;
-  const temp = inst.tempKeywords?.[kw] || 0;
-  return (typeof standing === 'number' ? standing : 0)
-       + (typeof temp === 'number' ? temp : 0);
+  const target = name.toUpperCase();
+  let total = 0;
+  let present = false;
+
+  for (const kw of getKeywords(inst)) {
+    const [base, val] = kw.split(':');
+    if (base.toUpperCase() === target) {
+      present = true;
+      total += parseInt(val || '0', 10);
+    }
+  }
+
+  if (!present) return 0;
+
+  // Apply BLEED modifiers (per RULES §7 + Blade Silhouette mechanic)
+  if (target === 'BLEED') {
+    if (typeof inst._bleedBonus === 'number') total += inst._bleedBonus;
+    if (typeof inst._bleedMultiplier === 'number') total *= inst._bleedMultiplier;
+  }
+
+  return total;
+}
+
+/**
+ * Add a granted keyword to an instance.
+ *
+ * keyword: string, e.g. 'BREACH' or 'BLEED:1'
+ * duration: 'endOfTurn' | 'permanent'
+ *
+ * Special case: granting 'BLEED:N' should be expressed via setBleedBonus
+ * if you want it to STACK additively with printed BLEED. If you grant
+ * a BLEED:N as a separate keyword entry, it adds to the sum independently.
+ * Both paths work for the value computation in getKeywordValue.
+ */
+export function grantKeyword(inst, keyword, duration = 'endOfTurn') {
+  if (!inst || !keyword) return;
+  if (!inst._grantedKeywords) inst._grantedKeywords = [];
+  inst._grantedKeywords.push({ keyword, duration });
+}
+
+/**
+ * Set or modify the bleed bonus / multiplier on a creature.
+ *
+ * op: 'add' | 'multiply' | 'set'
+ * value: numeric
+ *
+ * Used by spells like "Bleed +1 until end of turn" (op='add', value=1)
+ * and "Bleed is doubled" (op='multiply', value=2).
+ *
+ * Both fields are cleared on EOT cleanup.
+ */
+export function modifyBleedValue(inst, op, value) {
+  if (!inst) return;
+  if (op === 'add') {
+    inst._bleedBonus = (inst._bleedBonus || 0) + value;
+  } else if (op === 'multiply') {
+    inst._bleedMultiplier = (inst._bleedMultiplier || 1) * value;
+  } else if (op === 'set') {
+    inst._bleedBonus = value;
+  }
+}
+
+/**
+ * Clear all end-of-turn granted keywords and bleed modifiers from an instance.
+ * Permanent grants stay.
+ *
+ * Called by renewPermanents at the start of the owning side's turn,
+ * after the previous turn's EOT effects have expired.
+ */
+export function clearTempKeywords(inst) {
+  if (!inst) return;
+  if (Array.isArray(inst._grantedKeywords)) {
+    inst._grantedKeywords = inst._grantedKeywords.filter(g => g.duration === 'permanent');
+    if (inst._grantedKeywords.length === 0) delete inst._grantedKeywords;
+  }
+  delete inst._bleedBonus;
+  delete inst._bleedMultiplier;
 }
