@@ -659,6 +659,15 @@ html, body {
 .preview-btn-close:hover { color: var(--bleed-red); border-color: var(--bleed-red); }
 .preview-btn-close:active { transform: scale(0.97); }
 
+.preview-btn-pitch {
+  background: linear-gradient(180deg, #4c1d95 0%, #2e1065 100%);
+  border-color: #a78bfa;
+  color: #ede9fe;
+  box-shadow: 0 4px 14px rgba(167, 139, 250, 0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.preview-btn-pitch:hover { filter: brightness(1.2); transform: translateY(-1px); }
+.preview-btn-pitch:active { transform: scale(0.97); }
+
 /* ─── END TURN HEX ─── */
 
 .overlay-end-turn {

@@ -12,7 +12,8 @@
 import '../styles/effects.css';
 import { G } from '../game/state.js';
 import '../game/triggers.js'; // installs ON_DEATH and other trigger hooks
-import { beginTurn, endTurn, playCardFromHand, canAffordInst } from '../game/flow.js';
+import { beginTurn, endTurn, completeDraw, playCardFromHand, canAffordInst } from '../game/flow.js';
+import { hasPitchEffect, pitchCard } from '../game/pitch.js';
 import { sfx, bgmFadeIn, bgmPause, toggleMute, preloadAudio } from '../game/audio.js';
 import {
   injectOverlays, removeOverlays,
@@ -207,6 +208,7 @@ function renderRelicsOverlay(side) {
 
 function enforceHandCap() {
   if (G.activePlayer !== 'player') return;
+  if (_mode === 'renew') return; // hand cap check happens after draw
   if ((G.player.hand?.length || 0) > HAND_CAP) {
     _mode = 'discard';
     showModeBanner(`HAND OVER LIMIT — tap a card to discard (${G.player.hand.length}/${HAND_CAP})`);
@@ -602,6 +604,64 @@ async function playSpellEvents(events) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// PITCH
+// ═══════════════════════════════════════════════════════════
+
+function attemptPitchCard(inst) {
+  if (!hasPitchEffect(inst)) { showStatus(`${inst.name} has no pitch effect`); return; }
+  const result = pitchCard('player', inst.instId);
+  if (!result.ok) { showStatus(result.error); return; }
+  sfx('card_play', 0.4);
+  sfx('glimpse', 0.5);
+  logEvent(`You pitch ${result.inst.name}`);
+  closePreview();
+  _selectedHandInstId = null;
+  renderAll();
+  // Show floating feedback for each pitch event
+  const fx = _container.querySelector('#combat-fx-layer');
+  for (const e of result.events) {
+    switch (e.type) {
+      case 'draw':        showFloatingNumber(fx, `+${e.amount} 🂠`, '#60a5fa', e.side); break;
+      case 'gain-gold':   showFloatingNumber(fx, `+${e.amount} ⛁`, '#fde047', e.side); break;
+      case 'heal':        showFloatingNumber(fx, `+${e.amount} ❤`, '#22c55e', e.side); break;
+      case 'face-damage':
+        showFloatingNumber(fx, `-${e.damage} ❤`, '#f43f5e', e.defenderSide);
+        if (e.defenderSide === 'player') { showDamageVignette(); hapticDamage(); }
+        break;
+    }
+  }
+  if (G.winner) showWinner();
+}
+
+function enterRenewPhase() {
+  _mode = 'renew';
+  sfx('turn_end', 0.6);
+  showTurnBanner('YOUR TURN', 'player');
+  showPhaseTransition('renew');
+  playGoldPulse('player', G.player.gold);
+  logEvent(`— Your turn (T${G.turn}) — RENEW`);
+  showModeBanner(`
+    <div>RENEW PHASE — tap hand cards to use their Pitch effect before drawing</div>
+    <div style="display:flex; gap:8px; margin-top:6px; justify-content:center;">
+      <button class="banner-cancel-btn" id="btn-renew-draw">DRAW 2 &amp; CONTINUE</button>
+    </div>
+  `);
+  setTimeout(() => {
+    _container.querySelector('#btn-renew-draw')?.addEventListener('click', onCompleteDraw);
+  }, 0);
+  renderAll();
+}
+
+function onCompleteDraw() {
+  if (G.phase !== 'renew') return;
+  completeDraw('player');
+  _mode = 'normal';
+  hideModeBanner();
+  enforceHandCap();
+  renderAll();
+}
+
 function showFloatingNumber(fx, text, color, side) {
   const n = document.createElement('div');
   n.style.cssText = `position:absolute; font-family:'Cinzel Decorative',serif; font-weight:700; font-size:36px; text-shadow:0 0 8px ${color}, 0 2px 4px rgba(0,0,0,0.95); transition:transform 0.9s cubic-bezier(.3,.1,.3,1.2), opacity 0.9s; pointer-events:none; z-index:100; color:${color}; top:${side === 'player' ? '70%' : '12%'}; left:40%;`;
@@ -711,11 +771,15 @@ async function onEndTurn() {
     enforceHandCap();
     renderAll();
     if (!G.winner) {
-      sfx('turn_end', 0.6);
-      showTurnBanner('YOUR TURN', 'player');
-      showPhaseTransition('renew');
-      playGoldPulse('player', G.player.gold);
-      logEvent(`— Your turn (T${G.turn}) —`);
+      if (G.phase === 'renew' && G.activePlayer === 'player') {
+        enterRenewPhase();
+      } else {
+        sfx('turn_end', 0.6);
+        showTurnBanner('YOUR TURN', 'player');
+        showPhaseTransition('renew');
+        playGoldPulse('player', G.player.gold);
+        logEvent(`— Your turn (T${G.turn}) —`);
+      }
     }
   }
   if (G.winner) showWinner();
@@ -731,6 +795,10 @@ function attachHandCardGestures(slotEl, inst) {
       if (_mode === 'discard') {
         const result = discardFromHand('player', inst.instId);
         if (result.ok) { showStatus(`Discarded ${inst.name}`); enforceHandCap(); renderAll(); }
+        return;
+      }
+      if (_mode === 'renew') {
+        attemptPitchCard(inst);
         return;
       }
       if (_mode !== 'normal') return;
@@ -1086,6 +1154,17 @@ function openPreview(inst, source = 'hand') {
       attemptPlayCard(inst);
     });
     actions.appendChild(playBtn);
+
+    if (hasPitchEffect(inst) && G.activePlayer === 'player' && (G.phase === 'main' || G.phase === 'renew')) {
+      const pitchBtn = document.createElement('button');
+      pitchBtn.className = 'preview-btn preview-btn-pitch';
+      pitchBtn.textContent = '⬆ PITCH';
+      pitchBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        attemptPitchCard(inst);
+      });
+      actions.appendChild(pitchBtn);
+    }
   }
 
   wrapper.appendChild(actions);
@@ -1266,6 +1345,7 @@ function updateActionButtons() {
 
   const isMyTurn = G.activePlayer === 'player' && !G.winner;
   const inCombatAttackers = _mode === 'combat-attackers';
+  const inRenew = _mode === 'renew';
   const hasAnyCreature = G.player.creatures.some(c => c !== null);
   const isNormal = _mode === 'normal';
 
@@ -1277,7 +1357,8 @@ function updateActionButtons() {
       ? `<span>CONFIRM</span><span>ATTACK (${declared})</span>`
       : `<span>SKIP</span><span>COMBAT</span>`;
   }
-  endBtn.style.display = (inCombatAttackers || _mode === 'combat-blockers' || _mode === 'target-pick') ? 'none' : 'flex';
+  const hideEndBtn = inCombatAttackers || _mode === 'combat-blockers' || _mode === 'target-pick' || inRenew;
+  endBtn.style.display = hideEndBtn ? 'none' : 'flex';
 }
 
 function renderTopBar() {
@@ -1537,6 +1618,7 @@ function renderHand() {
     const slot = document.createElement('div');
     slot.className = 'hand-slot';
     if (_mode === 'discard') slot.classList.add('discard-target');
+    if (_mode === 'renew' && hasPitchEffect(inst)) slot.classList.add('pitch-available');
     slot.dataset.fanRot = '1';
     slot.dataset.handIdx = idx;
     slot.dataset.instId = inst.instId;

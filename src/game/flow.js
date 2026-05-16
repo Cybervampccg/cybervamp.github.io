@@ -6,6 +6,12 @@
 // ─────────────────────────────────────────────────────────────
 
 import { G, drawCards, grantTurnGold, endTurnCleanup, findEmptySlot } from './state.js';
+
+export function completeDraw(who) {
+  if (G.phase !== 'renew' || G.activePlayer !== who) return;
+  drawCards(who, 2);
+  G.phase = 'main';
+}
 import { hasKeyword } from './keywords.js';
 
 const HAND_CAP = 7;
@@ -28,12 +34,16 @@ export function beginTurn(who) {
   // Grant gold
   grantTurnGold(who);
 
-  // Draw 2 (skip on turn 1's first action — initial hand was 5)
-  if (G.turn > 1 || who === 'ai') {
+  // AI always auto-draws and proceeds to main.
+  // Player turn 1: no draw (initial hand of 5), skip straight to main.
+  // Player turn 2+: stay at 'renew' so the UI can offer a pitch window; battle-screen calls completeDraw.
+  if (who === 'ai') {
     drawCards(who, 2);
+    G.phase = 'main';
+  } else if (G.turn === 1) {
+    G.phase = 'main';
   }
-
-  G.phase = 'main';
+  // else: player stays at phase = 'renew'
 }
 
 // End the active player's turn cleanly
