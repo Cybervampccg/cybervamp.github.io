@@ -1196,6 +1196,243 @@ const EXPANSION3 = {
 
 Object.assign(CARD_EFFECTS, EXPANSION3);
 
+// ═══════════ EXPANSION4 — Triggered abilities, passives, remaining cards ═══════════
+
+const EXPANSION4 = {
+
+  // ─── ON_DEATH TRIGGERS ───
+
+  // BLACK — Valthor, the Eternal Cadaver: "When this creature is destroyed, create 2 Zombie tokens"
+  // Tokens orbit the first available other friendly creature (§9.2 requires a host)
+  'Valthor, the Eternal Cadaver': {
+    onDeath: [
+      { type: 'createToken', tokenType: 'Zombie', amount: 2, host: 'firstOwnCreature' },
+    ],
+  },
+
+  // WHITE — Heir Apparent's Aide: "When this card is destroyed, its controller gains 1 blood"
+  'Heir Apparent\'s Aide': {
+    onDeath: [
+      { type: 'heal', amount: 1, target: 'controller' },
+    ],
+  },
+
+  // ─── ON_KILL TRIGGERS ───
+
+  // BLACK — Lyssara, Witch of the Apex: "When this creature destroys another creature,
+  //   create 1 Bat, 1 Wolf, and 1 Zombie token under your control"
+  'Lyssara, Witch of the Apex': {
+    onKill: [
+      { type: 'createToken', tokenType: 'Bat', host: 'self' },
+      { type: 'createToken', tokenType: 'Wolf', host: 'self' },
+      { type: 'createToken', tokenType: 'Zombie', host: 'self' },
+    ],
+  },
+
+  // ─── ON_DIRECT_DAMAGE TRIGGERS ───
+
+  // BLACK — Werewolf Shaman: "Bleed 1; If this creature inflicts Bleed, attach a Wolf token"
+  // Fires when it deals direct damage (BLEED keyword means it always inflicts bleed on direct hits)
+  'Werewolf Shaman': {
+    onDirectDamage: [
+      { type: 'createToken', tokenType: 'Wolf', host: 'self' },
+    ],
+  },
+
+  // BLACK — Rothollow Packmaster: "Bleed 1, Hemorrhage: When this deals direct damage, create 1 Wolf token"
+  'Rothollow Packmaster': {
+    onDirectDamage: [
+      { type: 'createToken', tokenType: 'Wolf', host: 'self' },
+    ],
+  },
+
+  // PURPLE — Grimoire Scribe: "If this creature deals combat damage directly to a player,
+  //   they must overexhaust a card they control"
+  'Grimoire Scribe': {
+    onDirectDamage: [
+      { type: 'overexhaustOneCard' }, // targets opponent (default)
+    ],
+  },
+
+  // PURPLE — Archsage Alaris Vox: "Breach, Whenever this deals damage directly, Glimpse 2"
+  // (Drawing spell cards from glimpse is not tracked; just Glimpse 2)
+  'Archsage Alaris Vox': {
+    onDirectDamage: [
+      { type: 'glimpse', amount: 2 },
+    ],
+  },
+
+  // PURPLE — Lunara Prismwing: "Cannot be blocked. Whenever this deals damage directly, Glimpse 1"
+  'Lunara Prismwing': {
+    onDirectDamage: [
+      { type: 'glimpse', amount: 1 },
+    ],
+  },
+
+  // RED — Veinstorm Detonator: "Selfbleed 1, Breach, Bleed 2,
+  //   Hemorrhage: When this deals direct damage, deal damage = bleed count on you to target creature"
+  // Approximation: on direct damage, deal bleedPool damage to random enemy creature
+  'Veinstorm Detonator': {
+    onDirectDamage: [
+      {
+        type: 'custom',
+        fn: (ctx) => {
+          const side = ctx.sourceSide;
+          const oppSide = side === 'player' ? 'ai' : 'player';
+          const bleed = G[side]?.bleedPool || 0;
+          if (bleed <= 0) return false;
+          const targets = (G[oppSide]?.creatures || []).filter(c => c);
+          if (targets.length === 0) return false;
+          const target = targets[Math.floor(Math.random() * targets.length)];
+          target._damageTaken = (target._damageTaken || 0) + bleed;
+          return true;
+        },
+      },
+    ],
+  },
+
+  // ─── MISSING ACTIVATED ABILITIES ───
+
+  // BLACK — Lupine Countess: "{B}{B}{Exhaust}: Create 2 Wolf tokens"
+  // Passive (Wolf tokens gain Bleed 1) is handled in combat.js dealDirectDamageToPlayer
+  'Lupine Countess': {
+    activatedAbility: {
+      cost: { gold: 2, exhaust: true },
+      targets: [],
+      effects: [
+        { type: 'createToken', tokenType: 'Wolf', amount: 2, host: 'self' },
+      ],
+    },
+  },
+
+  // BLACK — Nyxara Boneweaver: two exhaust abilities; implement token-sac path
+  // "{Exhaust}: Destroy target token you control to add {B}{B}" → heal 2
+  'Nyxara Boneweaver': {
+    activatedAbility: {
+      cost: { exhaust: true, sacrificeToken: 'any' },
+      targets: [],
+      effects: [{ type: 'heal', amount: 2, target: 'controller' }],
+    },
+  },
+
+  // WHITE — Luminara Boneweaver: "{B}{B}{Exhaust}: Destroy target token to add {G}{G}"
+  // → gain 2 gold
+  'Luminara Boneweaver': {
+    activatedAbility: {
+      cost: { gold: 2, exhaust: true, sacrificeToken: 'any' },
+      targets: [],
+      effects: [{ type: 'gainGold', amount: 2 }],
+    },
+  },
+
+  // PURPLE — Aetheric Archivist: "{P}: Glimpse 2 (once per turn)"
+  'Aetheric Archivist': {
+    activatedAbility: {
+      cost: { gold: 1 },
+      targets: [],
+      effects: [{ type: 'glimpse', amount: 2 }],
+      oncePerTurn: true,
+    },
+  },
+
+  // PURPLE — Runed Pageweaver: "{P}{Exhaust}: Shuffle card from discard into deck, gain 1 if spell"
+  // "Shuffle" → approximate as returnFromDiscard (to hand) + heal 1
+  'Runed Pageweaver': {
+    activatedAbility: {
+      cost: { gold: 1, exhaust: true },
+      targets: [],
+      effects: [
+        { type: 'returnFromDiscard' },
+        { type: 'heal', amount: 1, target: 'controller' },
+      ],
+    },
+  },
+
+  // BLACK — Dr. Elias Crowe: update to use proper sacrificeToken cost
+  // Override EXPANSION3 entry
+  'Dr. Elias Crowe': {
+    onPlay: [
+      { type: 'createToken', tokenType: 'Bat', host: 'self' },
+      { type: 'createToken', tokenType: 'Raven', amount: 2, host: 'self' },
+    ],
+    activatedAbility: {
+      cost: { sacrificeToken: 'any' },
+      targets: [],
+      effects: [
+        { type: 'addPowerCounter', amount: 1, target: 'self' },
+      ],
+    },
+  },
+
+  // BLACK — Koru Boneshard (relic): update to use proper sacrificeToken cost
+  'Koru Boneshard': {
+    activatedAbility: {
+      cost: { exhaust: true, sacrificeToken: 'any' },
+      targets: [{ type: 'creatureOrPlayer', label: 'damage target' }],
+      effects: [{ type: 'damage', amount: 1, target: 'target' }],
+    },
+  },
+
+  // BLACK — Runefang Wardrum (relic): "{Exhaust}: Target creature with Wolf tokens gets +1 power EOT"
+  // Targets a creature that has Wolf tokens
+  'Runefang Wardrum': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{
+        type: 'creature', label: 'creature with Wolf token',
+        filter: (t) => t.kind === 'creature' && (t._inst?.tokens || []).includes('Wolf'),
+      }],
+      effects: [{ type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' }],
+    },
+  },
+
+  // ─── MISSING GLIMPSE CREATURES ───
+
+  // PURPLE — Aetheric Archivist already added above.
+
+  // ─── REMAINING CARDS WITH ACTIVATED ABILITIES ───
+
+  // WHITE — Faithful Healer: two modes; add overexhaust path (separate from exhaust path)
+  // Overexhaust path removes 2 bleed. We currently only have the exhaust path (remove 1).
+  // Overexhaust path is a different activated ability — approximated by overriding with
+  // the stronger ability (cost: overexhaust → remove 2 bleed, which requires being exhausted first)
+  // Keep existing exhaust entry; can't model both in one slot.
+
+  // WHITE — Glitch Tech Goggles: "{R}{R}Exhaust: +2 power, blocker not destroyed by combat damage"
+  // "Blocker not destroyed" is hard; we approximate as just +2 power (already in CARD_EFFECTS)
+  // No update needed.
+
+  // COLORLESS — Vein-to-Vault Mobile (relic): "{C}{Exhaust}: Add {G}" → gain 1 gold
+  'Vein-to-Vault Mobile': {
+    activatedAbility: {
+      cost: { gold: 1, exhaust: true },
+      targets: [],
+      effects: [{ type: 'gainGold', amount: 1 }],
+    },
+  },
+
+  // ─── SKIPPED — STILL REQUIRE NEW MECHANICS ───
+  //
+  // Gain-control:  Hypeflux Ghostjacker, Relic Hoarder
+  // Extra turn:    Chronal Spire
+  // Blood-color:   Obsidian Resonance Tower, Blood Vending Machine, Eternal Archive,
+  //                Key to the Last Page, Echo Reliquary, Nyxara/Luminara first ability
+  // Complex wall:  Estate Grounds Keeper, Crystal Ward Guardian, Living Wall, Relic Guardian
+  // Fenlily:       Zombie token gets activated ability (tokens can't have abilities in this model)
+  // Bogveil:       Wolf token buff (tokens aren't separate objects)
+  // Swarmshade:    On-token-destroyed self-destruct trigger
+  // Mira Hermes:   Death-replacement trigger
+  // Slashfang:     ON_BLOCK permanent bleed gain
+  // Marble Sentinel: EOT power counter (no EOT trigger)
+  // Isolde:        On-attack exhaust 2 enemy creatures (needs targeting during combat)
+  // Elias Veyr:    Damage reduction + on-spell-targeted trigger
+  // Zane Zyra Whetforge: handled in combat.js (no card-effects entry needed)
+  // Salizer Shade, Elowen: handled in combat.js
+
+};
+
+Object.assign(CARD_EFFECTS, EXPANSION4);
+
 export function getCardEffects(card) {
   if (!card || !card.name) return null;
   return CARD_EFFECTS[card.name] || null;

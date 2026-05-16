@@ -10,6 +10,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { G } from '../game/state.js';
+import '../game/triggers.js'; // installs ON_DEATH and other trigger hooks
 import { beginTurn, endTurn, playCardFromHand, canAffordInst } from '../game/flow.js';
 import { runAiTurn } from '../game/ai.js';
 import { createCardElement } from '../game/card-render.js';

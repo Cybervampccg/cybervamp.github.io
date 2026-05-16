@@ -11,6 +11,7 @@ import { getCardEffects, hasActivatedAbility } from './card-effects.js';
 import { sacrificeCreature } from './sacrifice.js';
 import { sacrificeRelic } from './relics.js';
 import { getKeywordValue } from './keywords.js';
+import { removeToken } from './state.js';
 
 export function canActivateAbility(side, kind, slotIdx) {
   const arr = kind === 'creature' ? G[side]?.creatures : G[side]?.relics;
@@ -35,6 +36,15 @@ export function canActivateAbility(side, kind, slotIdx) {
   if (cost.gold && (G[side].gold || 0) < cost.gold) {
     return { ok: false, error: `Need ${cost.gold} gold` };
   }
+  if (cost.sacrificeToken) {
+    const tokenType = cost.sacrificeToken;
+    const hasToken = (G[side].creatures || []).some(c =>
+      c && (tokenType === 'any'
+        ? (c.tokens || []).length > 0
+        : (c.tokens || []).includes(tokenType))
+    );
+    if (!hasToken) return { ok: false, error: `Need a ${tokenType === 'any' ? '' : tokenType + ' '}token to sacrifice` };
+  }
   if (ability.oncePerTurn && inst._abilityUsedThisTurn) {
     return { ok: false, error: 'Already used this turn' };
   }
@@ -57,6 +67,20 @@ export function activateAbility(side, kind, slotIdx, targets = []) {
 
   // Pay costs
   if (cost.gold) G[side].gold = (G[side].gold || 0) - cost.gold;
+  if (cost.sacrificeToken) {
+    const tokenType = cost.sacrificeToken;
+    // Remove one token of the specified type from the first creature that has it
+    for (const c of G[side].creatures || []) {
+      if (!c) continue;
+      if (tokenType === 'any' && (c.tokens || []).length > 0) {
+        c.tokens.splice(0, 1);
+        break;
+      } else if ((c.tokens || []).includes(tokenType)) {
+        removeToken(c, tokenType);
+        break;
+      }
+    }
+  }
   if (cost.exhaust) {
     if (inst.exhausted) inst.overexhausted = true;
     else inst.exhausted = true;

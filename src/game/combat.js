@@ -20,16 +20,20 @@
 
 import { G } from './state.js';
 import { sacrificeCreature } from './sacrifice.js';
-import { getKeywords, hasKeyword, getKeywordValue } from './keywords.js';
+import { getKeywords, hasKeyword, getKeywordValue, grantKeyword } from './keywords.js';
+import { fireOnDirectDamage, fireOnKill } from './triggers.js';
 
 // Effective power = base + permanent bonus + temp bonus (legacy paths).
 // Kept for compatibility with existing window.getEffectivePower hook.
 function getPower(inst) {
   if (!inst) return 0;
+  let base = 0;
   if (typeof window !== 'undefined' && typeof window.getEffectivePower === 'function') {
-    try { return window.getEffectivePower(inst); } catch (e) {}
+    try { base = window.getEffectivePower(inst); } catch (e) { base = inst.power || 0; }
+  } else {
+    base = inst.power || 0;
   }
-  return inst.power || 0;
+  return base + (inst._combatPowerBonus || 0);
 }
 
 // ───────── Attacker declaration ─────────
@@ -157,6 +161,22 @@ function dealDirectDamageToPlayer(sourceInst, sourceSide, defenderSide, amount, 
       source: sourceInst?.name || 'Attacker',
     });
   }
+
+  // 4. Lupine Countess passive: Wolf tokens add 1 Bleed per Wolf to direct damage
+  const wolfCount = (sourceInst?.tokens || []).filter(t => t === 'Wolf').length;
+  if (wolfCount > 0) {
+    const hasLupine = (G[sourceSide]?.creatures || []).some(c => c?.name === 'Lupine Countess');
+    if (hasLupine) {
+      G[defenderSide].bleedPool = (G[defenderSide].bleedPool || 0) + wolfCount;
+      events.push({ type: 'bleed-add', side: defenderSide, amount: wolfCount, source: 'LupineCountess' });
+    }
+  }
+
+  // 5. ON_DIRECT_DAMAGE triggers (Werewolf Shaman, Rothollow, Grimoire Scribe, etc.)
+  const srcSlot = findCreatureSlot(sourceSide, sourceInst);
+  if (srcSlot >= 0) {
+    fireOnDirectDamage(sourceSide, srcSlot, sourceInst, defenderSide, events);
+  }
 }
 
 function findCreatureSlot(side, inst) {
@@ -173,6 +193,33 @@ function findCreatureSlot(side, inst) {
 export function resolveCombat(attackerSide, defenderSide) {
   const events = [];
   const attackers = getAttackers(attackerSide);
+
+  // ── Board-wide combat passives (applied before damage resolves) ──
+
+  // Zane "Redline" Krov: all own attacking creatures gain Breach + Bleed:1
+  const hasZane = (G[attackerSide]?.creatures || []).some(c => c?.name === 'Zane "Redline" Krov');
+  if (hasZane) {
+    for (const { inst: a } of attackers) {
+      grantKeyword(a, 'BREACH', 'endOfTurn');
+      grantKeyword(a, 'BLEED:1', 'endOfTurn');
+    }
+  }
+
+  // Zyra Vex: while Zyra is attacking, ALL other own creatures get +1 power
+  const zyraAttacking = attackers.some(a => a.inst.name === 'Zyra Vex');
+  if (zyraAttacking) {
+    for (const c of G[attackerSide]?.creatures || []) {
+      if (c && c.name !== 'Zyra Vex') c._combatPowerBonus = (c._combatPowerBonus || 0) + 1;
+    }
+  }
+
+  // Whetforge Adept: while attacking, other ATTACKING creatures get +1 power
+  const whetforgeAttacking = attackers.some(a => a.inst.name === 'Whetforge Adept');
+  if (whetforgeAttacking) {
+    for (const { inst: a } of attackers) {
+      if (a.name !== 'Whetforge Adept') a._combatPowerBonus = (a._combatPowerBonus || 0) + 1;
+    }
+  }
 
   for (const { slotIdx: aSlotIdx, inst: attacker } of attackers) {
     const aPow = getPower(attacker);
@@ -192,9 +239,11 @@ export function resolveCombat(attackerSide, defenderSide) {
     }
 
     // ── Exhaust the attacker (unless TIRELESS per RULES §7) ──
-    // Zombie token: attacker becomes OVEREXHAUSTED instead of EXHAUSTED (§9.3)
+    // Zombie token OR Bloodnet Raver: becomes OVEREXHAUSTED instead of EXHAUSTED
     if (!hasKeyword(attacker, 'TIRELESS')) {
-      if ((attacker.tokens || []).includes('Zombie')) {
+      const overExhaustOnAttack = (attacker.tokens || []).includes('Zombie')
+                                || attacker.name === 'Bloodnet Raver';
+      if (overExhaustOnAttack) {
         attacker.exhausted = true;
         attacker.overexhausted = true;
       } else {
@@ -233,11 +282,10 @@ export function resolveCombat(attackerSide, defenderSide) {
         attackerPower: aPow,
         blockerPower: bPow,
       });
+      fireOnKill(attackerSide, aSlotIdx, attacker, events);
       sacrificeCreature(defenderSide, bSlotIdx);
 
       // ── BREACH: excess damage spills to face ──
-      // Per RULES §6.2: excess = attackerPower - blocker's BASE power
-      // (Support contributions don't absorb Breach overflow.)
       if (hasKeyword(attacker, 'BREACH') && aPow > bPow) {
         const overflow = aPow - bPow;
         dealDirectDamageToPlayer(attacker, attackerSide, defenderSide, overflow, true, events);
@@ -270,14 +318,28 @@ export function resolveCombat(attackerSide, defenderSide) {
       });
       sacrificeCreature(attackerSide, aSlotIdx);
     }
+
+    // ── Post-combat blocker overexhaust effects ──
+    // Salizer Shade / Elowen Thornveil: blocker (if still alive) becomes overexhausted
+    const overexhaustsBlocker = attacker.name === 'Salizer Shade'
+                             || attacker.name === 'Elowen Thornveil';
+    if (overexhaustsBlocker) {
+      const survivingBlocker = G[defenderSide].creatures[bSlotIdx];
+      if (survivingBlocker) {
+        survivingBlocker.exhausted = true;
+        survivingBlocker.overexhausted = true;
+        events.push({ type: 'overexhaust', side: defenderSide, name: survivingBlocker.name, source: attacker.name });
+      }
+    }
   }
 
-  // Clear all combat flags
+  // Clear all combat flags and temp bonuses
   for (const side of ['player', 'ai']) {
     for (const c of G[side]?.creatures || []) {
       if (!c) continue;
       delete c._attacking;
       delete c._blockedBy;
+      delete c._combatPowerBonus;
     }
   }
 

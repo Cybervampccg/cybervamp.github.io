@@ -14,9 +14,19 @@
 
 import { G } from './state.js';
 
+// ON_DEATH callbacks — wired at startup by triggers.js.
+// Using a simple callback list avoids a circular import with effects.js.
+const _onDeathCallbacks = [];
+export function registerOnDeathCallback(fn) { _onDeathCallbacks.push(fn); }
+
 export function sacrificeCreature(side, slotIdx) {
   const inst = G[side]?.creatures?.[slotIdx];
   if (!inst) return { ok: false, error: 'No creature in that slot' };
+
+  // Fire ON_DEATH triggers BEFORE clearing the slot so effects can read board state
+  for (const cb of _onDeathCallbacks) {
+    try { cb(side, slotIdx, inst); } catch (e) { console.warn('[sacrifice] onDeath error', e); }
+  }
 
   // Tokens are exiled (§9.1) — they do NOT go to discard.
   // Non-tokens go to discard as normal (§4.1).

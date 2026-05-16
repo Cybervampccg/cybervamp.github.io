@@ -140,12 +140,56 @@ export function getEffectivePower(inst) {
   if (!inst) return 0;
   let pw = inst.basePower + (inst.powerMods || 0);
 
-  // Token bonuses
+  // Token bonuses (base per §9.3)
   for (const tokName of inst.tokens || []) {
     if (tokName === 'Raven') pw += 1;
     else if (tokName === 'Bat') pw += 1;
     else if (tokName === 'Wolf') pw += 2;
     else if (tokName === 'Zombie') pw += 3;
+  }
+
+  // ── Passive power bonuses from in-play creatures/relics ──
+  const owner = inst.owner; // 'player' | 'ai'
+  if (G && owner) {
+    const ownerCreatures = G[owner]?.creatures || [];
+
+    // Nightwing Defiler: +1 EXTRA per Bat or Raven token (on top of base +1 each)
+    if (inst.name === 'Nightwing Defiler') {
+      pw += (inst.tokens || []).filter(t => t === 'Bat' || t === 'Raven').length;
+    }
+
+    // Korzathrax, Marrow Sovereign: Zombie/Raven/Bat tokens you control get +1 power
+    const hasKorzathrax = ownerCreatures.some(c => c && c !== inst && c.name === 'Korzathrax, Marrow Sovereign');
+    if (hasKorzathrax) {
+      for (const tok of inst.tokens || []) {
+        if (tok === 'Zombie' || tok === 'Raven' || tok === 'Bat') pw += 1;
+      }
+    }
+
+    // Hornshadow Stringlord: all token creatures you control gain +1 power per token
+    const hasHornshadow = ownerCreatures.some(c => c && c !== inst && c.name === 'Hornshadow Stringlord');
+    if (hasHornshadow) {
+      pw += (inst.tokens || []).length;
+    }
+
+    // Velocity Glitcher: +1 power per bleed counter on controller
+    if (inst.name === 'Velocity Glitcher') {
+      pw += G[owner]?.bleedPool || 0;
+    }
+
+    // Liora / Cassian Gateward pair: +1 power if partner is also in play
+    if (inst.name === 'Liora Gateward') {
+      if (ownerCreatures.some(c => c?.name === 'Cassian Gateward')) pw += 1;
+    }
+    if (inst.name === 'Cassian Gateward') {
+      if (ownerCreatures.some(c => c?.name === 'Liora Gateward')) pw += 1;
+    }
+
+    // Rayfield Infiltrator: Hemorrhage — +1 power per bleed while attacking
+    // (_attacking flag is set during combat declaration)
+    if (inst.name === 'Rayfield Infiltrator' && inst._attacking) {
+      pw += G[owner]?.bleedPool || 0;
+    }
   }
 
   // Subtract damage taken (display only — for "x/y" rendering, see UI layer)

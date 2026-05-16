@@ -128,6 +128,7 @@ function runOneEffect(eff, ctx, events) {
     case 'createToken':         return effCreateToken(eff, target, events, ctx);
     case 'destroyToken':        return effDestroyToken(eff, target, events, ctx);
     case 'glimpse':             return effGlimpse(eff, events, ctx);
+    case 'overexhaustOneCard':  return effOverexhaustOneCard(eff, events, ctx);
     // ─── New keyword/bleed-grant effects (keyword-patch session) ───
     case 'GRANT_KEYWORD':       return effGrantKeyword(eff, target, events, ctx);
     case 'MODIFY_BLEED_VALUE':  return effModifyBleedValue(eff, target, events, ctx);
@@ -514,6 +515,25 @@ function effPreventDamage(eff, target, events) {
   return true;
 }
 
+// overexhaustOneCard — overexhaust the first non-overexhausted permanent the target side controls.
+// Used by Grimoire Scribe: on direct damage, defender must overexhaust a card.
+// eff.side: 'opponent' (default) | 'controller'
+function effOverexhaustOneCard(eff, events, ctx) {
+  const side = (eff.side === 'controller') ? ctx.sourceSide
+             : (ctx.sourceSide === 'player' ? 'ai' : 'player');
+  // Prefer to overexhaust a creature, then a relic
+  for (const arr of [G[side]?.creatures || [], G[side]?.relics || []]) {
+    for (const x of arr) {
+      if (!x || x.overexhausted) continue;
+      if (x.exhausted) x.overexhausted = true;
+      else x.exhausted = true;
+      events.push({ type: 'overexhaust', side, name: x.name, source: 'GrimoireScribe' });
+      return true;
+    }
+  }
+  return false;
+}
+
 // ───────── Token effects ─────────
 
 // createToken — attach one or more tokens of tokenType to a host creature.
@@ -529,6 +549,9 @@ function effCreateToken(eff, target, events, ctx) {
     if (ctx.sourceSlotIdx != null) {
       host = G[ctx.sourceSide]?.creatures?.[ctx.sourceSlotIdx] || null;
     }
+  } else if (eff.host === 'firstOwnCreature') {
+    // Used by ON_DEATH effects — source is dying, pick first OTHER own creature
+    host = (G[ctx.sourceSide]?.creatures || []).find(c => c && c !== ctx.sourceCard) || null;
   } else if (target?.kind === 'creature') {
     host = G[target.side].creatures[target.slotIdx];
   }
