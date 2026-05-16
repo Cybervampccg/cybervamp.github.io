@@ -40,17 +40,18 @@ export function endTurn() {
   const who = G.activePlayer;
   G.phase = 'end';
 
-  // Discard down to hand cap (rule: enforced at end of turn)
+  // Bleed resolution and cleanup run first (§3.5 order: cleanup → bleed → … → hand cap)
+  endTurnCleanup(who);
+
+  if (G.winner) return;
+
+  // Hand size check is AFTER bleed resolution per §3.5
   const side = G[who];
   while (side.hand.length > HAND_CAP) {
     const dumped = side.hand.shift();  // discard from front (oldest)
     dumped.location = 'discard';
     side.discard.push(dumped);
   }
-
-  endTurnCleanup(who);
-
-  if (G.winner) return;
 
   const nextWho = who === 'player' ? 'ai' : 'player';
   if (nextWho === 'player') G.turn += 1;

@@ -49,7 +49,7 @@ export function declareAttacker(side, slotIdx) {
   }
   // Newly turned check (only enforced if instance was flagged on play; engine
   // may not be flagging this yet — TODO)
-  if (inst._newlyTurned && !hasKeyword(inst, 'HASTE')) {
+  if (inst.newlyTurned && !hasKeyword(inst, 'HASTE')) {
     return { ok: false, error: 'Creature has summoning sickness' };
   }
   inst._attacking = true;
@@ -205,6 +205,8 @@ export function resolveCombat(attackerSide, defenderSide) {
     const bPow = getPower(blocker);
     const bSlotIdx = blockerSlotIdx;
 
+    const blockerIsWall = hasKeyword(blocker, 'WALL');
+
     // ── Combat resolution (attacker-favored, ties kill blocker per RULES §6.2) ──
     if (aPow >= bPow) {
       // Attacker wins or ties → blocker dies
@@ -227,6 +229,20 @@ export function resolveCombat(attackerSide, defenderSide) {
         const overflow = aPow - bPow;
         dealDirectDamageToPlayer(attacker, attackerSide, defenderSide, overflow, true, events);
       }
+    } else if (blockerIsWall) {
+      // Wall blocks: walls deal no combat damage (§6.4) — attacker survives.
+      // Wall takes decay at End Phase; track it here.
+      blocker._blockedThisTurn = true;
+      events.push({
+        type: 'combat-wall-blocked',
+        attackerSide, defenderSide,
+        attackerSlotIdx: aSlotIdx,
+        blockerSlotIdx: bSlotIdx,
+        attackerName: attacker.name,
+        blockerName: blocker.name,
+        attackerPower: aPow,
+        blockerPower: bPow,
+      });
     } else {
       // Blocker wins: attacker dies
       events.push({
@@ -290,7 +306,8 @@ export function checkWinCondition() {
 
 export function countAvailableAttackers(side) {
   return (G[side]?.creatures || []).filter(c =>
-    c && !c.exhausted && !c.overexhausted && getPower(c) > 0 && !hasKeyword(c, 'WALL')
+    c && !c.exhausted && !c.overexhausted && getPower(c) > 0 &&
+    !hasKeyword(c, 'WALL') && !(c.newlyTurned && !hasKeyword(c, 'HASTE'))
   ).length;
 }
 
@@ -308,6 +325,7 @@ export function aiDeclareAllAttackers(side) {
     if (!inst || inst.exhausted || inst.overexhausted) return;
     if (getPower(inst) <= 0) return;
     if (hasKeyword(inst, 'WALL')) return;
+    if (inst.newlyTurned && !hasKeyword(inst, 'HASTE')) return;
     inst._attacking = true;
     count++;
   });

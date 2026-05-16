@@ -100,7 +100,7 @@ function renewPermanents(side) {
     delete p._bleedBonus;
     delete p._bleedMultiplier;
     // Clear newly-turned flag (this side's permanents from previous turn are no longer summoning-sick)
-    delete p._newlyTurned;
+    p.newlyTurned = false;
     // Clear wall-decay tracking flag from previous turn
     delete p._blockedThisTurn;
   }

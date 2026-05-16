@@ -18,8 +18,10 @@ export function sacrificeCreature(side, slotIdx) {
   const inst = G[side]?.creatures?.[slotIdx];
   if (!inst) return { ok: false, error: 'No creature in that slot' };
 
-  // Move to discard pile if it exists, otherwise just remove
-  if (Array.isArray(G[side].discard)) {
+  // Tokens are exiled (§9.1) — they do NOT go to discard.
+  // Non-tokens go to discard as normal (§4.1).
+  const isToken = inst.subtype === 'Token';
+  if (!isToken && Array.isArray(G[side].discard)) {
     G[side].discard.push(inst);
   }
 

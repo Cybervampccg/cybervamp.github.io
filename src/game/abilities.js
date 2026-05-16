@@ -10,6 +10,7 @@ import { runEffects } from './effects.js';
 import { getCardEffects, hasActivatedAbility } from './card-effects.js';
 import { sacrificeCreature } from './sacrifice.js';
 import { sacrificeRelic } from './relics.js';
+import { getKeywordValue } from './keywords.js';
 
 export function canActivateAbility(side, kind, slotIdx) {
   const arr = kind === 'creature' ? G[side]?.creatures : G[side]?.relics;
@@ -59,6 +60,11 @@ export function activateAbility(side, kind, slotIdx, targets = []) {
   if (cost.exhaust) {
     if (inst.exhausted) inst.overexhausted = true;
     else inst.exhausted = true;
+    // SELFBLEED X triggers when a creature exhausts to activate an ability (§6.5)
+    const selfbleedAmount = getKeywordValue(inst, 'SELFBLEED');
+    if (selfbleedAmount > 0) {
+      G[side].bleedPool = (G[side].bleedPool || 0) + selfbleedAmount;
+    }
   }
   if (cost.overexhaust) {
     inst.overexhausted = true;

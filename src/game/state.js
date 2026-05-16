@@ -10,7 +10,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { CARDS_BY_ID } from './cards.js';
-import { parseKeywords } from './keywords.js';
+import { parseKeywords, hasKeyword } from './keywords.js';
 
 // Module-level instance ID counter — unique per battle.
 let _nextInstId = 1;
@@ -66,7 +66,7 @@ function makeSideState(deck, startingBlood) {
     deck: shuffle([...deck]),     // remaining deck (draw from end via .pop())
     discard: [],                  // graveyard
 
-    creatures: [null, null, null, null], // 4 slots; null = empty
+    creatures: [null, null, null, null, null], // 5 slots per RULES §1.1; null = empty
     relics: [null, null, null, null],          // 4 slots
   };
 }
@@ -93,6 +93,7 @@ export function makeInst(cardId, owner) {
     cardId,
     name: card.name,
     type: card.type,
+    subtype: card.subtype || null,
     faction: card.faction,
     image: card.image,
     abilities: card.abilities,
@@ -122,7 +123,7 @@ export function makeInst(cardId, owner) {
     supporting: false,
 
     // Orbiting tokens — array of token names (e.g. ['Raven', 'Bat'])
-    // Max 3 per host. Tokens grant bonuses calculated in getEffectivePower.
+    // Max 5 per host per RULES §9.2. Tokens grant bonuses calculated in getEffectivePower.
     tokens: [],
 
     // Temporary keyword grants (e.g. spells that give Haste until EOT)
@@ -164,7 +165,7 @@ export function isOrbitToken(name) { return ORBIT_TOKEN_TYPES.has(name); }
 
 export function attachToken(host, tokenName) {
   if (!host || !isOrbitToken(tokenName)) return false;
-  if (host.tokens.length >= 3) return false;  // capped at 3
+  if (host.tokens.length >= 5) return false;  // capped at 5 per RULES §9.2
   host.tokens.push(tokenName);
   return true;
 }
@@ -184,7 +185,12 @@ export function drawCards(who, n) {
   const side = G[who];
   const drawn = [];
   for (let i = 0; i < n; i++) {
-    if (side.deck.length === 0) break;
+    if (side.deck.length === 0) {
+      // Deckout damage: 1 Blood per missed draw (§3.2)
+      side.blood = Math.max(0, (side.blood || 0) - 1);
+      if (side.blood <= 0) G.winner = (who === 'player' ? 'ai' : 'player');
+      continue;
+    }
     const inst = side.deck.pop();
     inst.location = 'hand';
     side.hand.push(inst);
@@ -248,6 +254,23 @@ export function endTurnCleanup(who) {
     if (inst) {
       inst.tempKeywords = {};
       inst.powerMods = 0;
+    }
+  }
+
+  // Wall Decay (§3.5, §6.4): any wall that blocked this turn loses 1 Power.
+  // Runs over both sides since walls on either side may have blocked.
+  for (const sideKey of ['player', 'ai']) {
+    const slots = G[sideKey]?.creatures || [];
+    for (let i = slots.length - 1; i >= 0; i--) {
+      const inst = slots[i];
+      if (!inst || !inst._blockedThisTurn) continue;
+      if (!hasKeyword(inst, 'WALL')) continue;
+      inst.basePower = Math.max(0, inst.basePower - 1);
+      if (inst.basePower <= 0) {
+        // Destroy the wall immediately (§6.4 "if Power reaches 0, destroy it")
+        if (Array.isArray(G[sideKey].discard)) G[sideKey].discard.push(inst);
+        slots[i] = null;
+      }
     }
   }
 }
