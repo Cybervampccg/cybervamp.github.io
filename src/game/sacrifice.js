@@ -23,9 +23,13 @@ export function sacrificeCreature(side, slotIdx) {
   const inst = G[side]?.creatures?.[slotIdx];
   if (!inst) return { ok: false, error: 'No creature in that slot' };
 
-  // Fire ON_DEATH triggers BEFORE clearing the slot so effects can read board state
+  // Fire ON_DEATH triggers BEFORE clearing the slot so effects can read board state.
+  // A callback may return { cancel: true } to replace/prevent the death (e.g. Mira Hermes).
   for (const cb of _onDeathCallbacks) {
-    try { cb(side, slotIdx, inst); } catch (e) { console.warn('[sacrifice] onDeath error', e); }
+    try {
+      const result = cb(side, slotIdx, inst);
+      if (result?.cancel) return { ok: false, cancelled: true, inst };
+    } catch (e) { console.warn('[sacrifice] onDeath error', e); }
   }
 
   // Tokens are exiled (§9.1) — they do NOT go to discard.

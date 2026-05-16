@@ -10,7 +10,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { G } from './state.js';
-import { hasKeyword } from './keywords.js';
+import { hasKeyword, grantKeyword } from './keywords.js';
 
 export const CARD_EFFECTS = {
 
@@ -1432,6 +1432,143 @@ const EXPANSION4 = {
 };
 
 Object.assign(CARD_EFFECTS, EXPANSION4);
+
+// ═══════════ EXPANSION5 — gain-control, Living Wall, Bogveil, remaining relics ═══════════
+
+const EXPANSION5 = {
+
+  // PURPLE — Hypeflux Ghostjacker: "Overexhaust: Gain control of target enemy creature with power ≤3"
+  'Hypeflux Ghostjacker': {
+    activatedAbility: {
+      cost: { overexhaust: true },
+      targets: [{
+        type: 'enemyCreature', label: 'enemy creature to control (power ≤3)',
+        filter: (t) => t.kind === 'creature' && (t._inst?.basePower || 0) <= 3,
+      }],
+      effects: [{ type: 'gainControl', target: 'target' }],
+    },
+  },
+
+  // RED — Relic Hoarder: "Exhaust: Exhaust target enemy relic"
+  'Relic Hoarder': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'enemyRelic', label: 'enemy relic to exhaust' }],
+      effects: [{ type: 'exhaust', target: 'target' }],
+    },
+  },
+
+  // COLORLESS — Obsidian Resonance Tower (relic): "Overexhaust: Gain 2 gold"
+  'Obsidian Resonance Tower': {
+    activatedAbility: {
+      cost: { overexhaust: true },
+      targets: [],
+      effects: [{ type: 'gainGold', amount: 2 }],
+    },
+  },
+
+  // COLORLESS — Blood Vending Machine (relic): "C Exhaust: Gain 1 blood"
+  'Blood Vending Machine': {
+    activatedAbility: {
+      cost: { gold: 1, exhaust: true },
+      targets: [],
+      effects: [{ type: 'heal', amount: 1, target: 'controller' }],
+    },
+  },
+
+  // COLORLESS — Eternal Archive (relic): "C Overexhaust: Gain 1 gold"
+  'Eternal Archive': {
+    activatedAbility: {
+      cost: { gold: 1, overexhaust: true },
+      targets: [],
+      effects: [{ type: 'gainGold', amount: 1 }],
+    },
+  },
+
+  // PURPLE — Key to the Last Page (relic): "Exhaust: Gain 3 gold (approx. free purple card)"
+  'Key to the Last Page': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [],
+      effects: [{ type: 'gainGold', amount: 3 }],
+    },
+  },
+
+  // PURPLE — Echo Reliquary (relic): "PP Exhaust: Glimpse 1"
+  'Echo Reliquary': {
+    activatedAbility: {
+      cost: { gold: 2, exhaust: true },
+      targets: [],
+      effects: [{ type: 'glimpse', amount: 1 }],
+    },
+  },
+
+  // WHITE — Living Wall (creature/wall):
+  // "Exhaust + sacrifice own relic: gains Breach until end of turn"
+  'Living Wall': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'ownRelic', label: 'relic to sacrifice' }],
+      effects: [
+        { type: 'destroy', target: 'target' },
+        { type: 'GRANT_KEYWORD', keyword: 'BREACH', duration: 'endOfTurn', target: 'self' },
+      ],
+    },
+  },
+
+  // WHITE — Relic Guardian (creature): "Exhaust + sacrifice self: renew target relic"
+  'Relic Guardian': {
+    activatedAbility: {
+      cost: { exhaust: true, sacrificeSelf: true },
+      targets: [{ type: 'ownRelic', label: 'relic to renew' }],
+      effects: [{ type: 'renew', target: 'target' }],
+    },
+  },
+
+  // BLACK — Bogveil Packwitch: "Exhaust: Each creature you control with a Wolf token
+  //   gains Siphon and Bleed +1 until end of turn"
+  'Bogveil Packwitch': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [],
+      effects: [{
+        type: 'custom',
+        fn: (ctx) => {
+          const side = ctx.sourceSide;
+          let any = false;
+          for (const c of (G[side]?.creatures || [])) {
+            if (!c || !(c.tokens || []).includes('Wolf')) continue;
+            grantKeyword(c, 'SIPHON', 'endOfTurn');
+            grantKeyword(c, 'BLEED:1', 'endOfTurn');
+            any = true;
+          }
+          return any;
+        },
+      }],
+    },
+  },
+
+  // WHITE — Estate Grounds Keeper: "Exhaust: Target wall gets +2 power EOT; you gain 2 blood"
+  'Estate Grounds Keeper': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{
+        type: 'ownCreature', label: 'wall to buff',
+        filter: (t) => t.kind === 'creature' && hasKeyword(t._inst, 'WALL'),
+      }],
+      effects: [
+        { type: 'buff', power: 2, duration: 'endOfTurn', target: 'target' },
+        { type: 'heal', amount: 2, target: 'controller' },
+      ],
+    },
+  },
+
+  // BLACK — Mira Hermes: death-replacement handled inline in triggers.js (no activatedAbility)
+  // Entry is a no-op marker so hasActivatedAbility returns false for her.
+
+};
+
+Object.assign(CARD_EFFECTS, EXPANSION5);
 
 export function getCardEffects(card) {
   if (!card || !card.name) return null;

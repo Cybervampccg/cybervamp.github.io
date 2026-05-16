@@ -55,6 +55,9 @@ function renderBattlefieldCard(el, inst) {
       `<div class="card-power-coin bf ${damaged ? 'damaged' : ''}">${displayPower}</div>` : ''}
   `;
 
+  if (inst.faction) el.dataset.faction = inst.faction;
+  if (inst.rarity) el.dataset.rarity = inst.rarity;
+
   if (inst.exhaustState === 'exhausted') el.classList.add('is-exhausted');
   if (inst.exhaustState === 'overexhausted') el.classList.add('is-overexhausted');
   if (inst.newlyTurned) el.classList.add('is-newly-turned');

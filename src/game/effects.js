@@ -125,6 +125,7 @@ function runOneEffect(eff, ctx, events) {
     case 'flagCantBeBlocked':   return effFlagCantBeBlocked(eff, target, events);
     case 'returnFromDiscard':   return effReturnFromDiscard(eff, events, ctx);
     case 'preventDamage':       return effPreventDamage(eff, target, events);
+    case 'gainControl':         return effGainControl(eff, target, events, ctx);
     case 'createToken':         return effCreateToken(eff, target, events, ctx);
     case 'destroyToken':        return effDestroyToken(eff, target, events, ctx);
     case 'glimpse':             return effGlimpse(eff, events, ctx);
@@ -532,6 +533,37 @@ function effOverexhaustOneCard(eff, events, ctx) {
     }
   }
   return false;
+}
+
+// gainControl — steal a creature from the opponent and place it on your side.
+//
+// Effect shape: { type: 'gainControl', target: 'target' }
+//
+// The stolen creature enters exhausted (can't attack this turn).
+// If controller has no empty creature slot, the effect fails silently.
+function effGainControl(eff, target, events, ctx) {
+  if (!target || target.kind !== 'creature') return false;
+  const fromSide = target.side;
+  const fromSlot = target.slotIdx;
+  const toSide = ctx.sourceSide;
+  if (fromSide === toSide) return false; // can't steal your own
+
+  const inst = G[fromSide]?.creatures?.[fromSlot];
+  if (!inst) return false;
+
+  const toSlots = G[toSide].creatures;
+  const emptySlot = toSlots.findIndex(s => s === null);
+  if (emptySlot < 0) return false; // no empty slot
+
+  G[fromSide].creatures[fromSlot] = null;
+  G[toSide].creatures[emptySlot] = inst;
+  inst.owner = toSide;
+  inst.slotIdx = emptySlot;
+  inst.location = 'creatures';
+  inst.exhausted = true; // stolen creature enters exhausted
+
+  events.push({ type: 'gain-control', fromSide, fromSlot, toSide, toSlot: emptySlot, name: inst.name });
+  return true;
 }
 
 // ───────── Token effects ─────────

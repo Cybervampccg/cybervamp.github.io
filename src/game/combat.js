@@ -162,6 +162,15 @@ function dealDirectDamageToPlayer(sourceInst, sourceSide, defenderSide, amount, 
     });
   }
 
+  // 3b. Fenlily Seraphine: Zombie token hosts also gain Siphon while Fenlily is in play
+  if (!hasKeyword(sourceInst, 'SIPHON')) {
+    const hasFenlily = (G[sourceSide]?.creatures || []).some(c => c?.name === 'Fenlily Seraphine');
+    if (hasFenlily && (sourceInst?.tokens || []).includes('Zombie')) {
+      G[sourceSide].blood = (G[sourceSide].blood || 0) + amount;
+      events.push({ type: 'siphon-heal', side: sourceSide, amount, source: 'FenlilySeraphine' });
+    }
+  }
+
   // 4. Lupine Countess passive: Wolf tokens add 1 Bleed per Wolf to direct damage
   const wolfCount = (sourceInst?.tokens || []).filter(t => t === 'Wolf').length;
   if (wolfCount > 0) {
@@ -195,6 +204,19 @@ export function resolveCombat(attackerSide, defenderSide) {
   const attackers = getAttackers(attackerSide);
 
   // ── Board-wide combat passives (applied before damage resolves) ──
+
+  // Isolde, Veil Sovereign: when attacking, exhaust 2 random unexhausted enemy creatures
+  const isoldeAttacking = attackers.find(a => a.inst.name === 'Isolde, Veil Sovereign');
+  if (isoldeAttacking) {
+    const available = (G[defenderSide]?.creatures || [])
+      .map((c, i) => c && !c.exhausted && !c.overexhausted ? i : null)
+      .filter(i => i !== null);
+    for (let i = 0; i < 2 && i < available.length; i++) {
+      const c = G[defenderSide].creatures[available[i]];
+      c.exhausted = true;
+      events.push({ type: 'exhaust', side: defenderSide, name: c.name, source: 'IsoldeVeilSovereign' });
+    }
+  }
 
   // Zane "Redline" Krov: all own attacking creatures gain Breach + Bleed:1
   const hasZane = (G[attackerSide]?.creatures || []).some(c => c?.name === 'Zane "Redline" Krov');
@@ -264,8 +286,15 @@ export function resolveCombat(attackerSide, defenderSide) {
       continue;
     }
 
-    const bPow = getPower(blocker);
+    let bPow = getPower(blocker);
+    // Elias Veyr: gains +2 effective power when blocking
+    if (blocker.name === 'Elias Veyr') bPow += 2;
     const bSlotIdx = blockerSlotIdx;
+
+    // Slashfang Sprinter: permanently gains BLEED:1 the first time it is blocked
+    if (attacker.name === 'Slashfang Sprinter') {
+      grantKeyword(attacker, 'BLEED:1', 'permanent');
+    }
 
     const blockerIsWall = hasKeyword(blocker, 'WALL');
 
@@ -305,7 +334,8 @@ export function resolveCombat(attackerSide, defenderSide) {
         blockerPower: bPow,
       });
     } else {
-      // Blocker wins: attacker dies
+      // Blocker wins: attacker dies; mark blocker for EOT effects (Wall Decay, Marble Sentinel)
+      blocker._blockedThisTurn = true;
       events.push({
         type: 'combat-blocker-wins',
         attackerSide, defenderSide,
@@ -330,6 +360,15 @@ export function resolveCombat(attackerSide, defenderSide) {
         survivingBlocker.overexhausted = true;
         events.push({ type: 'overexhaust', side: defenderSide, name: survivingBlocker.name, source: attacker.name });
       }
+    }
+  }
+
+  // Isolde, Veil Sovereign: overexhausts herself after combat (if still alive)
+  if (isoldeAttacking) {
+    const isoldeInst = isoldeAttacking.inst;
+    if ((G[attackerSide]?.creatures || []).includes(isoldeInst)) {
+      isoldeInst.overexhausted = true;
+      events.push({ type: 'overexhaust', side: attackerSide, name: isoldeInst.name, source: 'self' });
     }
   }
 

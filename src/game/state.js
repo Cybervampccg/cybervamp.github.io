@@ -317,4 +317,20 @@ export function endTurnCleanup(who) {
       }
     }
   }
+
+  // Marble Shield Sentinel: gains +1 permanent power when it blocked this turn
+  for (const sideKey of ['player', 'ai']) {
+    for (const inst of G[sideKey]?.creatures || []) {
+      if (inst?._blockedThisTurn && inst.name === 'Marble Shield Sentinel') {
+        inst.basePower = (inst.basePower || 0) + 1;
+      }
+    }
+  }
+
+  // Clear _blockedThisTurn flag from all creatures (both sides)
+  for (const sideKey of ['player', 'ai']) {
+    for (const inst of G[sideKey]?.creatures || []) {
+      if (inst) delete inst._blockedThisTurn;
+    }
+  }
 }

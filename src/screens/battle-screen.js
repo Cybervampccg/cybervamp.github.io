@@ -9,9 +9,19 @@
 //   - Cancel button cancels target picking and refunds the action
 // ─────────────────────────────────────────────────────────────
 
+import '../styles/effects.css';
 import { G } from '../game/state.js';
 import '../game/triggers.js'; // installs ON_DEATH and other trigger hooks
 import { beginTurn, endTurn, playCardFromHand, canAffordInst } from '../game/flow.js';
+import { sfx, bgmFadeIn, bgmPause, toggleMute, preloadAudio } from '../game/audio.js';
+import {
+  injectOverlays, removeOverlays,
+  showPhaseTransition, showTurnBanner, showDamageVignette,
+  floatNumberAtElement, cardArrive, cardDrawEnter, screenShake,
+  hapticTap, hapticAct, hapticDamage, hapticWin,
+  showHeroMoment, showEndgame,
+  createMuteButton, removeMuteButton,
+} from '../game/vfx.js';
 import { runAiTurn } from '../game/ai.js';
 import { createCardElement } from '../game/card-render.js';
 import { sacrificeCreature, isCreatureBoardFull, discardFromHand } from '../game/sacrifice.js';
@@ -57,6 +67,7 @@ let _sacrificeTargetType = 'creature';
 let _selectedHandInstId = null;
 let _draggedHandInstId = null;
 let _draggedClone = null;
+let _prevHandInstIds = new Set();
 
 // Target-pick mode state
 let _pickContext = null;
@@ -145,12 +156,18 @@ export function mountBattleScreen(container, opts = {}) {
     </div>
   `;
 
+  preloadAudio();
+  injectOverlays();
+  bgmFadeIn(3000);
+  createMuteButton(toggleMute);
+
   wireEvents();
   beginTurn('player');
   renewPermanents('player'); // turn 1 has no exhausted cards but safe to call
   enforceHandCap();
   renderAll();
   playGoldPulse('player', G.player.gold);
+  showTurnBanner('YOUR TURN', 'player');
 }
 
 function renderActionButtons() {
@@ -342,6 +359,9 @@ function renderDockPanel() {
 
 function wireEvents() {
   _container.querySelector('#btn-back-home')?.addEventListener('click', () => {
+    removeOverlays();
+    removeMuteButton();
+    bgmPause();
     import('./home-screen.js').then(m => m.mountHomeScreen?.(document.getElementById('app')));
   });
   _container.querySelector('#btn-end-turn').addEventListener('click', onEndTurn);
@@ -382,6 +402,8 @@ function onGoToCombat() {
   _selectedHandInstId = null;
   _mode = 'combat-attackers';
   G.phase = 'combat';
+  sfx('phase_change', 0.6);
+  showPhaseTransition('combat');
   showModeBanner(`<div>⚔ COMBAT — tap your creatures to attack</div><div style="font-size:11px; color:#fde047; margin-top:4px">Then tap CONFIRM ATTACK</div>`);
   renderAll();
 }
@@ -491,19 +513,25 @@ async function playCombatEvents(events) {
   for (const e of events) {
     switch (e.type) {
       case 'face-damage':
+        sfx('damage');
         showFloatingNumber(fx, `-${e.damage} ❤`, '#f43f5e', e.defenderSide);
+        if (e.defenderSide === 'player') { showDamageVignette(); screenShake(); hapticDamage(); }
         logEvent(`${e.attackerName} hits ${e.defenderSide === 'player' ? 'you' : 'AI'} for ${e.damage}`);
         await delay(500); renderAll(); break;
       case 'combat-attacker-wins':
+        sfx('destroy');
         logEvent(`${e.attackerName} (${e.attackerPower}) destroys ${e.blockerName} (${e.blockerPower})`);
         await delay(400); renderAll(); break;
       case 'combat-blocker-wins':
+        sfx('destroy');
         logEvent(`${e.blockerName} (${e.blockerPower}) destroys ${e.attackerName} (${e.attackerPower})`);
         await delay(400); renderAll(); break;
       case 'combat-tie':
+        sfx('destroy');
         logEvent(`${e.attackerName} and ${e.blockerName} tie at ${e.power}`);
         await delay(300); renderAll(); break;
       case 'selfbleed':
+        sfx('bleed', 0.5);
         logEvent(`${e.attackerName} selfbleeds ${e.amount}`); renderAll(); break;
     }
   }
@@ -512,7 +540,9 @@ async function playCombatEvents(events) {
 async function playBleedEvents(events) {
   const fx = _container.querySelector('#combat-fx-layer');
   for (const e of events) {
+    sfx('bleed');
     showFloatingNumber(fx, `-${e.amount} ❤`, '#f43f5e', e.side);
+    if (e.side === 'player') { showDamageVignette(); hapticDamage(); }
     logEvent(`${e.side === 'player' ? 'You' : 'AI'} bleed for ${e.amount}`);
     await delay(500); renderAll();
   }
@@ -616,6 +646,9 @@ async function onEndTurn() {
     const btn = _container.querySelector('#btn-end-turn');
     btn.style.opacity = '0.4';
     btn.style.pointerEvents = 'none';
+    sfx('turn_end', 0.6);
+    showTurnBanner("AI'S TURN", 'ai');
+    showPhaseTransition('renew');
     logEvent('— AI turn begins —');
     playGoldPulse('ai', G.ai.gold);
 
@@ -677,7 +710,13 @@ async function onEndTurn() {
     btn.style.pointerEvents = '';
     enforceHandCap();
     renderAll();
-    if (!G.winner) { playGoldPulse('player', G.player.gold); logEvent(`— Your turn (T${G.turn}) —`); }
+    if (!G.winner) {
+      sfx('turn_end', 0.6);
+      showTurnBanner('YOUR TURN', 'player');
+      showPhaseTransition('renew');
+      playGoldPulse('player', G.player.gold);
+      logEvent(`— Your turn (T${G.turn}) —`);
+    }
   }
   if (G.winner) showWinner();
 }
@@ -776,6 +815,9 @@ function attemptPlayCard(inst) {
     if (isRelicBoardFull('player')) { enterSacrificePickMode(inst, 'relic'); return; }
     const result = playRelicFromHand('player', inst.instId);
     if (result.ok) {
+      sfx('card_play', 0.5);
+      hapticAct();
+      inst._justArrived = true;
       logEvent(`You play relic ${inst.name}`);
       _selectedHandInstId = null; closePreview(); renderAll();
     } else showStatus(result.error);
@@ -789,6 +831,9 @@ function attemptPlayCard(inst) {
   if (isCreatureBoardFull('player')) { enterSacrificePickMode(inst, 'creature'); return; }
   const result = playCardFromHand(inst);
   if (result.ok) {
+    sfx('card_play', 0.5);
+    hapticAct();
+    inst._justArrived = true;
     logEvent(`You play ${inst.name}`);
     _selectedHandInstId = null; closePreview(); renderAll();
   } else showStatus(result.error);
@@ -797,6 +842,8 @@ function attemptPlayCard(inst) {
 async function finalizeSpellPlay(inst, targets) {
   const result = playSpellFromHand('player', inst.instId, targets);
   if (!result.ok) { showStatus(result.error); return; }
+  sfx('card_play', 0.5);
+  hapticAct();
   logEvent(`You cast ${inst.name}`);
   _selectedHandInstId = null;
   renderAll();
@@ -1362,6 +1409,7 @@ function renderBoard(side) {
         cardEl.style.filter = '';
       }
       host.appendChild(cardEl);
+      if (inst._justArrived) { cardArrive(cardEl); delete inst._justArrived; }
     } else {
       slotEl.classList.add('empty');
     }
@@ -1412,6 +1460,7 @@ function renderRelics(side) {
         cardEl.style.filter = 'brightness(0.7) saturate(0.75)';
       }
       host.appendChild(cardEl);
+      if (inst._justArrived) { cardArrive(cardEl); delete inst._justArrived; }
     } else {
       slotEl.classList.add('empty');
     }
@@ -1472,6 +1521,9 @@ function renderHand() {
   fan.innerHTML = '';
   const hand = G.player.hand;
   const total = hand.length;
+  const currentIds = new Set(hand.map(i => i.instId));
+  const newIds = [...currentIds].filter(id => !_prevHandInstIds.has(id));
+  _prevHandInstIds = currentIds;
   if (total === 0) return;
 
   hand.forEach((inst, idx) => {
@@ -1526,6 +1578,7 @@ function renderHand() {
     attachHandCardGestures(slot, inst);
     slot.appendChild(card);
     fan.appendChild(slot);
+    if (newIds.includes(inst.instId)) cardDrawEnter(card);
   });
 }
 
@@ -1551,10 +1604,30 @@ function logEvent(text) {
 }
 
 function showWinner() {
-  const el = _container.querySelector('#status-text');
-  if (!el) return;
-  el.textContent = G.winner === 'player' ? '⚡ VICTORY ⚡' : (G.winner === 'ai' ? '💀 DEFEAT 💀' : '⚖ DRAW');
-  el.classList.add('visible', 'big');
+  const stats = {
+    turn: G.turn,
+    cardsPlayed: (G.stats?.cardsPlayed?.player || 0),
+    damageDealt: (G.stats?.damageDealt?.player || 0),
+  };
+  showEndgame(G.winner, stats);
+  bgmPause();
+  if (G.winner === 'player') hapticWin();
+  else hapticDamage();
+
+  setTimeout(() => {
+    document.getElementById('eg-btn-play-again')?.addEventListener('click', () => {
+      removeOverlays(); removeMuteButton();
+      import('./battle-screen.js').then(m => {
+        const app = document.getElementById('app');
+        app.innerHTML = '';
+        m.mountBattleScreen(app);
+      });
+    });
+    document.getElementById('eg-btn-home')?.addEventListener('click', () => {
+      removeOverlays(); removeMuteButton();
+      import('./home-screen.js').then(m => m.mountHomeScreen?.(document.getElementById('app')));
+    });
+  }, 600);
 }
 
 function escapeHtml(s) {

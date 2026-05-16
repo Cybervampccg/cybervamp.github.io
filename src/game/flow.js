@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { G, drawCards, grantTurnGold, endTurnCleanup, findEmptySlot } from './state.js';
+import { hasKeyword } from './keywords.js';
 
 const HAND_CAP = 7;
 
@@ -66,7 +67,18 @@ export function playCardFromHand(inst) {
   if (inst.location !== 'hand') return { ok: false, error: 'Card not in hand' };
   if (G.activePlayer !== who) return { ok: false, error: 'Not your turn' };
   if (G.phase !== 'main') return { ok: false, error: 'Can only play during main phase' };
-  if (side.gold < inst.goldCost) return { ok: false, error: 'Not enough gold' };
+  // Relic Scribe: while in play and unexhausted, relics and walls cost 1 less gold
+  let effectiveGoldCost = inst.goldCost;
+  const hasRelicScribe = (side.creatures || []).some(c =>
+    c && c.name === 'Relic Scribe' && !c.exhausted && !c.overexhausted
+  );
+  if (hasRelicScribe) {
+    const isRelic = inst.type === 'Relic';
+    const isWall = inst.type === 'Creature' && hasKeyword(inst, 'WALL');
+    if (isRelic || isWall) effectiveGoldCost = Math.max(0, effectiveGoldCost - 1);
+  }
+
+  if (side.gold < effectiveGoldCost) return { ok: false, error: 'Not enough gold' };
   if (side.blood <= inst.bloodCost) return { ok: false, error: 'Not enough blood (would die)' };
   if (inst.type === 'Spell') return { ok: false, error: 'Spells not yet implemented' };
 
@@ -74,7 +86,7 @@ export function playCardFromHand(inst) {
   if (slotIdx < 0) return { ok: false, error: `No empty ${inst.type.toLowerCase()} slot` };
 
   // Pay cost
-  side.gold -= inst.goldCost;
+  side.gold -= effectiveGoldCost;
   side.blood -= inst.bloodCost;
   if (side.blood <= 0) G.winner = who === 'player' ? 'ai' : 'player';
 
@@ -99,6 +111,16 @@ export function playCardFromHand(inst) {
 
 // Can the player afford this card right now?
 export function canAffordInst(inst) {
-  const side = G[inst.owner];
-  return side.gold >= inst.goldCost && side.blood > inst.bloodCost;
+  const who = inst.owner;
+  const side = G[who];
+  let effectiveGoldCost = inst.goldCost;
+  const hasRelicScribe = (side.creatures || []).some(c =>
+    c && c.name === 'Relic Scribe' && !c.exhausted && !c.overexhausted
+  );
+  if (hasRelicScribe) {
+    const isRelic = inst.type === 'Relic';
+    const isWall = inst.type === 'Creature' && hasKeyword(inst, 'WALL');
+    if (isRelic || isWall) effectiveGoldCost = Math.max(0, effectiveGoldCost - 1);
+  }
+  return side.gold >= effectiveGoldCost && side.blood > inst.bloodCost;
 }

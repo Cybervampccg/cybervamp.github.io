@@ -14,7 +14,7 @@
 // to register the onDeath hook.
 // ─────────────────────────────────────────────────────────────
 
-import { registerOnDeathCallback } from './sacrifice.js';
+import { registerOnDeathCallback, sacrificeCreature } from './sacrifice.js';
 import { runEffects } from './effects.js';
 import { getCardEffects } from './card-effects.js';
 import { G } from './state.js';
@@ -30,6 +30,16 @@ registerOnDeathCallback((side, slotIdx, inst) => {
     sourceSlotIdx: slotIdx,
     targets: [],
   });
+});
+
+// Mira Hermes death-replacement: when Mira would die, sacrifice another creature instead.
+registerOnDeathCallback((side, slotIdx, inst) => {
+  if (inst.name !== 'Mira Hermes') return;
+  const slots = G[side]?.creatures || [];
+  const subSlot = slots.findIndex((c, i) => c && i !== slotIdx);
+  if (subSlot < 0) return; // no substitute — Mira dies normally
+  sacrificeCreature(side, subSlot);
+  return { cancel: true }; // prevent Mira's own death
 });
 
 // ───────── ON_DIRECT_DAMAGE ─────────
