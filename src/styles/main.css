@@ -342,44 +342,61 @@ html, body {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   HAND FAN — flex row spread (replaces position:absolute geometry)
-   Cards distribute evenly across the full width with slight overlap
-   and per-card rotation for the fan curve look.
+   HAND FAN — flex row spread with hover lift
+   Cards distribute across the full width with fan rotation.
+   Hover lifts and enlarges individual cards for readability.
    ═══════════════════════════════════════════════════════════ */
 
 #hand-fan-overlay {
   position: absolute;
-  /* Wide bottom strip — uses the full bottom playfield width */
   left: 0;
   right: 0;
-  top: 78%;
-  height: 14%;
+  top: 76%;
+  height: 22%;
   display: flex;
   flex-direction: row;
   justify-content: center;
   align-items: flex-end;
-  padding: 0 2% 1%;
+  padding: 0 1% 0.5%;
   z-index: 6;
   pointer-events: none;
+  overflow: visible; /* allow hovered cards to rise above container */
 }
 
 .hand-slot {
-  /* Each card takes a fixed % of the fan area width */
-  flex: 0 0 18%;
-  /* Aspect-ratio determines height from width */
+  flex: 0 0 19%;
   aspect-ratio: 5 / 7;
-  /* Negative margin pulls cards to overlap slightly, creating fan look */
-  margin: 0 -3%;
+  margin: 0 -3.5%;
   position: relative;
   transform-origin: bottom center;
-  transition: transform 0.25s cubic-bezier(.3,.1,.3,1.2);
+  transition: transform 0.22s cubic-bezier(.3,.1,.3,1.2), z-index 0s, filter 0.2s;
   pointer-events: auto;
   cursor: pointer;
+  z-index: 2;
 }
 
-/* Fan rotation per index — set inline via JS data attribute */
+/* Fan rotation per index — set inline via JS custom property */
 .hand-slot[data-fan-rot] {
   transform: rotate(var(--fan-rot, 0deg)) translateY(var(--fan-lift, 0));
+}
+
+/* Hover lift — only non-selected cards, not during drag */
+.hand-slot:not(.selected):not(.dragging):hover {
+  transform: rotate(calc(var(--fan-rot, 0deg) * 0.4)) translateY(-32px) scale(1.14) !important;
+  z-index: 30 !important;
+  filter: drop-shadow(0 8px 24px rgba(192, 132, 252, 0.55)) !important;
+}
+
+/* Selected card stays elevated */
+.hand-slot.selected {
+  z-index: 50;
+}
+
+/* Name label that appears below hovered hand cards */
+.hand-slot:not(.selected):hover .card-name-strip {
+  font-size: 9px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(10,0,30,0.97) 100%);
+  color: #fde047;
 }
 
 /* ─── CARD STYLES ─── */
@@ -533,11 +550,39 @@ html, body {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 380px;
+  max-width: 340px;
   max-height: 90vh;
   align-items: stretch;
   gap: var(--sp-3);
+  position: relative;
 }
+
+/* Corner X button floating over the card art */
+.preview-close-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 20;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(10, 4, 24, 0.85);
+  border: 2px solid rgba(244, 63, 94, 0.7);
+  color: #fca5a5;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(6px);
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.8);
+}
+.preview-close-x:hover {
+  background: rgba(180, 30, 50, 0.9);
+  color: #fff;
+  transform: scale(1.1);
+}
+.preview-close-x:active { transform: scale(0.93); }
 
 .card-preview {
   display: flex;
@@ -614,23 +659,38 @@ html, body {
 .preview-actions {
   display: flex;
   gap: var(--sp-2);
-  padding: 0 var(--sp-2);
+  padding: 0 var(--sp-2) var(--sp-2);
 }
 
 .preview-btn {
   flex: 1;
-  padding: 14px 16px;
+  padding: 13px 14px;
   border-radius: var(--r-md);
   font-family: 'Cinzel', serif;
   font-weight: 700;
-  letter-spacing: 1.2px;
-  font-size: 14px;
+  letter-spacing: 1px;
+  font-size: 13px;
   text-transform: uppercase;
   cursor: pointer;
   border: 2px solid;
   transition: transform 0.12s, box-shadow 0.2s, filter 0.2s;
   text-shadow: 0 1px 3px rgba(0,0,0,0.9);
-  min-height: 50px;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.preview-btn-label { font-size: 12px; }
+.preview-btn-sub {
+  font-size: 10px;
+  opacity: 0.75;
+  font-family: system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .preview-btn-play {
@@ -641,7 +701,7 @@ html, body {
 }
 .preview-btn-play:hover { filter: brightness(1.15); transform: translateY(-1px); }
 .preview-btn-play:active { transform: scale(0.97); }
-.preview-btn-play.disabled {
+.preview-btn-play.unaffordable {
   background: rgba(60, 60, 60, 0.5);
   border-color: rgba(120, 120, 120, 0.4);
   color: var(--text-dim);
@@ -649,15 +709,6 @@ html, body {
   pointer-events: none;
   box-shadow: none;
 }
-
-.preview-btn-close {
-  background: rgba(20, 16, 36, 0.85);
-  border-color: var(--border-bright);
-  color: var(--text-mid);
-  flex: 0 0 35%;
-}
-.preview-btn-close:hover { color: var(--bleed-red); border-color: var(--bleed-red); }
-.preview-btn-close:active { transform: scale(0.97); }
 
 .preview-btn-pitch {
   background: linear-gradient(180deg, #4c1d95 0%, #2e1065 100%);
@@ -667,6 +718,106 @@ html, body {
 }
 .preview-btn-pitch:hover { filter: brightness(1.2); transform: translateY(-1px); }
 .preview-btn-pitch:active { transform: scale(0.97); }
+
+/* ─── GLIMPSE PICKER ─── */
+
+.glimpse-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 2, 14, 0.93);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+}
+
+.glimpse-picker-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 420px;
+  max-height: 92vh;
+  gap: var(--sp-4);
+  overflow-y: auto;
+}
+
+.glimpse-picker-header {
+  text-align: center;
+}
+
+.glimpse-picker-title {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 20px;
+  color: var(--gold-bright);
+  letter-spacing: 4px;
+  font-weight: 700;
+  text-shadow: 0 0 20px rgba(234, 179, 8, 0.6);
+  margin-bottom: var(--sp-2);
+}
+
+.glimpse-picker-sub {
+  font-size: 12px;
+  color: var(--text-mid);
+  letter-spacing: 1px;
+  line-height: 1.5;
+}
+
+.glimpse-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: var(--sp-3);
+  justify-items: center;
+}
+
+.glimpse-card-slot {
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  cursor: pointer;
+  border-radius: var(--r-md);
+  transition: transform 0.2s cubic-bezier(.3,.1,.3,1.3), box-shadow 0.2s, filter 0.2s;
+  position: relative;
+}
+
+.glimpse-card-slot:hover {
+  transform: translateY(-10px) scale(1.06);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.9), 0 0 28px rgba(192, 132, 252, 0.7);
+  z-index: 5;
+  filter: brightness(1.1);
+}
+
+.glimpse-card-slot:active {
+  transform: translateY(-6px) scale(1.02);
+}
+
+.glimpse-card-slot .card {
+  width: 100%;
+  height: 100%;
+}
+
+/* Glowing border on glimpse hover */
+.glimpse-card-slot::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: calc(var(--r-md) + 2px);
+  border: 2px solid rgba(192, 132, 252, 0);
+  transition: border-color 0.2s;
+  pointer-events: none;
+}
+.glimpse-card-slot:hover::after {
+  border-color: rgba(192, 132, 252, 0.8);
+}
+
+.glimpse-picker-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-style: italic;
+  padding-bottom: var(--sp-2);
+}
 
 /* ─── END TURN HEX ─── */
 

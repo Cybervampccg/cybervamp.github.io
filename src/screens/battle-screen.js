@@ -647,7 +647,13 @@ async function playSpellEvents(events) {
         logEvent(`${e.tokenType} token on ${e.hostName} destroyed`); await delay(150); break;
       case 'glimpse':
         sfx('glimpse', 0.55);
-        logEvent(`Glimpse ${e.amount}: ${e.cards?.join(', ') || ''}`); await delay(250); break;
+        logEvent(`Glimpse ${e.amount}: ${e.cards?.join(', ') || ''}`);
+        if (e.pending && e.side === 'player') {
+          await showGlimpsePicker();
+        } else {
+          await delay(300);
+        }
+        break;
       case 'siphon-heal':
         sfx('land', 0.35);
         showFloatingNumber(fx, `+${e.amount} ❤`, '#a78bfa', e.side);
@@ -771,6 +777,82 @@ function passPriority() {
     _resumePriority = null;
     r();
   }
+}
+
+// ─── Glimpse Picker ─────────────────────────────────────────
+// Shows an interactive modal for the player to choose which
+// Glimpsed card to keep. Called when a glimpse event has pending:true.
+
+async function showGlimpsePicker() {
+  const cards = G.player._glimpsePick;
+  if (!cards || cards.length === 0) {
+    delete G.player._glimpsePick;
+    return;
+  }
+
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'glimpse-picker-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'glimpse-picker-modal';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'glimpse-picker-header';
+    header.innerHTML = `
+      <div class="glimpse-picker-title">✦ GLIMPSE ✦</div>
+      <div class="glimpse-picker-sub">Tap a card to add it to your hand.<br>The rest are shuffled back into your deck.</div>
+    `;
+    modal.appendChild(header);
+
+    // Card grid
+    const grid = document.createElement('div');
+    grid.className = 'glimpse-picker-grid';
+
+    cards.forEach(inst => {
+      const slot = document.createElement('div');
+      slot.className = 'glimpse-card-slot';
+      const cardEl = createCardElement(inst, 'hand');
+      cardEl.style.width = '100%';
+      cardEl.style.height = '100%';
+      slot.appendChild(cardEl);
+
+      slot.addEventListener('click', () => {
+        // Keep this card — add to hand
+        inst.location = 'hand';
+        G.player.hand.push(inst);
+
+        // Shuffle the rest back into deck
+        const rest = cards.filter(c => c !== inst);
+        for (const card of rest) {
+          const maxInsert = Math.floor(G.player.deck.length / 2) + 1;
+          const pos = Math.floor(Math.random() * maxInsert);
+          G.player.deck.splice(pos, 0, card);
+          card.location = 'deck';
+        }
+
+        delete G.player._glimpsePick;
+        sfx('card_play', 0.5);
+        logEvent(`You keep: ${inst.name} (Glimpse)`);
+        overlay.remove();
+        renderAll();
+        resolve();
+      });
+
+      grid.appendChild(slot);
+    });
+    modal.appendChild(grid);
+
+    // Hint
+    const hint = document.createElement('div');
+    hint.className = 'glimpse-picker-hint';
+    hint.textContent = `Tap a card to select it`;
+    modal.appendChild(hint);
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+  });
 }
 
 function showFloatingNumber(fx, text, color, side) {
@@ -1280,21 +1362,44 @@ function openPreview(inst, source = 'hand') {
   overlay.innerHTML = '';
   const wrapper = document.createElement('div');
   wrapper.className = 'preview-wrapper';
+
+  // Corner X close button (floats over the card art)
+  const closeX = document.createElement('button');
+  closeX.className = 'preview-close-x';
+  closeX.innerHTML = '✕';
+  closeX.addEventListener('click', (e) => { e.stopPropagation(); closePreview(); });
+  wrapper.appendChild(closeX);
+
   wrapper.appendChild(createCardElement(inst, 'preview'));
 
-  const actions = document.createElement('div');
-  actions.className = 'preview-actions';
-
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'preview-btn preview-btn-close';
-  closeBtn.textContent = '✕ CLOSE';
-  closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closePreview(); });
-  actions.appendChild(closeBtn);
-
   if (source === 'hand') {
+    const actions = document.createElement('div');
+    actions.className = 'preview-actions';
+
+    // Play button with cost sub-label
+    const isMyTurn = G.activePlayer === 'player';
+    const isSpell = SPELLS.includes(inst.type || '');
+    const isRelic = RELICS_TYPES.includes(inst.type || '');
+    let canPlay = true;
+    let costLabel = '';
+    const gc = inst.goldCost || 0;
+    const bc = inst.bloodCost || 0;
+    if (gc > 0 && bc > 0) costLabel = `${gc}⛁  ${bc}🩸`;
+    else if (gc > 0) costLabel = `${gc} Gold`;
+    else if (bc > 0) costLabel = `${bc} Blood`;
+    else costLabel = 'Free';
+
+    if (isSpell) {
+      canPlay = (G.player.gold || 0) >= gc && isSpellSupported(inst);
+    } else if (isRelic) {
+      canPlay = (G.player.gold || 0) >= gc && (G.player.blood || 0) > bc;
+    } else {
+      canPlay = canAffordInst(inst);
+    }
+
     const playBtn = document.createElement('button');
-    playBtn.className = 'preview-btn preview-btn-play';
-    playBtn.textContent = '▶ PLAY';
+    playBtn.className = 'preview-btn preview-btn-play' + ((!isMyTurn || !canPlay) ? ' unaffordable' : '');
+    playBtn.innerHTML = `<span class="preview-btn-label">▶ PLAY</span><span class="preview-btn-sub">${costLabel}</span>`;
     playBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       closePreview();
@@ -1302,19 +1407,20 @@ function openPreview(inst, source = 'hand') {
     });
     actions.appendChild(playBtn);
 
-    if (hasPitchEffect(inst) && G.activePlayer === 'player' && (G.phase === 'main' || G.phase === 'renew')) {
+    if (hasPitchEffect(inst) && isMyTurn && (G.phase === 'main' || G.phase === 'renew')) {
       const pitchBtn = document.createElement('button');
       pitchBtn.className = 'preview-btn preview-btn-pitch';
-      pitchBtn.textContent = '⬆ PITCH';
+      pitchBtn.innerHTML = `<span class="preview-btn-label">⬆ PITCH</span><span class="preview-btn-sub">Discard for effect</span>`;
       pitchBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         attemptPitchCard(inst);
       });
       actions.appendChild(pitchBtn);
     }
+
+    wrapper.appendChild(actions);
   }
 
-  wrapper.appendChild(actions);
   overlay.appendChild(wrapper);
   overlay.onclick = (e) => { if (e.target === overlay) closePreview(); };
   overlay.classList.remove('hidden');
@@ -1771,9 +1877,10 @@ function renderHand() {
     slot.dataset.instId = inst.instId;
 
     if (isSelected) {
+      slot.classList.add('selected');
       slot.style.setProperty('--fan-rot', `0deg`);
       slot.style.setProperty('--fan-lift', `0px`);
-      slot.style.transform = 'translateY(-60%) scale(1.3)';
+      slot.style.transform = 'translateY(-55%) scale(1.28)';
       slot.style.zIndex = '50';
       slot.style.transition = 'transform 0.25s cubic-bezier(.3,.1,.3,1.4)';
     } else {

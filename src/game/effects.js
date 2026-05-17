@@ -670,19 +670,26 @@ function effGlimpse(eff, events, ctx) {
     revealed.push(deck.pop()); // pop = top of deck
   }
 
-  events.push({ type: 'glimpse', side, cards: revealed.map(c => c.name), amount: take });
-
-  // Keep first card (auto-pick; UI can override this later by intercepting the event)
-  const kept = revealed.shift();
-  kept.location = 'hand';
-  hand.push(kept);
-  events.push({ type: 'draw', side, amount: 1 });
-
-  // Shuffle remaining to random positions near bottom of deck
-  for (const card of revealed) {
-    const maxInsert = Math.floor(deck.length / 2) + 1;
-    const pos = Math.floor(Math.random() * maxInsert);
-    deck.splice(pos, 0, card);
+  if (side === 'player') {
+    // Human player: emit pending event — battle-screen will show the picker UI and
+    // handle the actual card placement.  Store the full instances on G so the UI
+    // can display real card data and move them on pick.
+    G[side]._glimpsePick = revealed;
+    events.push({ type: 'glimpse', side, cards: revealed.map(c => c.name), amount: take, pending: true });
+  } else {
+    // AI: auto-pick the first (highest-power) card.
+    events.push({ type: 'glimpse', side, cards: revealed.map(c => c.name), amount: take });
+    revealed.sort((a, b) => (b.power || 0) - (a.power || 0));
+    const kept = revealed.shift();
+    kept.location = 'hand';
+    hand.push(kept);
+    events.push({ type: 'draw', side, amount: 1 });
+    // Shuffle rest to random positions near bottom of deck
+    for (const card of revealed) {
+      const maxInsert = Math.floor(deck.length / 2) + 1;
+      const pos = Math.floor(Math.random() * maxInsert);
+      deck.splice(pos, 0, card);
+    }
   }
   return true;
 }
