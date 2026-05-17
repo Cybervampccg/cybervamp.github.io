@@ -73,6 +73,11 @@ let _prevHandInstIds = new Set();
 // Target-pick mode state
 let _pickContext = null;
 
+// Priority / response-window state
+// Set while the player has the floor during the opponent's turn.
+let _inPriorityWindow = false;
+let _resumePriority = null;
+
 // ─── Renewal helper ───
 // At the start of each side's turn, their permanents step toward renewed:
 //   Overexhausted (180°) → Exhausted (90°)
@@ -459,6 +464,12 @@ async function runAiCombatPhase() {
 
     const aiAttackers = getAttackers('ai');
     if (aiAttackers.length === 0) return;
+
+    // ── Priority window 2: after AI declares attackers, before blockers ──
+    const attackerNames = aiAttackers.map(a => a.inst.name).join(', ');
+    await waitForPlayerPriority(`AI attacking: ${attackerNames}`);
+    if (G.winner) return;
+
     const playerHasBlockers = countAvailableBlockers('player') > 0;
 
     if (!playerHasBlockers) {
@@ -715,6 +726,53 @@ function onCompleteDraw() {
   renderAll();
 }
 
+// ─── Priority / Response Window ───────────────────────────────
+// Pauses the AI turn and gives the player a chance to cast spells
+// or activate abilities before the AI continues.
+//
+// Resolves when the player clicks PASS PRIORITY or if G.winner is set.
+
+async function waitForPlayerPriority(label) {
+  if (G.winner) return;
+  return new Promise(resolve => {
+    _resumePriority = resolve;
+    _inPriorityWindow = true;
+    _mode = 'response';
+    sfx('phase_change', 0.35);
+    showPriorityBanner(label);
+    renderAll();
+    // Auto-pass if the game ends while the window is open (e.g. a spell kills the AI)
+    const guard = setInterval(() => {
+      if (G.winner) { clearInterval(guard); passPriority(); }
+    }, 200);
+  });
+}
+
+function showPriorityBanner(label = '') {
+  const sub = label ? `<div style="font-size:11px;color:#fde047;margin-top:2px">${label}</div>` : '';
+  showModeBanner(`
+    <div>⚡ RESPONSE WINDOW</div>
+    ${sub}
+    <div style="font-size:11px;color:#b4a6d4;margin-top:3px">Cast a spell · Activate an ability · or PASS</div>
+    <button class="banner-cancel-btn" id="btn-pass-priority" style="margin-top:8px">✓ PASS PRIORITY</button>
+  `);
+  setTimeout(() => {
+    _container.querySelector('#btn-pass-priority')?.addEventListener('click', passPriority);
+  }, 0);
+}
+
+function passPriority() {
+  _inPriorityWindow = false;
+  _mode = 'normal';
+  hideModeBanner();
+  renderAll();
+  if (_resumePriority) {
+    const r = _resumePriority;
+    _resumePriority = null;
+    r();
+  }
+}
+
 function showFloatingNumber(fx, text, color, side) {
   const n = document.createElement('div');
   n.style.cssText = `position:absolute; font-family:'Cinzel Decorative',serif; font-weight:700; font-size:36px; text-shadow:0 0 8px ${color}, 0 2px 4px rgba(0,0,0,0.95); transition:transform 0.9s cubic-bezier(.3,.1,.3,1.2), opacity 0.9s; pointer-events:none; z-index:100; color:${color}; top:${side === 'player' ? '70%' : '12%'}; left:40%;`;
@@ -804,7 +862,10 @@ async function onEndTurn() {
       }
 
       checkWinCondition();
-      if (G.winner) showWinner();
+      if (G.winner) { showWinner(); } else {
+        // ── Priority window 1: after AI main phase, before combat ──
+        await waitForPlayerPriority('AI finished playing cards');
+      }
 
       await delay(300);
       if (!G.winner) { await runAiCombatPhase(); await delay(300); }
@@ -855,6 +916,20 @@ function attachHandCardGestures(slotEl, inst) {
         attemptPitchCard(inst);
         return;
       }
+      if (_mode === 'response') {
+        // Only spells are instant-speed during opponent's turn
+        if (!SPELLS.includes(inst.type || '')) {
+          showStatus(`${inst.name} can only be played on your turn`);
+          return;
+        }
+        if (_selectedHandInstId === inst.instId) {
+          attemptPlayCard(inst);
+        } else {
+          _selectedHandInstId = inst.instId;
+          renderAll();
+        }
+        return;
+      }
       if (_mode !== 'normal') return;
       if (_selectedHandInstId === inst.instId) {
         attemptPlayCard(inst);
@@ -898,9 +973,18 @@ function attachHandCardGestures(slotEl, inst) {
 }
 
 function attemptPlayCard(inst) {
-  if (G.activePlayer !== 'player') { showStatus('Not your turn'); return; }
-  if (_aiTurnRunning) { showStatus('AI is playing'); return; }
-  if (_mode !== 'normal' && _mode !== 'discard') { showStatus('Finish current action first'); return; }
+  // During a response window only instant-speed plays are allowed (spells only).
+  if (_inPriorityWindow) {
+    if (!SPELLS.includes(inst.type || '')) {
+      showStatus('Only spells can be cast during response window');
+      return;
+    }
+    // Spells: fall through to spell logic below — cost/support gates still apply.
+  } else {
+    if (G.activePlayer !== 'player') { showStatus('Not your turn'); return; }
+    if (_aiTurnRunning) { showStatus('AI is playing'); return; }
+    if (_mode !== 'normal' && _mode !== 'discard') { showStatus('Finish current action first'); return; }
+  }
   const cardType = inst.type || 'Unknown';
   const isCreature = PLAYABLE_AS_CREATURE.includes(cardType);
   const isSpell = SPELLS.includes(cardType);
@@ -971,8 +1055,10 @@ async function finalizeSpellPlay(inst, targets) {
   renderAll();
   await playSpellEvents(result.events || []);
   checkWinCondition();
-  if (G.winner) showWinner();
+  if (G.winner) { showWinner(); return; }
   renderAll();
+  // After resolving during a priority window, put the window back up
+  if (_inPriorityWindow) { _mode = 'response'; showPriorityBanner(); renderAll(); }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1011,8 +1097,13 @@ function showCurrentTargetBanner() {
 
 function cancelTargetPick() {
   _pickContext = null;
-  _mode = 'normal';
-  hideModeBanner();
+  if (_inPriorityWindow) {
+    _mode = 'response';
+    showPriorityBanner();
+  } else {
+    _mode = 'normal';
+    hideModeBanner();
+  }
   renderAll();
 }
 
@@ -1105,7 +1196,7 @@ function attachBattlefieldGestures(slotEl, inst, kind) {
       const side = slotEl.dataset.side;
       const slotIdx = parseInt(slotEl.dataset.slotIdx ?? slotEl.dataset.relicIdx, 10);
       if (side !== 'player') return;
-      if (_mode !== 'normal') return;
+      if (_mode !== 'normal' && _mode !== 'response') return;
       tryActivateAbility(side, kind, slotIdx);
     },
     onLongPress: () => {
@@ -1153,8 +1244,10 @@ async function finalizeAbilityActivation(ctx, targets) {
   renderAll();
   await playSpellEvents(result.events || []);
   checkWinCondition();
-  if (G.winner) showWinner();
+  if (G.winner) { showWinner(); return; }
   renderAll();
+  // After resolving during a priority window, put the window back up
+  if (_inPriorityWindow) { _mode = 'response'; showPriorityBanner(); renderAll(); }
 }
 
 function onAttackerSlotPick(slotIdx) {
