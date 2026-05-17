@@ -1,17 +1,19 @@
 // Audio — sfx + bgm
+// Files are served from /audio/ (Vite public/ folder → public/audio/*.mp3)
 
-const BASE = 'https://github.com/Cybervampccg/cybervamp.github.io/blob/main/play/audio/';
+const BASE = '/audio/';
 const SOUNDS = {
-  card_play:    BASE + 'card_play.mp3?raw=true',
-  damage:       BASE + 'damage.mp3?raw=true',
-  destroy:      BASE + 'destroy.mp3?raw=true',
-  bleed:        BASE + 'bleed.mp3?raw=true',
-  phase_change: BASE + 'phase_change.mp3?raw=true',
-  turn_end:     BASE + 'turn_end.mp3?raw=true',
-  glimpse:      BASE + 'glimpse.mp3?raw=true',
-  shuffle:      BASE + 'shuffle.mp3?raw=true',
+  card_play:    BASE + 'card_play.mp3',
+  damage:       BASE + 'damage.mp3',
+  destroy:      BASE + 'destroy.mp3',
+  bleed:        BASE + 'bleed.mp3',
+  phase_change: BASE + 'phase_change.mp3',
+  turn_end:     BASE + 'turn_end.mp3',
+  glimpse:      BASE + 'glimpse.mp3',
+  shuffle:      BASE + 'shuffle.mp3',
+  land:         BASE + 'land.mp3',
 };
-const BGM_URL = BASE + 'bgm.mp3?raw=true';
+const BGM_URL = BASE + 'bgm.mp3';
 
 const _cache = {};
 let _sfxMuted = false;

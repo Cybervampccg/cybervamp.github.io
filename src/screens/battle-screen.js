@@ -559,46 +559,98 @@ async function playSpellEvents(events) {
   for (const e of events) {
     switch (e.type) {
       case 'face-damage':
+        sfx('damage', 0.7);
         showFloatingNumber(fx, `-${e.damage} ❤`, '#f43f5e', e.defenderSide);
+        if (e.defenderSide === 'player') { showDamageVignette(); screenShake(); hapticDamage(); }
         logEvent(`${e.attackerName} → ${e.defenderSide} for ${e.damage}`);
         await delay(300); break;
       case 'creature-damage':
+        sfx('damage', 0.5);
         showFloatingNumber(fx, `-${e.amount}`, '#f43f5e', e.side);
         logEvent(`${e.name} takes ${e.amount}`);
         await delay(300); break;
       case 'creature-destroyed':
-        logEvent(`${e.name} destroyed`); await delay(200); break;
+        sfx('destroy', 0.6);
+        logEvent(`${e.name} destroyed`); await delay(250); break;
       case 'relic-destroyed':
-        logEvent(`Relic ${e.name} destroyed`); await delay(200); break;
+        sfx('destroy', 0.5);
+        logEvent(`Relic ${e.name} destroyed`); await delay(250); break;
       case 'heal':
+        sfx('land', 0.5);
         showFloatingNumber(fx, `+${e.amount} ❤`, '#22c55e', e.side);
         logEvent(`${e.side === 'player' ? 'You' : 'AI'} healed ${e.amount}`);
         await delay(300); break;
       case 'buff':
+        sfx('land', 0.4);
         showFloatingNumber(fx, `+${e.power} ⚔`, '#fde047', e.side);
         logEvent(`${e.name} +${e.power} power`); await delay(200); break;
-      case 'exhaust': logEvent(`${e.name} exhausted`); await delay(200); break;
-      case 'overexhaust': logEvent(`${e.name} overexhausted`); await delay(200); break;
-      case 'renew': logEvent(`${e.name} renewed`); await delay(200); break;
+      case 'exhaust':
+        sfx('turn_end', 0.35);
+        logEvent(`${e.name} exhausted`); await delay(200); break;
+      case 'overexhaust':
+        sfx('turn_end', 0.45);
+        logEvent(`${e.name} overexhausted`); await delay(200); break;
+      case 'renew':
+        sfx('phase_change', 0.4);
+        logEvent(`${e.name} renewed`); await delay(200); break;
       case 'draw':
+        sfx('shuffle', 0.5);
         showFloatingNumber(fx, `+${e.amount} 🂠`, '#60a5fa', e.side);
         logEvent(`${e.side === 'player' ? 'You' : 'AI'} drew ${e.amount}`);
         await delay(300); break;
-      case 'discard': logEvent(`${e.side === 'player' ? 'You' : 'AI'} discarded ${e.amount}`); await delay(200); break;
+      case 'discard':
+        sfx('shuffle', 0.35);
+        logEvent(`${e.side === 'player' ? 'You' : 'AI'} discarded ${e.amount}`); await delay(200); break;
       case 'bleed-add':
+        sfx('bleed', 0.6);
         showFloatingNumber(fx, `+${e.amount} 🩸`, '#dc2626', e.side);
         logEvent(`${e.side === 'player' ? 'You' : 'AI'} +${e.amount} bleed`);
         await delay(300); break;
       case 'bleed-remove':
+        sfx('bleed', 0.4);
         showFloatingNumber(fx, `-${e.amount} 🩸`, '#22c55e', e.side);
         logEvent(`${e.side === 'player' ? 'You' : 'AI'} -${e.amount} bleed`);
         await delay(300); break;
-      case 'return-to-hand': logEvent(`${e.name} returned to hand`); await delay(200); break;
+      case 'return-to-hand':
+        sfx('card_play', 0.4);
+        logEvent(`${e.name} returned to hand`); await delay(200); break;
       case 'gain-gold':
+        sfx('land', 0.4);
         showFloatingNumber(fx, `+${e.amount} ⛁`, '#fde047', e.side);
         logEvent(`${e.side === 'player' ? 'You' : 'AI'} +${e.amount} gold`);
         await delay(300); break;
-      case 'power-counter': logEvent(`${e.name} +${e.amount} permanent power`); await delay(200); break;
+      case 'power-counter':
+        sfx('land', 0.4);
+        logEvent(`${e.name} +${e.amount} permanent power`); await delay(200); break;
+      case 'grant-keyword':
+        sfx('phase_change', 0.35);
+        logEvent(`${e.name} gains ${e.keyword}`); await delay(150); break;
+      case 'gain-control':
+        sfx('destroy', 0.5);
+        logEvent(`You seize control of ${e.name}`); await delay(300); break;
+      case 'token-created':
+        sfx('land', 0.45);
+        logEvent(`${e.tokenType} token → ${e.hostName}`); await delay(150); break;
+      case 'token-destroyed':
+        sfx('destroy', 0.35);
+        logEvent(`${e.tokenType} token on ${e.hostName} destroyed`); await delay(150); break;
+      case 'glimpse':
+        sfx('glimpse', 0.55);
+        logEvent(`Glimpse ${e.amount}: ${e.cards?.join(', ') || ''}`); await delay(250); break;
+      case 'siphon-heal':
+        sfx('land', 0.35);
+        showFloatingNumber(fx, `+${e.amount} ❤`, '#a78bfa', e.side);
+        logEvent(`${e.source} siphons ${e.amount}`); await delay(200); break;
+      case 'bleed-drain':
+        sfx('bleed', 0.7);
+        showFloatingNumber(fx, `-${e.amount} 🩸`, '#f43f5e', e.side);
+        if (e.side === 'player') { showDamageVignette(); hapticDamage(); }
+        logEvent(`${e.side === 'player' ? 'You' : 'AI'} bleed drain ${e.amount}`);
+        await delay(400); break;
+      case 'limit-blockers':
+        sfx('phase_change', 0.4);
+        logEvent(`${e.side === 'player' ? 'You' : 'AI'} can only block with ${e.amount} creature(s)`);
+        await delay(200); break;
     }
     renderAll();
   }
@@ -656,6 +708,7 @@ function enterRenewPhase() {
 function onCompleteDraw() {
   if (G.phase !== 'renew') return;
   completeDraw('player');
+  sfx('shuffle', 0.55);
   _mode = 'normal';
   hideModeBanner();
   enforceHandCap();
@@ -710,6 +763,7 @@ async function onEndTurn() {
     showTurnBanner("AI'S TURN", 'ai');
     showPhaseTransition('renew');
     logEvent('— AI turn begins —');
+    setTimeout(() => sfx('shuffle', 0.45), 600); // AI draws
     playGoldPulse('ai', G.ai.gold);
 
     try {
@@ -1490,7 +1544,7 @@ function renderBoard(side) {
         cardEl.style.filter = '';
       }
       host.appendChild(cardEl);
-      if (inst._justArrived) { cardArrive(cardEl); delete inst._justArrived; }
+      if (inst._justArrived) { cardArrive(cardEl); sfx('land', 0.55); delete inst._justArrived; }
     } else {
       slotEl.classList.add('empty');
     }
@@ -1541,7 +1595,7 @@ function renderRelics(side) {
         cardEl.style.filter = 'brightness(0.7) saturate(0.75)';
       }
       host.appendChild(cardEl);
-      if (inst._justArrived) { cardArrive(cardEl); delete inst._justArrived; }
+      if (inst._justArrived) { cardArrive(cardEl); sfx('land', 0.55); delete inst._justArrived; }
     } else {
       slotEl.classList.add('empty');
     }
