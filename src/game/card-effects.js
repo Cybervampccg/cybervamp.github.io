@@ -11,6 +11,8 @@
 
 import { G } from './state.js';
 import { hasKeyword, grantKeyword } from './keywords.js';
+import { sacrificeCreature } from './sacrifice.js';
+import { sacrificeRelic } from './relics.js';
 
 export const CARD_EFFECTS = {
 
@@ -1569,6 +1571,315 @@ const EXPANSION5 = {
 };
 
 Object.assign(CARD_EFFECTS, EXPANSION5);
+
+// ═══════════ EXPANSION6 — accurate implementations for previously approximated cards ═══════════
+// Also adds: Muckmouth Bauble, Ancient Reclamation, improved Scavenger Bot,
+//            BREAKER/limitBlockers infrastructure (enforced in combat.js + effects.js).
+
+const EXPANSION6 = {
+
+  // ─── FIXED SPELLS ───
+
+  // RED — Overclock Surge: "+1 power; +1 additional if the creature has any BLEED keyword"
+  'Overclock Surge': {
+    targets: [{ type: 'creature', label: 'creature to overclock' }],
+    onPlay: [
+      { type: 'buff', power: 1, duration: 'endOfTurn', target: 'target' },
+      {
+        type: 'buff', power: 1, duration: 'endOfTurn', target: 'target',
+        onlyIf: (ctx) => {
+          const t = (ctx.targets || [])[0];
+          if (!t || t.kind !== 'creature') return false;
+          const c = G[t.side]?.creatures?.[t.slotIdx];
+          return c ? hasKeyword(c, 'BLEED') : false;
+        },
+      },
+    ],
+  },
+
+  // RED — Drone Hack: exhaust target, controller gains bleed = ceil(power / 2)
+  'Drone Hack': {
+    targets: [{ type: 'creature', label: 'creature to hack' }],
+    onPlay: [
+      { type: 'exhaust', target: 'target' },
+      {
+        type: 'custom',
+        fn: (ctx, events) => {
+          const t = (ctx.targets || [])[0];
+          if (!t || t.kind !== 'creature') return false;
+          const c = G[t.side]?.creatures?.[t.slotIdx];
+          if (!c) return false;
+          const bleedAmt = Math.ceil((c.power || 0) / 2);
+          if (bleedAmt <= 0) return false;
+          G[t.side].bleedPool = (G[t.side].bleedPool || 0) + bleedAmt;
+          events.push({ type: 'bleed-add', side: t.side, amount: bleedAmt, source: 'DroneHack' });
+          return true;
+        },
+      },
+    ],
+  },
+
+  // WHITE — Purity Pulse: remove up to 2 bleed from target player; draw = amount actually removed
+  'Purity Pulse': {
+    targets: [{ type: 'player', label: 'player to cleanse' }],
+    onPlay: [
+      {
+        type: 'custom',
+        fn: (ctx, events) => {
+          const t = (ctx.targets || [])[0];
+          const targetSide = (t?.kind === 'player') ? t.side : ctx.sourceSide;
+          const current = G[targetSide]?.bleedPool || 0;
+          const removed = Math.min(2, current);
+          G[targetSide].bleedPool = current - removed;
+          events.push({ type: 'bleed-remove', side: targetSide, amount: removed });
+          if (removed > 0) {
+            const deck = G[ctx.sourceSide]?.deck || [];
+            const hand = G[ctx.sourceSide]?.hand || [];
+            let drawn = 0;
+            for (let i = 0; i < removed && deck.length > 0; i++) {
+              hand.push(deck.shift());
+              drawn++;
+            }
+            if (drawn > 0) events.push({ type: 'draw', side: ctx.sourceSide, amount: drawn });
+          }
+          return true;
+        },
+      },
+    ],
+  },
+
+  // WHITE — Ancestral Tribute: destroy target relic; if it was YOURS, gain blood = its blood cost
+  'Ancestral Tribute': {
+    targets: [{ type: 'relic', label: 'relic to destroy' }],
+    onPlay: [
+      {
+        type: 'custom',
+        fn: (ctx, events) => {
+          const t = (ctx.targets || [])[0];
+          if (!t || t.kind !== 'relic') return false;
+          const relic = G[t.side]?.relics?.[t.slotIdx];
+          if (!relic) return false;
+          const relicName = relic.name;
+          // Read blood cost before destroying
+          const healAmt = (t.side === ctx.sourceSide) ? (relic.bloodCost || 0) : 0;
+          sacrificeRelic(t.side, t.slotIdx);
+          events.push({ type: 'relic-destroyed', side: t.side, name: relicName });
+          if (healAmt > 0) {
+            G[ctx.sourceSide].blood = (G[ctx.sourceSide].blood || 0) + healAmt;
+            events.push({ type: 'heal', side: ctx.sourceSide, amount: healAmt });
+          }
+          return true;
+        },
+      },
+    ],
+  },
+
+  // WHITE — Radiant Reprisal: exhaust attacking creature, gain blood = its power
+  'Radiant Reprisal': {
+    targets: [{ type: 'creature', label: 'attacking creature' }],
+    onPlay: [
+      { type: 'exhaust', target: 'target' },
+      { type: 'heal', amountFrom: 'targetPower', target: 'controller' },
+    ],
+  },
+
+  // BLACK — Wicked Harvest: buff target creature +N where N = # of Creature cards in YOUR discard
+  'Wicked Harvest': {
+    targets: [{ type: 'creature', label: 'creature to empower' }],
+    onPlay: [
+      {
+        type: 'custom',
+        fn: (ctx, events) => {
+          const t = (ctx.targets || [])[0];
+          if (!t || t.kind !== 'creature') return false;
+          const c = G[t.side]?.creatures?.[t.slotIdx];
+          if (!c) return false;
+          const discardCount = (G[ctx.sourceSide]?.discard || []).filter(
+            card => card.type === 'Creature'
+          ).length;
+          if (discardCount <= 0) return false;
+          c.power = (c.power || 0) + discardCount;
+          c._tempPowerBonus = (c._tempPowerBonus || 0) + discardCount;
+          c._tempBonusExpiresAt = 'endOfTurn';
+          events.push({ type: 'buff', side: t.side, slotIdx: t.slotIdx, name: c.name, power: discardCount });
+          return true;
+        },
+      },
+    ],
+  },
+
+  // BLACK — Grave Reanimation: create 1 Wolf token on target creature;
+  //   if you ALREADY had a Wolf-token creature in play, all your Wolf-bearing creatures
+  //   gain HASTE and TIRELESS until end of turn.
+  'Grave Reanimation': {
+    targets: [{ type: 'ownCreature', label: 'creature to receive Wolf token' }],
+    onPlay: [
+      { type: 'createToken', tokenType: 'Wolf', target: 'target' },
+      {
+        type: 'custom',
+        fn: (ctx, events) => {
+          const side = ctx.sourceSide;
+          const t = (ctx.targets || [])[0];
+          const targetC = t ? G[side]?.creatures?.[t.slotIdx] : null;
+          // After the token was just created, check if wolves existed BEFORE this cast:
+          //   - target now has 2+ Wolves → it had at least 1 before
+          //   - any OTHER creature has at least 1 Wolf
+          const hadWolvesAlready = (G[side]?.creatures || []).some(c => {
+            if (!c) return false;
+            const wolfCount = (c.tokens || []).filter(tok => tok === 'Wolf').length;
+            return c === targetC ? wolfCount >= 2 : wolfCount >= 1;
+          });
+          if (!hadWolvesAlready) return false;
+          let any = false;
+          for (const c of (G[side]?.creatures || [])) {
+            if (!c || !(c.tokens || []).includes('Wolf')) continue;
+            grantKeyword(c, 'HASTE', 'endOfTurn');
+            grantKeyword(c, 'TIRELESS', 'endOfTurn');
+            events.push({ type: 'grant-keyword', side, name: c.name, keyword: 'HASTE', duration: 'endOfTurn' });
+            events.push({ type: 'grant-keyword', side, name: c.name, keyword: 'TIRELESS', duration: 'endOfTurn' });
+            any = true;
+          }
+          return any;
+        },
+      },
+    ],
+  },
+
+  // BLACK — Grave Whisper: return the most-recent Creature card with power ≤ 2 from discard to hand
+  'Grave Whisper': {
+    targets: [],
+    onPlay: [
+      {
+        type: 'custom',
+        fn: (ctx, events) => {
+          const side = ctx.sourceSide;
+          const discard = G[side]?.discard || [];
+          for (let i = discard.length - 1; i >= 0; i--) {
+            const card = discard[i];
+            if (card.type === 'Creature' && (card.power || 0) <= 2) {
+              discard.splice(i, 1);
+              (G[side].hand || (G[side].hand = [])).push(card);
+              events.push({ type: 'return-to-hand', side, name: card.name });
+              return true;
+            }
+          }
+          return false;
+        },
+      },
+    ],
+  },
+
+  // RED — Left Behind: target opponent can only block with 1 creature this combat phase
+  'Left Behind': {
+    targets: [],
+    onPlay: [
+      { type: 'limitBlockers', amount: 1, target: 'opponent' },
+      { type: 'addBleed', amount: 1, target: 'opponent' },
+    ],
+  },
+
+  // PURPLE — Eternal Subterfuge: remove target creature from game;
+  //   caster gains a Raven token on their first creature (representing the Illusion)
+  'Eternal Subterfuge': {
+    targets: [{ type: 'creature', label: 'creature to replace with Illusion' }],
+    onPlay: [
+      {
+        type: 'custom',
+        fn: (ctx, events) => {
+          const t = (ctx.targets || [])[0];
+          if (!t || t.kind !== 'creature') return false;
+          const c = G[t.side]?.creatures?.[t.slotIdx];
+          if (!c) return false;
+          const name = c.name;
+          sacrificeCreature(t.side, t.slotIdx);
+          events.push({ type: 'creature-destroyed', side: t.side, name });
+          // Caster gets an Illusion (Raven) token orbiting their first available creature
+          const casterFirst = (G[ctx.sourceSide]?.creatures || []).find(cr => cr);
+          if (casterFirst) {
+            if (!casterFirst.tokens) casterFirst.tokens = [];
+            if (casterFirst.tokens.length < 5) {
+              casterFirst.tokens.push('Raven');
+              events.push({ type: 'token-created', side: ctx.sourceSide, hostName: casterFirst.name, tokenType: 'Raven', amount: 1 });
+            }
+          }
+          return true;
+        },
+      },
+    ],
+  },
+
+  // PURPLE — Mindforge Dominion: gain control of target enemy creature (uses gainControl effect)
+  'Mindforge Dominion': {
+    targets: [{ type: 'enemyCreature', label: 'enemy creature to seize' }],
+    onPlay: [
+      { type: 'gainControl', target: 'target' },
+    ],
+  },
+
+  // ─── NEW CARDS ───
+
+  // COLORLESS — Muckmouth Bauble (relic): "Exhaust: Add {G} (gain 1 gold)"
+  'Muckmouth Bauble': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [],
+      effects: [{ type: 'gainGold', amount: 1 }],
+    },
+  },
+
+  // COLORLESS — Scavenger Bot (improved): destroy own relic, gain blood = its actual bloodCost
+  'Scavenger Bot': {
+    activatedAbility: {
+      cost: { exhaust: true },
+      targets: [{ type: 'ownRelic', label: 'relic to salvage' }],
+      effects: [
+        {
+          type: 'custom',
+          fn: (ctx, events) => {
+            const t = (ctx.targets || [])[0];
+            if (!t || t.kind !== 'relic') return false;
+            const relic = G[t.side]?.relics?.[t.slotIdx];
+            if (!relic) return false;
+            const healAmt = Math.max(1, relic.bloodCost || 2);
+            const relicName = relic.name;
+            sacrificeRelic(t.side, t.slotIdx);
+            events.push({ type: 'relic-destroyed', side: t.side, name: relicName });
+            G[ctx.sourceSide].blood = (G[ctx.sourceSide].blood || 0) + healAmt;
+            events.push({ type: 'heal', side: ctx.sourceSide, amount: healAmt });
+            return true;
+          },
+        },
+      ],
+    },
+  },
+
+  // WHITE — Ancient Reclamation: return the most-recent Wall creature from your discard to hand
+  'Ancient Reclamation': {
+    targets: [],
+    onPlay: [
+      {
+        type: 'custom',
+        fn: (ctx, events) => {
+          const side = ctx.sourceSide;
+          const discard = G[side]?.discard || [];
+          for (let i = discard.length - 1; i >= 0; i--) {
+            const card = discard[i];
+            if (card.type === 'Creature' && hasKeyword(card, 'WALL')) {
+              discard.splice(i, 1);
+              (G[side].hand || (G[side].hand = [])).push(card);
+              events.push({ type: 'return-to-hand', side, name: card.name });
+              return true;
+            }
+          }
+          return false;
+        },
+      },
+    ],
+  },
+
+};
+
+Object.assign(CARD_EFFECTS, EXPANSION6);
 
 export function getCardEffects(card) {
   if (!card || !card.name) return null;

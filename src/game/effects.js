@@ -133,7 +133,8 @@ function runOneEffect(eff, ctx, events) {
     // ─── New keyword/bleed-grant effects (keyword-patch session) ───
     case 'GRANT_KEYWORD':       return effGrantKeyword(eff, target, events, ctx);
     case 'MODIFY_BLEED_VALUE':  return effModifyBleedValue(eff, target, events, ctx);
-    case 'custom':              return eff.fn ? !!eff.fn(ctx) : false;
+    case 'limitBlockers':       return effLimitBlockers(eff, events, ctx);
+    case 'custom':              return eff.fn ? !!eff.fn(ctx, events) : false;
     default:
       console.warn('[effects] unknown effect type:', eff.type);
       return false;
@@ -161,6 +162,10 @@ function resolveAmount(eff, ctx) {
       return c ? (c.power || 0) : 0;
     }
     return 0;
+  }
+  if (eff.amountFrom === 'ownDiscardCreatureCount') {
+    const side = ctx.sourceSide;
+    return (G[side]?.discard || []).filter(c => c.type === 'Creature').length;
   }
   return 1;
 }
@@ -713,6 +718,23 @@ function effGrantKeyword(eff, target, events, ctx) {
     keyword,
     duration,
   });
+  return true;
+}
+
+// limitBlockers — set the maximum number of creatures the target side may use as blockers
+// this combat phase.  Used by Left Behind: "target player can only block with one creature."
+//
+// Effect shape:
+//   { type: 'limitBlockers', amount: N, target: 'opponent' | 'controller' }
+//
+// Sets G[side]._blockLimit = N.  combat.js enforces the cap in assignBlocker and
+// aiAssignBlockers, then clears the flag at the end of resolveCombat.
+function effLimitBlockers(eff, events, ctx) {
+  const otherSide = ctx.sourceSide === 'player' ? 'ai' : 'player';
+  const side = (eff.target === 'controller') ? ctx.sourceSide : otherSide;
+  const amount = resolveAmount(eff, ctx);
+  G[side]._blockLimit = amount;
+  events.push({ type: 'limit-blockers', side, amount });
   return true;
 }
 

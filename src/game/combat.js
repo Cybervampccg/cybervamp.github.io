@@ -90,6 +90,20 @@ export function assignBlocker(defenderSide, attackerSide, attackerSlotIdx, block
   if (blocker.exhausted || blocker.overexhausted) {
     return { ok: false, error: 'Blocker is exhausted' };
   }
+  // BREAKER cannot be blocked by Wall creatures (RULES §7)
+  if (hasKeyword(attacker, 'BREAKER') && hasKeyword(blocker, 'WALL')) {
+    return { ok: false, error: 'Walls cannot block Breaker creatures' };
+  }
+  // _blockLimit: Left Behind and similar effects cap the number of blockers
+  const blockLimit = G[defenderSide]._blockLimit;
+  if (blockLimit !== undefined && blockLimit !== null) {
+    const currentBlockerCount = (G[attackerSide]?.creatures || []).filter(
+      c => c && c._blockedBy !== undefined && c._blockedBy !== null
+    ).length;
+    if (currentBlockerCount >= blockLimit) {
+      return { ok: false, error: `Can only block with ${blockLimit} creature(s) this turn` };
+    }
+  }
   // Clear if used to block another attacker
   for (const other of G[attackerSide]?.creatures || []) {
     if (other && other._blockedBy === blockerSlotIdx) {
@@ -372,7 +386,7 @@ export function resolveCombat(attackerSide, defenderSide) {
     }
   }
 
-  // Clear all combat flags and temp bonuses
+  // Clear all combat flags, temp bonuses, and per-combat limits
   for (const side of ['player', 'ai']) {
     for (const c of G[side]?.creatures || []) {
       if (!c) continue;
@@ -380,6 +394,8 @@ export function resolveCombat(attackerSide, defenderSide) {
       delete c._blockedBy;
       delete c._combatPowerBonus;
     }
+    // Clear block-limit imposed by Left Behind / similar effects
+    delete G[side]._blockLimit;
   }
 
   return events;
@@ -450,9 +466,18 @@ export function aiDeclareAllAttackers(side) {
 export function aiAssignBlockers(defenderSide, attackerSide) {
   const attackers = getAttackers(attackerSide);
   const usedBlockers = new Set();
+  // Respect _blockLimit (Left Behind etc.)
+  const blockLimit = G[defenderSide]._blockLimit;
 
   for (const { slotIdx: aSlotIdx, inst: attacker } of attackers) {
+    // Stop assigning blockers if block limit is reached
+    if (blockLimit !== undefined && blockLimit !== null && usedBlockers.size >= blockLimit) {
+      attacker._blockedBy = null;
+      continue;
+    }
+
     const aPow = getPower(attacker);
+    const attackerHasBreaker = hasKeyword(attacker, 'BREAKER');
     let bestSlot = null;
     let bestPow = -1;
 
@@ -462,6 +487,8 @@ export function aiAssignBlockers(defenderSide, attackerSide) {
     (G[defenderSide]?.creatures || []).forEach((bInst, bSlotIdx) => {
       if (!bInst || bInst.exhausted || bInst.overexhausted) return;
       if (usedBlockers.has(bSlotIdx)) return;
+      // Walls cannot block Breaker creatures (RULES §7)
+      if (attackerHasBreaker && hasKeyword(bInst, 'WALL')) return;
       const bPow = getPower(bInst);
       // AI prefers strictly winning the trade (bPow > aPow) since ties now kill blocker
       if (bPow > aPow && bPow > bestPow) {
@@ -479,6 +506,8 @@ export function aiAssignBlockers(defenderSide, attackerSide) {
         (G[defenderSide]?.creatures || []).forEach((bInst, bSlotIdx) => {
           if (!bInst || bInst.exhausted || bInst.overexhausted) return;
           if (usedBlockers.has(bSlotIdx)) return;
+          // Walls cannot block Breaker creatures
+          if (attackerHasBreaker && hasKeyword(bInst, 'WALL')) return;
           const bPow = getPower(bInst);
           if (bPow < chumpPow) {
             chumpSlot = bSlotIdx;

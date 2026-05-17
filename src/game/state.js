@@ -10,7 +10,8 @@
 // ─────────────────────────────────────────────────────────────
 
 import { CARDS_BY_ID } from './cards.js';
-import { parseKeywords, hasKeyword } from './keywords.js';
+import { hasKeyword } from './keywords.js';
+import { extractKeywords } from './keyword-parser.js';
 
 // Module-level instance ID counter — unique per battle.
 let _nextInstId = 1;
@@ -113,7 +114,7 @@ export function makeInst(cardId, owner) {
     slotIdx: null,             // index in creatures[] or relics[]
 
     // Standing keywords parsed from ability text
-    keywords: parseKeywords(card.abilities),
+    keywords: extractKeywords(card.abilities),
 
     // Per-instance temp state
     exhaustState: 'renewed',   // 'renewed' | 'exhausted' | 'overexhausted'
